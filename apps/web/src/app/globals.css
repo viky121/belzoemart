@@ -3009,17 +3009,6 @@ nav.main a:hover {
 .em-catbar a.is-active {
   color: var(--fk-blue);
   font-weight: 800;
-  position: relative;
-}
-.em-catbar a.is-active::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -11px;
-  height: 2px;
-  background: var(--fk-blue);
-  border-radius: 2px;
 }
 
 .em-allcat-wrap {

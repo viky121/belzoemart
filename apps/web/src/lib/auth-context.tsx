@@ -32,6 +32,9 @@ interface LoginResponse {
 }
 
 interface AuthContextValue extends AuthState {
+  /** False until the initial session-restore attempt has settled. Lets the UI
+   *  avoid flashing a "logged out" state for a user who is actually signed in. */
+  ready: boolean;
   setSession: (accessToken: string, customer: CustomerSummary) => void;
   logout: () => Promise<void>;
   authFetch: <T>(path: string, options?: Parameters<typeof apiFetch>[1]) => Promise<T>;
@@ -46,6 +49,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ accessToken: null, customer: null });
+  const [ready, setReady] = useState(false);
 
   const setSession = useCallback((accessToken: string, customer: CustomerSummary) => {
     setState({ accessToken, customer });
@@ -71,6 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       } catch {
         /* not logged in */
+      } finally {
+        if (active) setReady(true);
       }
     })();
     return () => {
@@ -106,8 +112,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, setSession, logout, authFetch }),
-    [state, setSession, logout, authFetch],
+    () => ({ ...state, ready, setSession, logout, authFetch }),
+    [state, ready, setSession, logout, authFetch],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
