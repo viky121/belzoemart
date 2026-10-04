@@ -128,6 +128,7 @@ export function ProductWizard({
   // Step 2 — details
   const [hasVariants, setHasVariants] = useState(false);
   const [images, setImages] = useState<string[]>([]);
+  const [dragImg, setDragImg] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -538,11 +539,30 @@ export function ProductWizard({
               <>
                 <p className="prod-imghint">
                   You can upload multiple images. The <strong>Main</strong> image (first one) is shown on cards and the
-                  product page — tap ★ on any image to make it the main one.
+                  product page. <strong>Drag thumbnails to reorder</strong>, or tap ★ to jump an image to the front.
                 </p>
                 <div className="prod-thumbs">
                   {images.map((url, i) => (
-                    <div className={`prod-thumb${i === 0 ? ' prod-thumb--main' : ''}`} key={url}>
+                    <div
+                      className={`prod-thumb${i === 0 ? ' prod-thumb--main' : ''}${dragImg === i ? ' prod-thumb--dragging' : ''}`}
+                      key={url}
+                      draggable
+                      onDragStart={() => setDragImg(i)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setImages((cur) => {
+                          if (dragImg === null || dragImg === i) return cur;
+                          const next = [...cur];
+                          const [picked] = next.splice(dragImg, 1);
+                          next.splice(i, 0, picked);
+                          return next;
+                        });
+                        setDragImg(null);
+                      }}
+                      onDragEnd={() => setDragImg(null)}
+                      title="Drag to reorder — the first image is the main cover"
+                    >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={url} alt="" />
                       {i === 0 ? (

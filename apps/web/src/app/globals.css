@@ -2695,6 +2695,13 @@ nav.main a:hover {
   border-color: var(--fk-green, #16a34a);
   box-shadow: 0 0 0 2px var(--fk-green, #16a34a);
 }
+.prod-thumb[draggable='true'] {
+  cursor: grab;
+}
+.prod-thumb--dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
 .prod-thumb__badge {
   position: absolute;
   left: 0;
