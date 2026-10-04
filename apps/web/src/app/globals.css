@@ -1020,12 +1020,29 @@ nav.main a:hover {
 
 .pdp__thumbs {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.5rem;
   margin-top: 0.85rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  padding-bottom: 4px;
+}
+
+.pdp__thumbs::-webkit-scrollbar {
+  height: 6px;
+}
+
+.pdp__thumbs::-webkit-scrollbar-thumb {
+  background: var(--border-2);
+  border-radius: 3px;
 }
 
 .pdp__thumb {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
   width: 68px;
   height: 68px;
   border: 1px solid var(--border-2);
