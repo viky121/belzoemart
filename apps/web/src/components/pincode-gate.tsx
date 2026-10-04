@@ -4,40 +4,65 @@ import { useEffect, useState } from 'react';
 import { usePincode } from '@/lib/use-pincode';
 
 /**
- * Design shape (A): a blocking first-visit gate (full-screen overlay).
+ * Design shape (A): a blocking first-visit gate (full-screen popup).
  *
  * Mounted ONCE in the shared shop layout (`app/(shop)/layout.tsx`) so it covers
  * the entire storefront — including both the `classic` home (`page.tsx`) and the
- * `emart` home (`emart-home.tsx`) — with no per-page duplication. This is why the
- * "surface PIN entry on the home page (both theme branches)" requirement needs no
- * edits to the home pages themselves.
+ * `emart` home (`emart-home.tsx`) — with no per-page duplication.
  *
- * Single source of truth: it reuses `usePincode()` (no parallel serviceability
- * fetch or second localStorage key). The gate is "satisfied" and hidden only when
- * `ready && pincode && serviceable === true`. Anything else keeps the shopper
- * blocked. The hook fails open on a network error (serviceable=true, configured=
- * false), so a down endpoint never hard-blocks the site — but a valid 6-digit PIN
- * must still be entered and confirmed to satisfy the mandatory requirement.
+ * Visibility is gated PER BROWSER SESSION (sessionStorage), not once-ever: the
+ * popup opens every time the shopper opens the website fresh, and only closes
+ * after they enter a PIN that is confirmed serviceable in this session. The PIN
+ * itself is still remembered in localStorage (via `usePincode`) so the field is
+ * pre-filled and the header/product-page widgets stay in sync.
+ *
+ * Single source of truth: it reuses `usePincode()` for the serviceability check
+ * (no parallel fetch). The hook fails open on a network error (serviceable=true,
+ * configured=false), so a down endpoint never hard-blocks the site — but a valid
+ * 6-digit PIN must still be entered and confirmed to pass the gate.
  */
 const PIN_RE = /^[1-9]\d{5}$/;
+const ACK_KEY = 'belzo:pincode-ack';
 
 export function PincodeGate() {
-  const { pincode, serviceable, configured, ready, setPincode } = usePincode();
+  const { pincode, serviceable, configured, setPincode } = usePincode();
   const [entry, setEntry] = useState('');
   const [err, setErr] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+  // null = session ack not read yet (avoid flashing the gate before we know).
+  const [acked, setAcked] = useState<boolean | null>(null);
 
-  const satisfied = ready && pincode != null && serviceable === true;
+  // Read the per-session acknowledgement once on mount.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setAcked(window.sessionStorage.getItem(ACK_KEY) === '1');
+  }, []);
 
-  // Lock background scroll while the overlay is visible.
+  // Pre-fill with the remembered PIN (from localStorage via the hook) when known.
+  useEffect(() => {
+    if (pincode) setEntry((e) => e || pincode);
+  }, [pincode]);
+
+  // Once the shopper confirms a serviceable PIN in this session, remember the
+  // ack so the popup doesn't re-appear on in-session navigation.
+  useEffect(() => {
+    if (acked !== false || !submitted) return;
+    if (pincode && serviceable === true) {
+      window.sessionStorage.setItem(ACK_KEY, '1');
+      setAcked(true);
+    }
+  }, [acked, submitted, pincode, serviceable]);
+
+  const visible = acked === false;
+
+  // Lock background scroll while the popup is visible.
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    const show = ready && !satisfied;
-    document.body.classList.toggle('pingate-locked', show);
+    document.body.classList.toggle('pingate-locked', visible);
     return () => document.body.classList.remove('pingate-locked');
-  }, [ready, satisfied]);
+  }, [visible]);
 
-  // Avoid flashing the gate before localStorage is read, and hide once satisfied.
-  if (!ready || satisfied) return null;
+  if (!visible) return null;
 
   function submit() {
     const pin = entry.trim();
@@ -46,12 +71,12 @@ export function PincodeGate() {
       return;
     }
     setErr(null);
-    setEntry('');
+    setSubmitted(true);
     setPincode(pin);
   }
 
-  const checking = pincode != null && serviceable === null;
-  const notServiceable = configured && serviceable === false;
+  const checking = submitted && pincode != null && serviceable === null;
+  const notServiceable = submitted && configured && serviceable === false;
 
   return (
     <div className="pingate" role="dialog" aria-modal="true" data-testid="pincode-gate">
@@ -88,7 +113,8 @@ export function PincodeGate() {
         )}
         {!err && !checking && notServiceable && (
           <p className="pingate__no" data-testid="pincode-gate-unserviceable">
-            This PIN code is not serviceable.
+            Sorry, delivery is not serviceable on the selected PIN code{pincode ? ` ${pincode}` : ''}.
+            Please try a different PIN code.
           </p>
         )}
       </div>
