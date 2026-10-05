@@ -100,7 +100,14 @@ export default function AccountPage() {
         <div className="acct-card" data-testid="account-profile">
           <div className="acct-card__head">
             <h2>👤 Personal Information</h2>
-            <Link href="/account#edit" className="acct-edit">✎ Edit</Link>
+            <button
+              type="button"
+              className="acct-edit"
+              onClick={() => window.dispatchEvent(new Event('belzo:edit-profile'))}
+              data-testid="account-edit-profile"
+            >
+              ✎ Edit
+            </button>
           </div>
           <div className="acct-info">
             <div><span>Name</span><strong>{profile?.name ?? '—'}</strong></div>

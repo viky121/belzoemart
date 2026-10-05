@@ -7,6 +7,7 @@ import { EmartHeader } from '@/components/emart-header';
 import { EmartFooter } from '@/components/emart-footer';
 import { Toaster } from '@/components/toaster';
 import { PincodeGate } from '@/components/pincode-gate';
+import { ProfilePrompt } from '@/components/profile-prompt';
 import { getSiteContent } from '@/lib/site-content';
 import type { CategoryNodeDto } from '@belzo/shared';
 
@@ -66,6 +67,9 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
           covers the whole storefront and the home page for BOTH themes (classic +
           emart) without per-page duplication. Design shape (A); see pincode-gate.tsx. */}
       <PincodeGate />
+
+      {/* Post-login profile completion (asks for name + the missing contact). */}
+      <ProfilePrompt />
 
       {theme === 'emart' ? (
         <EmartFooter categories={simpleCats} content={footer} />
