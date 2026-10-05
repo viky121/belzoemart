@@ -5,10 +5,20 @@ import { ProductRail } from '@/components/product-rail';
 import { gradientFor } from '@/lib/category-theme';
 import { contentApi } from '@/lib/content-api';
 import { getTheme } from '@/lib/theme';
-import { getSiteContent } from '@/lib/site-content';
+import { getSiteContent, type PromoContent } from '@/lib/site-content';
 import { getHomeSections, resolveHomeSections } from '@/lib/home-sections';
+import { isUsableImageUrl } from '@/lib/category-theme';
 import { EmartHome } from '@/components/emart-home';
 import type { CategoryNodeDto, ProductCardDto } from '@belzo/shared';
+
+/** Map a managed promo colour to the classic tile's gradient so the classic
+ *  look is preserved while the content is admin-managed. */
+const CLASSIC_PROMO_GRADIENT: Record<PromoContent['color'], string> = {
+  blue: 'linear-gradient(135deg, #396afc, #2948ff)',
+  pink: 'linear-gradient(135deg, #f857a6, #ff5858)',
+  green: 'linear-gradient(135deg, #11998e, #38ef7d)',
+  amber: 'linear-gradient(135deg, #f7971e, #ffd200)',
+};
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +31,8 @@ export default async function HomePage() {
 
   const categories = await catalogueApi.categories().catch(() => [] as CategoryNodeDto[]);
   const banners = await contentApi.banners('home_hero').catch(() => []);
-  const { sections } = await getSiteContent();
+  const { home, sections } = await getSiteContent();
+  const blocks = home.blocks.filter((b) => b.enabled !== false);
 
   const [resolvedSections, byCategory] = await Promise.all([
     resolveHomeSections(getHomeSections(sections)),
@@ -110,53 +121,63 @@ export default async function HomePage() {
         />
       ))}
 
-      {/* Promo banner grid */}
+      {/* Promo banner grid — admin-managed per-theme content */}
       <section className="home__section promo-grid" data-testid="home-promos">
-        <Link
-          href="/category/electronics"
-          className="promo-tile"
-          style={{ background: 'linear-gradient(135deg, #396afc, #2948ff)' }}
-        >
-          <div>
-            <h3>Top Electronics</h3>
-            <p>Earbuds, chargers &amp; more</p>
-          </div>
-          <span>Grab now →</span>
-        </Link>
-        <Link
-          href="/category/apparel"
-          className="promo-tile"
-          style={{ background: 'linear-gradient(135deg, #f857a6, #ff5858)' }}
-        >
-          <div>
-            <h3>Fashion Fiesta</h3>
-            <p>Trending apparel picks</p>
-          </div>
-          <span>Explore →</span>
-        </Link>
-        <Link
-          href="/category/grocery"
-          className="promo-tile"
-          style={{ background: 'linear-gradient(135deg, #11998e, #38ef7d)' }}
-        >
-          <div>
-            <h3>Daily Grocery</h3>
-            <p>Stock up &amp; save</p>
-          </div>
-          <span>Shop →</span>
-        </Link>
-        <Link
-          href="/category/handicraft"
-          className="promo-tile"
-          style={{ background: 'linear-gradient(135deg, #f7971e, #ffd200)' }}
-        >
-          <div>
-            <h3>Artisan Handicrafts</h3>
-            <p>Handmade, Made in India</p>
-          </div>
-          <span>Discover →</span>
-        </Link>
+        {home.promos.map((p, i) => (
+          <Link
+            key={i}
+            href={p.href}
+            className="promo-tile"
+            style={{ background: CLASSIC_PROMO_GRADIENT[p.color] }}
+          >
+            <div>
+              <h3>{p.title}</h3>
+              <p>{p.subtitle}</p>
+            </div>
+            <span>{p.cta} →</span>
+          </Link>
+        ))}
       </section>
+
+      {/* Admin-managed custom detail blocks (theme-scoped content) */}
+      {blocks.map((b, i) => (
+        <section className="home__section home-block" key={i} data-block-type={b.type}>
+          {b.type === 'banner' ? (
+            <div className="home-block__banner">
+              {isUsableImageUrl(b.imageUrl) && b.imageUrl !== '#' && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={b.imageUrl} alt="" className="home-block__img" />
+              )}
+              <div className="home-block__body">
+                {b.title && <h2>{b.title}</h2>}
+                {b.text && <p>{b.text}</p>}
+                {b.ctaText.trim() !== '' && (
+                  <Link href={b.ctaHref} className="home-block__cta">
+                    {b.ctaText} →
+                  </Link>
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              {b.title && <h2 className="home-block__head">{b.title}</h2>}
+              <div className="promo-grid">
+                {b.cards.map((c, ci) => (
+                  <Link key={ci} href={c.href} className="promo-tile">
+                    <div>
+                      <h3>
+                        {c.icon ? `${c.icon} ` : ''}
+                        {c.title}
+                      </h3>
+                      {c.subtitle && <p>{c.subtitle}</p>}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+      ))}
     </div>
   );
 }

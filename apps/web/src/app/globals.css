@@ -715,6 +715,58 @@ nav.main a:hover {
   font-size: 0.85rem;
 }
 
+/* Classic custom detail blocks (admin-managed) */
+.home-block__head {
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin: 0 0 12px;
+}
+
+.home-block__banner {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: #fff;
+  border: 1px solid var(--border, #e6e8eb);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.home-block__img {
+  max-width: 320px;
+  width: 100%;
+  border-radius: var(--radius);
+  object-fit: cover;
+}
+
+.home-block__body {
+  flex: 1;
+  min-width: 220px;
+}
+
+.home-block__body h2 {
+  margin: 0 0 8px;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.home-block__body p {
+  margin: 0 0 12px;
+  opacity: 0.85;
+}
+
+.home-block__cta {
+  display: inline-block;
+  background: var(--primary, #2874f0);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
 /* ============================================================
    Product cards / grid
    ============================================================ */
@@ -3386,6 +3438,132 @@ nav.main a:hover {
 .em-promo[data-accent='blue'] .em-promo__cta { background: #2563eb; }
 .em-promo[data-accent='amber'] .em-promo__body h3 { color: #b45309; }
 .em-promo[data-accent='amber'] .em-promo__cta { background: #f59e0b; }
+
+/* eMart custom detail blocks (admin-managed) */
+.em-block {
+  margin: 8px 0 4px;
+}
+
+.em-block--banner {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: #fff;
+  border: 1px solid #e8f0fb;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 14px rgba(16, 24, 40, 0.06);
+}
+
+.em-block__img {
+  max-width: 340px;
+  width: 100%;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.em-block__body {
+  flex: 1;
+  min-width: 220px;
+}
+
+.em-block__body h2 {
+  margin: 0 0 8px;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #15803d;
+}
+
+.em-block__body p {
+  margin: 0 0 12px;
+  color: #475467;
+}
+
+.em-block__head {
+  margin: 0 0 12px;
+}
+
+.em-block__head h2 {
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.em-block__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.em-cardlet {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #f7fbff;
+  border: 1px solid #e8f0fb;
+  border-radius: 12px;
+  padding: 16px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.em-cardlet:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(16, 24, 40, 0.08);
+}
+
+.em-cardlet__icon {
+  font-size: 1.6rem;
+}
+
+.em-cardlet strong {
+  font-weight: 700;
+  color: #101828;
+}
+
+.em-cardlet span {
+  color: #475467;
+  font-size: 0.9rem;
+}
+
+/* Admin: theme selector tabs + image dropzone */
+.ce-theme-tabs {
+  display: inline-flex;
+  gap: 4px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 10px;
+}
+
+.ce-theme-tab {
+  border: none;
+  background: transparent;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #475467;
+}
+
+.ce-theme-tab--active {
+  background: #fff;
+  color: #101828;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.12);
+}
+
+.image-drop {
+  border: 2px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 18px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.image-drop--over {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
 
 /* Top brands carousel */
 .em-brands-wrap {

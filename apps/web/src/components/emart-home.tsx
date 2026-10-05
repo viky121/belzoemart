@@ -37,6 +37,7 @@ export async function EmartHome() {
 
   const hero = home.hero;
   const promos = home.promos.map((p) => ({ ...p, background: PROMO_BG[p.color] ?? PROMO_BG.green }));
+  const blocks = home.blocks.filter((b) => b.enabled !== false);
 
   return (
     <div className="em-home" data-testid="home-page">
@@ -99,8 +100,8 @@ export async function EmartHome() {
 
       {/* Promo banners */}
       <section className="em-promos" data-testid="emart-promos">
-        {promos.map((p) => (
-          <Link key={p.title} href={p.href} className="em-promo" data-accent={p.color} style={{ background: p.background }}>
+        {promos.map((p, i) => (
+          <Link key={i} href={p.href} className="em-promo" data-accent={p.color} style={{ background: p.background }}>
             <div className="em-promo__body">
               <h3>{p.title}</h3>
               <p>{p.subtitle}</p>
@@ -112,6 +113,50 @@ export async function EmartHome() {
           </Link>
         ))}
       </section>
+
+      {/* Admin-managed custom detail blocks (theme-scoped content) */}
+      {blocks.map((b, i) => (
+        <section className="em-block" key={i} data-block-type={b.type}>
+          {b.type === 'banner' ? (
+            <div className="em-block--banner">
+              {isUsableImageUrl(b.imageUrl) && b.imageUrl !== '#' && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={b.imageUrl} alt="" className="em-block__img" />
+              )}
+              <div className="em-block__body">
+                {b.title && <h2>{b.title}</h2>}
+                {b.text && <p>{b.text}</p>}
+                {b.ctaText.trim() !== '' && (
+                  <Link href={b.ctaHref} className="em-promo__cta">
+                    {b.ctaText} →
+                  </Link>
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              {b.title && (
+                <div className="em-block__head">
+                  <h2>{b.title}</h2>
+                </div>
+              )}
+              <div className="em-block__cards">
+                {b.cards.map((c, ci) => (
+                  <Link key={ci} href={c.href} className="em-cardlet">
+                    {c.icon && (
+                      <span className="em-cardlet__icon" aria-hidden="true">
+                        {c.icon}
+                      </span>
+                    )}
+                    <strong>{c.title}</strong>
+                    {c.subtitle && <span>{c.subtitle}</span>}
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+      ))}
 
       {/* Admin-managed home sections (shared config, both themes) */}
       {resolvedSections.map((s) => (

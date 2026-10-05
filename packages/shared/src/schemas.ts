@@ -153,6 +153,154 @@ export const homeSectionsSchema = z.array(homeSectionSchema).max(24);
 export type HomeSections = z.infer<typeof homeSectionsSchema>;
 
 // ---------------------------------------------------------------------------
+// Home content (admin-managed, theme-scoped: hero + promos + why + blocks)
+// ---------------------------------------------------------------------------
+
+/** App path ("/x", not "//") or absolute http(s) URL → anything else becomes "#".
+ *  Never throws, so a bad link degrades one field instead of dropping the block. */
+export const safeHrefSchema = z
+  .string()
+  .trim()
+  .max(2048)
+  .transform((s) => (/^https?:\/\//i.test(s) || (s.startsWith('/') && !s.startsWith('//')) ? s : '#'))
+  .catch('#');
+
+export const PROMO_COLORS = ['green', 'blue', 'amber', 'pink'] as const;
+
+export const heroContentSchema = z.object({
+  eyebrow: z.string().trim().max(120).default(''),
+  line1: z.string().trim().max(120).default(''),
+  line2: z.string().trim().max(120).default(''),
+  accent: z.string().trim().max(120).default(''),
+  subtitle: z.string().trim().max(400).default(''),
+  ctaText: z.string().trim().max(60).default('Shop Now'),
+  ctaHref: safeHrefSchema.default('/search'),
+  imageUrl: safeHrefSchema.default(''),
+});
+export type HeroContent = z.infer<typeof heroContentSchema>;
+
+export const promoContentSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  subtitle: z.string().trim().max(160).default(''),
+  cta: z.string().trim().max(60).default('Shop Now'),
+  href: safeHrefSchema.default('/search'),
+  icon: z.string().trim().max(8).default('🛒'), // single emoji/char
+  color: z.enum(PROMO_COLORS).default('green'),
+});
+export type PromoContent = z.infer<typeof promoContentSchema>;
+
+export const whyItemSchema = z.object({
+  icon: z.string().trim().max(8).default('⭐'),
+  title: z.string().trim().min(1).max(80),
+  sub: z.string().trim().max(120).default(''),
+});
+export type WhyItem = z.infer<typeof whyItemSchema>;
+
+/** Repeatable info card inside a 'cards' block. */
+export const homeBlockCardSchema = z.object({
+  icon: z.string().trim().max(8).default(''),
+  title: z.string().trim().min(1).max(80),
+  subtitle: z.string().trim().max(160).default(''),
+  href: safeHrefSchema.default('#'),
+});
+export type HomeBlockCard = z.infer<typeof homeBlockCardSchema>;
+
+/** Generic admin-added detail block. Discriminated on `type`.
+ *  'banner' = titled text + optional image + optional CTA.
+ *  'cards'  = titled grid of up to 12 info cards. */
+export const homeBlockSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('banner'),
+    id: z.string().min(1).max(64),
+    title: z.string().trim().max(120).default(''),
+    text: z.string().trim().max(600).default(''),
+    imageUrl: safeHrefSchema.default(''),
+    ctaText: z.string().trim().max(60).default(''),
+    ctaHref: safeHrefSchema.default('#'),
+    enabled: z.boolean().default(true),
+  }),
+  z.object({
+    type: z.literal('cards'),
+    id: z.string().min(1).max(64),
+    title: z.string().trim().max(120).default(''),
+    cards: z.array(homeBlockCardSchema).max(12).default([]),
+    enabled: z.boolean().default(true),
+  }),
+]);
+export type HomeBlock = z.infer<typeof homeBlockSchema>;
+
+export const homeContentSchema = z.object({
+  hero: heroContentSchema.default(heroContentSchema.parse({})),
+  promos: z.array(promoContentSchema).max(12).default([]),
+  why: z.array(whyItemSchema).max(12).default([]),
+  blocks: z.array(homeBlockSchema).max(10).default([]),
+});
+export type HomeContent = z.infer<typeof homeContentSchema>;
+
+/** Map a (possibly bad) array to only its valid elements, with zod defaults
+ *  applied. Non-arrays yield an empty list. */
+function keepValid<S extends z.ZodTypeAny>(value: unknown, schema: S): z.output<S>[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((v) => schema.safeParse(v))
+    .filter((r): r is { success: true; data: z.output<S> } => r.success)
+    .map((r) => r.data);
+}
+
+/** Per-key hero schemas so each present field is validated in isolation
+ *  (a single bad field degrades to its default, not the whole hero). */
+const heroFieldSchemas = heroContentSchema.shape;
+
+/** Sanitize one block. For a 'cards' block the nested cards are cleaned
+ *  per-card first (a single malformed card is dropped, the block is kept)
+ *  rather than failing the whole block. Returns null for an unusable block. */
+function sanitizeBlock(value: unknown): HomeBlock | null {
+  if (!value || typeof value !== 'object') return null;
+  const v = value as Record<string, unknown>;
+  if (v.type === 'cards') {
+    const cards = keepValid(v.cards, homeBlockCardSchema).slice(0, 12);
+    const r = homeBlockSchema.safeParse({ ...v, cards });
+    return r.success ? r.data : null;
+  }
+  const r = homeBlockSchema.safeParse(v);
+  return r.success ? r.data : null;
+}
+
+function sanitizeHero(value: unknown): Partial<HeroContent> | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const v = value as Record<string, unknown>;
+  const out: Partial<HeroContent> = {};
+  for (const key of Object.keys(heroFieldSchemas) as (keyof HeroContent)[]) {
+    if (!(key in v)) continue; // absent → let default apply at merge time
+    const r = heroFieldSchemas[key].safeParse(v[key]);
+    if (r.success) out[key] = r.data as never; // keep only valid present fields
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/**
+ * Sanitize stored home content leniently and per-element so the web can merge
+ * the result over its theme defaults. Returns null when there is nothing to
+ * merge (unset key / not an object). Bad array entries are dropped, bad hrefs
+ * degrade to "#", and caps are enforced.
+ */
+export function sanitizeHomeContent(value: unknown): Partial<HomeContent> | null {
+  if (!value || typeof value !== 'object') return null;
+  const v = value as Record<string, unknown>;
+  const out: Partial<HomeContent> = {};
+  const hero = sanitizeHero(v.hero);
+  // Partial hero by design — the web merges it over the per-theme hero default.
+  if (hero) out.hero = hero as HeroContent;
+  out.promos = keepValid(v.promos, promoContentSchema).slice(0, 12);
+  out.why = keepValid(v.why, whyItemSchema).slice(0, 12);
+  out.blocks = (Array.isArray(v.blocks) ? v.blocks : [])
+    .map(sanitizeBlock)
+    .filter((b): b is HomeBlock => b !== null)
+    .slice(0, 10);
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // Cart / Checkout
 // ---------------------------------------------------------------------------
 

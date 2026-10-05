@@ -1,35 +1,10 @@
 import { apiFetch } from './api-client';
+import type { HomeContent, HeroContent, PromoContent, WhyItem, HomeBlock } from '@belzo/shared';
 
 export type ThemeName = 'classic' | 'emart';
 
-export interface HeroContent {
-  eyebrow: string;
-  line1: string;
-  line2: string;
-  accent: string;
-  subtitle: string;
-  ctaText: string;
-  ctaHref: string;
-  imageUrl: string;
-}
-export interface PromoContent {
-  title: string;
-  subtitle: string;
-  cta: string;
-  href: string;
-  icon: string;
-  color: 'green' | 'blue' | 'amber' | 'pink';
-}
-export interface WhyItem {
-  icon: string;
-  title: string;
-  sub: string;
-}
-export interface HomeContent {
-  hero: HeroContent;
-  promos: PromoContent[];
-  why: WhyItem[];
-}
+export type { HomeContent, HeroContent, PromoContent, WhyItem, HomeBlock };
+
 export interface FooterContent {
   description: string;
   phone: string;
@@ -43,7 +18,9 @@ export interface FooterContent {
   copyright: string;
 }
 
-export const DEFAULT_HOME: HomeContent = {
+/** eMart theme default home content. Drives the eMart home when `home_content`
+ *  is unset (zero-config backward compatibility). */
+export const DEFAULT_HOME_EMART: HomeContent = {
   hero: {
     eyebrow: '🛒 Belzo E Mart',
     line1: 'Your Daily Needs',
@@ -88,7 +65,35 @@ export const DEFAULT_HOME: HomeContent = {
     { icon: '🎧', title: 'Dedicated Customer Support', sub: 'We\u2019re here to help' },
     { icon: '🥬', title: 'Fresh & Quality Products', sub: 'Farm-fresh, hand-picked' },
   ],
+  blocks: [],
 };
+
+/** Classic theme default home content. The classic home does not render the
+ *  hero fields (it uses the banner carousel), so hero here is informational.
+ *  The 4 promos reproduce today's exact hardcoded classic tile grid. */
+export const DEFAULT_HOME_CLASSIC: HomeContent = {
+  hero: {
+    eyebrow: '',
+    line1: '',
+    line2: '',
+    accent: '',
+    subtitle: '',
+    ctaText: 'Shop Now',
+    ctaHref: '/search',
+    imageUrl: '',
+  },
+  promos: [
+    { title: 'Top Electronics', subtitle: 'Earbuds, chargers & more', cta: 'Grab now', href: '/category/electronics', icon: '📱', color: 'blue' },
+    { title: 'Fashion Fiesta', subtitle: 'Trending apparel picks', cta: 'Explore', href: '/category/apparel', icon: '👗', color: 'pink' },
+    { title: 'Daily Grocery', subtitle: 'Stock up & save', cta: 'Shop', href: '/category/grocery', icon: '🛒', color: 'green' },
+    { title: 'Artisan Handicrafts', subtitle: 'Handmade, Made in India', cta: 'Discover', href: '/category/handicraft', icon: '🎨', color: 'amber' },
+  ],
+  why: [],
+  blocks: [],
+};
+
+/** Back-compat alias for any importer still referencing the old name. */
+export const DEFAULT_HOME = DEFAULT_HOME_EMART;
 
 export const DEFAULT_FOOTER: FooterContent = {
   description:
@@ -119,13 +124,22 @@ interface RawPublicSettings {
   sections?: unknown;
 }
 
-/** Merge stored (possibly partial) home content over the defaults. */
-function mergeHome(stored?: Partial<HomeContent> | null): HomeContent {
-  if (!stored) return DEFAULT_HOME;
+const DEFAULTS: Record<ThemeName, HomeContent> = {
+  emart: DEFAULT_HOME_EMART,
+  classic: DEFAULT_HOME_CLASSIC,
+};
+
+/** Merge stored (possibly partial) home content over the per-theme defaults so
+ *  the home never renders empty. Empty promos/why fall back to defaults;
+ *  `blocks` default to [], so an empty blocks array is honored. */
+export function mergeHome(theme: ThemeName, stored?: Partial<HomeContent> | null): HomeContent {
+  const d = DEFAULTS[theme];
+  if (!stored) return d;
   return {
-    hero: { ...DEFAULT_HOME.hero, ...(stored.hero ?? {}) },
-    promos: stored.promos && stored.promos.length > 0 ? (stored.promos as PromoContent[]) : DEFAULT_HOME.promos,
-    why: stored.why && stored.why.length > 0 ? (stored.why as WhyItem[]) : DEFAULT_HOME.why,
+    hero: { ...d.hero, ...(stored.hero ?? {}) },
+    promos: stored.promos && stored.promos.length > 0 ? stored.promos : d.promos,
+    why: stored.why && stored.why.length > 0 ? stored.why : d.why,
+    blocks: stored.blocks ?? d.blocks,
   };
 }
 
@@ -133,13 +147,14 @@ function mergeHome(stored?: Partial<HomeContent> | null): HomeContent {
 export async function getSiteContent(): Promise<SiteContent> {
   try {
     const s = await apiFetch<RawPublicSettings>('/settings/public', { revalidate: 30 });
+    const theme: ThemeName = s.theme === 'emart' ? 'emart' : 'classic';
     return {
-      theme: s.theme === 'emart' ? 'emart' : 'classic',
-      home: mergeHome(s.home),
+      theme,
+      home: mergeHome(theme, s.home),
       footer: { ...DEFAULT_FOOTER, ...(s.footer ?? {}) },
       sections: s.sections ?? null,
     };
   } catch {
-    return { theme: 'classic', home: DEFAULT_HOME, footer: DEFAULT_FOOTER, sections: null };
+    return { theme: 'classic', home: DEFAULT_HOME_CLASSIC, footer: DEFAULT_FOOTER, sections: null };
   }
 }

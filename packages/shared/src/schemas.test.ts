@@ -7,6 +7,10 @@ import {
   homeSectionSchema,
   homeSectionsSchema,
   productQuerySchema,
+  safeHrefSchema,
+  promoContentSchema,
+  homeBlockSchema,
+  sanitizeHomeContent,
 } from './schemas';
 
 const UUID = '11111111-1111-4111-8111-111111111111';
@@ -139,6 +143,123 @@ describe('schemas — home sections (example-based)', () => {
       source: { type: 'sort' as const, sort: 'discount' as const },
     }));
     expect(homeSectionsSchema.safeParse(many).success).toBe(false);
+  });
+});
+
+describe('schemas — safeHrefSchema', () => {
+  it('keeps app paths and absolute http(s) URLs', () => {
+    expect(safeHrefSchema.parse('/search')).toBe('/search');
+    expect(safeHrefSchema.parse('/category/grocery')).toBe('/category/grocery');
+    expect(safeHrefSchema.parse('https://example.com/x')).toBe('https://example.com/x');
+    expect(safeHrefSchema.parse('http://example.com')).toBe('http://example.com');
+  });
+
+  it('collapses protocol-relative, javascript:, data: and junk to "#"', () => {
+    expect(safeHrefSchema.parse('//evil.com')).toBe('#');
+    expect(safeHrefSchema.parse('javascript:alert(1)')).toBe('#');
+    expect(safeHrefSchema.parse('data:text/html,<script>')).toBe('#');
+    expect(safeHrefSchema.parse('not a url')).toBe('#');
+    expect(safeHrefSchema.parse('')).toBe('#');
+  });
+
+  it('never throws on non-string input (catch fallback)', () => {
+    expect(safeHrefSchema.parse(42 as unknown as string)).toBe('#');
+    expect(safeHrefSchema.parse(null as unknown as string)).toBe('#');
+  });
+});
+
+describe('schemas — promoContentSchema / homeBlockSchema', () => {
+  it('applies promo defaults and degrades a bad href', () => {
+    const res = promoContentSchema.safeParse({ title: 'Deals', href: 'javascript:void' });
+    expect(res.success).toBe(true);
+    if (res.success) {
+      expect(res.data).toMatchObject({ cta: 'Shop Now', icon: '🛒', color: 'green', href: '#' });
+    }
+  });
+
+  it('rejects a promo with no title', () => {
+    expect(promoContentSchema.safeParse({ subtitle: 'x' }).success).toBe(false);
+  });
+
+  it('parses a banner block with defaults', () => {
+    const res = homeBlockSchema.safeParse({ type: 'banner', id: 'b1' });
+    expect(res.success).toBe(true);
+    if (res.success && res.data.type === 'banner') {
+      expect(res.data).toMatchObject({ title: '', text: '', ctaHref: '#', enabled: true });
+    }
+  });
+
+  it('rejects a block missing its id', () => {
+    expect(homeBlockSchema.safeParse({ type: 'banner' }).success).toBe(false);
+  });
+
+  it('rejects an unknown block type', () => {
+    expect(homeBlockSchema.safeParse({ type: 'carousel', id: 'x' }).success).toBe(false);
+  });
+});
+
+describe('schemas — sanitizeHomeContent', () => {
+  it('returns null for junk / non-object input', () => {
+    expect(sanitizeHomeContent(null)).toBeNull();
+    expect(sanitizeHomeContent('nope')).toBeNull();
+    expect(sanitizeHomeContent(42)).toBeNull();
+  });
+
+  it('drops malformed promos and keeps valid ones', () => {
+    const res = sanitizeHomeContent({
+      promos: [{ title: 'Good' }, { subtitle: 'no title' }, { title: 'Also good', color: 'pink' }],
+    });
+    expect(res?.promos).toHaveLength(2);
+    expect(res?.promos?.[0]).toMatchObject({ title: 'Good' });
+    expect(res?.promos?.[1]).toMatchObject({ title: 'Also good', color: 'pink' });
+  });
+
+  it('degrades a bad promo href to "#"', () => {
+    const res = sanitizeHomeContent({ promos: [{ title: 'X', href: '//evil.com' }] });
+    expect(res?.promos?.[0]?.href).toBe('#');
+  });
+
+  it('enforces caps (promos ≤ 12, blocks ≤ 10)', () => {
+    const promos = Array.from({ length: 15 }, (_, i) => ({ title: `P${i}` }));
+    const blocks = Array.from({ length: 11 }, (_, i) => ({ type: 'banner', id: `b${i}` }));
+    const res = sanitizeHomeContent({ promos, blocks });
+    expect(res?.promos).toHaveLength(12);
+    expect(res?.blocks).toHaveLength(10);
+  });
+
+  it('drops a malformed card but keeps the rest of a cards block', () => {
+    const res = sanitizeHomeContent({
+      blocks: [
+        {
+          type: 'cards',
+          id: 'c1',
+          cards: [{ title: 'Keep me' }, { subtitle: 'no title' }, { title: 'Keep me too' }],
+        },
+      ],
+    });
+    expect(res?.blocks).toHaveLength(1);
+    const block = res?.blocks?.[0];
+    expect(block?.type).toBe('cards');
+    if (block?.type === 'cards') {
+      expect(block.cards).toHaveLength(2);
+      expect(block.cards.map((c) => c.title)).toEqual(['Keep me', 'Keep me too']);
+    }
+  });
+
+  it('keeps valid present hero fields and drops only an individually-invalid one', () => {
+    const longAccent = 'x'.repeat(200); // over the max(120) cap → dropped
+    const res = sanitizeHomeContent({
+      hero: { eyebrow: 'Hi', accent: longAccent, ctaHref: '//evil' },
+    });
+    expect(res?.hero?.eyebrow).toBe('Hi');
+    expect(res?.hero && 'accent' in res.hero).toBe(false);
+    // safeHrefSchema never throws → the link survives as "#"
+    expect(res?.hero?.ctaHref).toBe('#');
+  });
+
+  it('returns empty arrays (not defaults) so the web merge decides fallbacks', () => {
+    const res = sanitizeHomeContent({});
+    expect(res).toEqual({ promos: [], why: [], blocks: [] });
   });
 });
 

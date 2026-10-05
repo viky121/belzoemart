@@ -1,6 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { homeSectionSchema, type HomeSection } from '@belzo/shared';
+import { homeSectionSchema, sanitizeHomeContent, type HomeSection } from '@belzo/shared';
 import { Public } from '../../common/auth/public.decorator';
 import { SettingsService } from './settings.service';
 
@@ -25,9 +25,10 @@ export class PublicSettingsController {
     footer: unknown;
     sections: HomeSection[] | null;
   }> {
-    const [theme, home, footer, sections] = await Promise.all([
+    const [theme, emartHome, classicHome, footer, sections] = await Promise.all([
       this.settings.get<string>('theme'),
-      this.settings.get<object>('home_content'),
+      this.settings.get<unknown>('home_content'),
+      this.settings.get<unknown>('home_content.classic'),
       this.settings.get<object>('footer_content'),
       this.settings.get<unknown>('home.sections'),
     ]);
@@ -40,9 +41,14 @@ export class PublicSettingsController {
       .filter((r): r is { success: true; data: HomeSection } => r.success)
       .map((r) => r.data)
       .slice(0, 24);
+    // Home content is theme-scoped: serve the active theme's home only (the web
+    // only ever needs one), already sanitized. eMart lives under the legacy
+    // `home_content` key; classic under the new `home_content.classic` key.
+    const active = theme && THEMES.includes(theme) ? theme : 'classic';
+    const rawHome = active === 'emart' ? emartHome : classicHome;
     return {
-      theme: theme && THEMES.includes(theme) ? theme : 'classic',
-      home: home ?? null,
+      theme: active,
+      home: sanitizeHomeContent(rawHome),
       footer: footer ?? null,
       sections: valid.length > 0 ? valid : null,
     };
