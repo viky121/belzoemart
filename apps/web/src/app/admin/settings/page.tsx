@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { adminFetch } from '@/lib/admin-api';
 import { ContentEditor } from './content-editor';
+import { HomeSectionsEditor } from './home-sections-editor';
 
 type Settings = Record<string, unknown>;
 
@@ -91,6 +92,8 @@ export default function AdminSettingsPage() {
       </section>
 
       <ContentEditor />
+
+      <HomeSectionsEditor />
 
       <div className="admin-form">
         <h2>Store settings</h2>

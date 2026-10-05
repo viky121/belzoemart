@@ -129,6 +129,7 @@ export function ProductWizard({
   const [hasVariants, setHasVariants] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [dragImg, setDragImg] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -178,8 +179,8 @@ export function ProductWizard({
   const subList = primary?.children ?? [];
   const finalList = sub?.children ?? [];
 
-  async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
+  async function uploadFiles(fileList: FileList | File[] | null) {
+    const files = Array.from(fileList ?? []).filter((f) => f.type.startsWith('image/'));
     if (files.length === 0) return;
     setUploading(true);
     try {
@@ -191,8 +192,12 @@ export function ProductWizard({
       setMsg(err instanceof Error ? err.message : 'Image upload failed');
     } finally {
       setUploading(false);
-      e.target.value = '';
     }
+  }
+
+  async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    await uploadFiles(e.target.files);
+    e.target.value = '';
   }
 
   const productAttributes = useMemo(() => {
@@ -521,7 +526,20 @@ export function ProductWizard({
 
           <div className="wiz__card">
             <h3>🖼️ Product Images</h3>
-            <label className="wiz__drop" aria-disabled={uploading}>
+            <label
+              className={`wiz__drop${dragOver ? ' wiz__drop--over' : ''}`}
+              aria-disabled={uploading}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (!uploading) setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                if (!uploading) void uploadFiles(e.dataTransfer.files);
+              }}
+            >
               <input
                 type="file"
                 accept="image/*"
@@ -532,8 +550,10 @@ export function ProductWizard({
                 className="wiz__drop-input"
               />
               <span className="wiz__drop-ic">⬆</span>
-              <span className="wiz__drop-main">{uploading ? 'Uploading…' : 'Click to upload product images'}</span>
-              <span className="wiz__drop-sub">PNG or JPG · you can select multiple images at once</span>
+              <span className="wiz__drop-main">
+                {uploading ? 'Uploading…' : dragOver ? 'Drop images to upload' : 'Click or drag images here to upload'}
+              </span>
+              <span className="wiz__drop-sub">PNG or JPG · drag &amp; drop or click · multiple allowed</span>
             </label>
             {images.length > 0 && (
               <>
