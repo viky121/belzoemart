@@ -280,7 +280,8 @@ export default function BulkUploadPage() {
           <strong>To edit existing products:</strong> Export products → edit in Excel → save as{' '}
           <strong>CSV UTF-8</strong> → upload here. Existing SKUs get title, category, MRP, selling
           price, description, brand, HSN, GST, stock and status updated; <strong>blank optional
-          cells leave the current value unchanged</strong>. A non-empty <code>imageUrl</code>{' '}
+          cells leave the current value unchanged</strong>. Re-uploading the SKU of a removed
+          variant kept for order history restores it with the row&apos;s values. A non-empty <code>imageUrl</code>{' '}
           <strong>replaces</strong> the product&apos;s images with exactly those images in that order
           (first = main); a blank <code>imageUrl</code> keeps the current images. Variants of the
           same product share product-level fields (title, category, description, brand, HSN, GST,

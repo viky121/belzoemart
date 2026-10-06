@@ -107,6 +107,32 @@ export function variantUpsertBody(v: AdminVariantRow, e: VariantEdit): VariantUp
   };
 }
 
+/** Result of DELETE /admin/variants/:id: hard delete, or hidden + kept for order history. */
+export type RemoveVariantMode = 'deleted' | 'deactivated';
+
+/** Human label for a variant: "500 ml (OIL-500)", "M / Black (TS-M-BLK)", or just the SKU. */
+export function variantLabel(
+  attrs: Record<string, string> | null | undefined,
+  sku: string,
+): string {
+  const pick = (key: string): string => {
+    const found = Object.entries(attrs ?? {}).find(([k]) => k.toLowerCase() === key);
+    return found?.[1]?.trim() ?? '';
+  };
+  const parts = [pick('size'), pick('color') || pick('colour')].filter(Boolean);
+  return parts.length ? `${parts.join(' / ')} (${sku})` : sku;
+}
+
+export function removeVariantConfirmText(label: string): string {
+  return `Remove variant "${label}"? If it was ever ordered it is hidden and kept for order history; otherwise it is deleted permanently.`;
+}
+
+export function removeVariantSuccessMessage(label: string, mode: RemoveVariantMode): string {
+  return mode === 'deleted'
+    ? `Removed "${label}" (deleted).`
+    : `Removed "${label}" — it was ordered before, so it is hidden from the store and kept for order history.`;
+}
+
 /** Inventory adjustment needed to reach the typed stock (target - current). */
 export function stockDelta(v: AdminVariantRow, e: VariantEdit): number {
   return parseInt(e.stock, 10) - (v.inventory?.available ?? 0);

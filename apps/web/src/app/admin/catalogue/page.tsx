@@ -247,7 +247,7 @@ export default function AdminCataloguePage() {
                   {pricingId === p.id && (
                     <tr>
                       <td colSpan={7}>
-                        <VariantSlabsEditor productId={p.id} />
+                        <VariantSlabsEditor productId={p.id} onChanged={() => load()} />
                       </td>
                     </tr>
                   )}

@@ -1,6 +1,9 @@
 import {
   initialEdit,
+  removeVariantConfirmText,
+  removeVariantSuccessMessage,
   stockDelta,
+  variantLabel,
   toPaise,
   toRupees,
   validateEdits,
@@ -143,5 +146,37 @@ describe('variant-edit — validateEdits', () => {
     const edits = base();
     edits.v2.sku = ' TEA-1KG ';
     expect(validateEdits([v1, v2], edits)).toBe('SKU "TEA-1KG" is used twice');
+  });
+});
+
+describe('variant-edit — remove variant helpers', () => {
+  it('labels a variant by size and colour plus SKU', () => {
+    expect(variantLabel({ Size: 'M', Color: 'Black' }, 'TS-M-BLK')).toBe('M / Black (TS-M-BLK)');
+  });
+
+  it('labels a size-only variant (keys matched case-insensitively)', () => {
+    expect(variantLabel({ size: '500 ml' }, 'OIL-500')).toBe('500 ml (OIL-500)');
+    expect(variantLabel({ Size: '500 ml' }, 'OIL-500')).toBe('500 ml (OIL-500)');
+  });
+
+  it('falls back to the SKU without size/colour', () => {
+    expect(variantLabel(null, 'OIL-500')).toBe('OIL-500');
+    expect(variantLabel(undefined, 'OIL-500')).toBe('OIL-500');
+    expect(variantLabel({ Fabric: 'Cotton', Size: '  ' }, 'OIL-500')).toBe('OIL-500');
+  });
+
+  it('names the variant in the confirm text', () => {
+    const text = removeVariantConfirmText('500 ml (OIL-500)');
+    expect(text).toContain('"500 ml (OIL-500)"');
+    expect(text).toMatch(/kept for order history/);
+  });
+
+  it('says whether the variant was deleted or deactivated', () => {
+    expect(removeVariantSuccessMessage('500 ml (OIL-500)', 'deleted')).toBe(
+      'Removed "500 ml (OIL-500)" (deleted).',
+    );
+    expect(removeVariantSuccessMessage('500 ml (OIL-500)', 'deactivated')).toMatch(
+      /^Removed "500 ml \(OIL-500\)" — .*kept for order history\.$/,
+    );
   });
 });

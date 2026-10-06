@@ -5,10 +5,14 @@ import { adminFetch, adminUpload } from '@/lib/admin-api';
 import { MediaPicker } from '@/components/media-picker';
 import {
   initialEdit,
+  removeVariantConfirmText,
+  removeVariantSuccessMessage,
   stockDelta,
   validateEdits,
+  variantLabel,
   variantUpsertBody,
   type AdminVariantRow,
+  type RemoveVariantMode,
   type VariantEdit,
 } from '@/lib/variant-edit';
 
@@ -70,6 +74,7 @@ export function ProductEditor({
   const [variants, setVariants] = useState<AdminVariantRow[]>([]);
   const [edits, setEdits] = useState<Record<string, VariantEdit>>({});
   const [status, setStatus] = useState<ProductStatus>('draft');
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   /** (Re)load the product detail + raw variant rows from the server. */
   const load = useCallback(
@@ -116,6 +121,36 @@ export function ProductEditor({
     } finally {
       setUploading(false);
       e.target.value = '';
+    }
+  }
+
+  /**
+   * Remove one variant (e.g. 500 ml out of 200/500/1000 ml). The server hard-deletes
+   * a never-ordered variant and hides + keeps an ordered one for order history.
+   * Only this row is dropped locally so other rows' unsaved edits survive.
+   */
+  async function removeVariant(v: AdminVariantRow) {
+    const label = variantLabel(v.attributesJson, v.sku);
+    if (!window.confirm(removeVariantConfirmText(label))) return;
+    setRemovingId(v.id);
+    setMsg(null);
+    try {
+      const res = await adminFetch<{ removed: boolean; mode: RemoveVariantMode }>(
+        `/admin/variants/${v.id}`,
+        { method: 'DELETE' },
+      );
+      setVariants((cur) => cur.filter((x) => x.id !== v.id));
+      setEdits((cur) => {
+        const next = { ...cur };
+        delete next[v.id];
+        return next;
+      });
+      setMsg(removeVariantSuccessMessage(label, res.mode));
+      onSaved();
+    } catch (e) {
+      setMsg(`Could not remove ${label}: ${e instanceof Error ? e.message : 'unknown error'}`);
+    } finally {
+      setRemovingId(null);
     }
   }
 
@@ -298,6 +333,7 @@ export function ProductEditor({
                   <th scope="col">MRP (₹)</th>
                   <th scope="col">Selling (₹)</th>
                   <th scope="col">Stock</th>
+                  <th scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -351,6 +387,18 @@ export function ProductEditor({
                           data-testid={`editor-v-stock-${i}`}
                         />
                       </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="admin-btn--danger"
+                          onClick={() => removeVariant(v)}
+                          disabled={removingId !== null || busy}
+                          aria-label={`Remove variant ${variantLabel(v.attributesJson, v.sku)}`}
+                          data-testid={`editor-v-remove-${i}`}
+                        >
+                          {removingId === v.id ? 'Removing…' : '🗑 Remove'}
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -358,7 +406,8 @@ export function ProductEditor({
             </table>
             <p className="prod-imghint">
               Bulk tiers, size/colour, weight and variant image are kept — edit them under
-              &apos;Variants &amp; pricing&apos;.
+              &apos;Variants &amp; pricing&apos;. Removing a variant that was ordered before hides
+              it and keeps it for order history.
             </p>
           </>
         )}
@@ -475,7 +524,7 @@ export function ProductEditor({
         )}
       </div>
 
-      <button className="auth-btn prod-save" onClick={save} disabled={busy}>
+      <button className="auth-btn prod-save" onClick={save} disabled={busy || removingId !== null}>
         {busy ? 'Saving…' : 'Save details'}
       </button>
 
