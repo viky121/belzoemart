@@ -1,8 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { adminFetch, adminUpload } from '@/lib/admin-api';
 import { MediaPicker } from '@/components/media-picker';
+import {
+  initialEdit,
+  stockDelta,
+  validateEdits,
+  variantUpsertBody,
+  type AdminVariantRow,
+  type VariantEdit,
+} from '@/lib/variant-edit';
+
+type ProductStatus = 'draft' | 'published' | 'archived';
 
 interface Opt {
   id: string;
@@ -16,6 +26,7 @@ interface Detail {
   brandId: string | null;
   hsnCode: string;
   taxRatePct: number;
+  status: ProductStatus;
   isReturnable: boolean;
   images: { url: string; alt: string }[];
   shgName: string | null;
@@ -56,24 +67,42 @@ export function ProductEditor({
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [variants, setVariants] = useState<AdminVariantRow[]>([]);
+  const [edits, setEdits] = useState<Record<string, VariantEdit>>({});
+  const [status, setStatus] = useState<ProductStatus>('draft');
+
+  /** (Re)load the product detail + raw variant rows from the server. */
+  const load = useCallback(
+    async (isCancelled: () => boolean = () => false) => {
+      const [res, vs] = await Promise.all([
+        adminFetch<Detail>(`/admin/products/${productId}/detail`),
+        adminFetch<AdminVariantRow[]>(`/admin/products/${productId}/variants`),
+      ]);
+      if (isCancelled()) return;
+      setD(res);
+      setImages(res.images.map((i) => i.url));
+      setStatus(res.status);
+      setVariants(vs);
+      setEdits(Object.fromEntries(vs.map((v) => [v.id, initialEdit(v)])));
+    },
+    [productId],
+  );
 
   useEffect(() => {
     let cancelled = false;
-    void adminFetch<Detail>(`/admin/products/${productId}/detail`)
-      .then((res) => {
-        if (cancelled) return;
-        setD(res);
-        setImages(res.images.map((i) => i.url));
-      })
-      .catch(() => setMsg('Could not load product.'));
+    load(() => cancelled).catch(() => {
+      if (!cancelled) setMsg('Could not load product.');
+    });
     return () => {
       cancelled = true;
     };
-  }, [productId]);
+  }, [load]);
 
   if (!d) return <p className="slab-editor__hint">{msg ?? 'Loading…'}</p>;
 
   const upd = (patch: Partial<Detail>) => setD({ ...d, ...patch });
+  const updEdit = (id: string, patch: Partial<VariantEdit>) =>
+    setEdits((cur) => ({ ...cur, [id]: { ...cur[id], ...patch } }));
 
   async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -92,8 +121,18 @@ export function ProductEditor({
 
   async function save() {
     if (!d) return;
+    const invalid =
+      validateEdits(variants, edits) ??
+      (status === 'published' && variants.length === 0 ? 'Add a variant before publishing.' : null);
+    if (invalid) {
+      setMsg(invalid);
+      return;
+    }
     setBusy(true);
     setMsg(null);
+    let step = 'details';
+    let done = 0;
+    let touchedVariants = false;
     try {
       await adminFetch(`/admin/products/${d.id}`, {
         method: 'PATCH',
@@ -115,15 +154,57 @@ export function ProductEditor({
           ),
         },
       });
+      done += 1;
+      step = 'images';
       await adminFetch(`/admin/products/${d.id}/images`, {
         method: 'PUT',
         body: { images: images.map((url) => ({ url })) },
       });
+      done += 1;
+      // SKU / MRP / price: the body carries the variant's existing bulk tiers,
+      // attributes, weight and image so the upsert does not wipe them.
+      for (const v of variants) {
+        const body = variantUpsertBody(v, edits[v.id] ?? initialEdit(v));
+        if (!body) continue;
+        step = `variant ${v.sku}`;
+        touchedVariants = true;
+        await adminFetch('/admin/variants', { method: 'POST', body });
+        done += 1;
+      }
+      for (const v of variants) {
+        const delta = stockDelta(v, edits[v.id] ?? initialEdit(v));
+        if (delta === 0) continue;
+        step = `stock for ${v.sku}`;
+        touchedVariants = true;
+        await adminFetch(`/admin/inventory/${v.id}/adjust`, {
+          method: 'POST',
+          body: { delta, ref: 'editor-update' },
+        });
+        done += 1;
+      }
+      if (status !== d.status) {
+        step = 'status';
+        touchedVariants = true;
+        await adminFetch(`/admin/products/${d.id}/status`, { method: 'PATCH', body: { status } });
+        done += 1;
+      }
       setMsg('Saved. Changes are live on the storefront.');
       onSaved();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : 'Could not save.');
+      const message = e instanceof Error ? e.message : 'unknown error';
+      setMsg(
+        `Could not save ${step}: ${message}` +
+          (/slab price/i.test(message)
+            ? ' — lower or re-apply the bulk tiers under Variants & pricing first.'
+            : '') +
+          (done > 0 ? ' Earlier changes were saved.' : ''),
+      );
     } finally {
+      if (touchedVariants) {
+        // Refresh so variants, edits and current stock match the server and the
+        // next save computes stock deltas from fresh numbers.
+        await load().catch(() => undefined);
+      }
       setBusy(false);
     }
   }
@@ -184,6 +265,103 @@ export function ProductEditor({
           <label className="auth-label">SHG / product story</label>
           <textarea className="auth-input prod-textarea" rows={2} value={d.story ?? ''} onChange={(e) => upd({ story: e.target.value })} />
         </div>
+      </div>
+
+      <div className="prod-section" data-testid="editor-variants">
+        <h3 className="prod-subhead">Variants, price &amp; stock</h3>
+        <div className="prod-grid">
+          <div>
+            <label className="auth-label" htmlFor="editor-status">Status</label>
+            <select
+              id="editor-status"
+              className="auth-input"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as ProductStatus)}
+              data-testid="editor-status"
+            >
+              <option value="draft">Draft (hidden from storefront)</option>
+              <option value="published">Published (live on storefront)</option>
+              {d.status === 'archived' && <option value="archived">Archived</option>}
+            </select>
+          </div>
+        </div>
+        {variants.length === 0 ? (
+          <p className="admin-muted">
+            No variants yet — add one under Variants &amp; pricing (a product needs a variant to be published).
+          </p>
+        ) : (
+          <>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th scope="col">SKU</th>
+                  <th scope="col">MRP (₹)</th>
+                  <th scope="col">Selling (₹)</th>
+                  <th scope="col">Stock</th>
+                </tr>
+              </thead>
+              <tbody>
+                {variants.map((v, i) => {
+                  const e = edits[v.id] ?? initialEdit(v);
+                  return (
+                    <tr key={v.id}>
+                      <td>
+                        <input
+                          className="auth-input"
+                          value={e.sku}
+                          maxLength={60}
+                          aria-label={`SKU for ${v.sku}`}
+                          onChange={(ev) => updEdit(v.id, { sku: ev.target.value })}
+                          data-testid={`editor-v-sku-${i}`}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="auth-input"
+                          type="number"
+                          step={0.01}
+                          min={0}
+                          value={e.mrp}
+                          aria-label={`MRP in rupees for ${v.sku}`}
+                          onChange={(ev) => updEdit(v.id, { mrp: ev.target.value })}
+                          data-testid={`editor-v-mrp-${i}`}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="auth-input"
+                          type="number"
+                          step={0.01}
+                          min={0}
+                          value={e.price}
+                          aria-label={`Selling price in rupees for ${v.sku}`}
+                          onChange={(ev) => updEdit(v.id, { price: ev.target.value })}
+                          data-testid={`editor-v-price-${i}`}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="auth-input"
+                          type="number"
+                          step={1}
+                          min={0}
+                          value={e.stock}
+                          aria-label={`Stock for ${v.sku}`}
+                          onChange={(ev) => updEdit(v.id, { stock: ev.target.value })}
+                          data-testid={`editor-v-stock-${i}`}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p className="prod-imghint">
+              Bulk tiers, size/colour, weight and variant image are kept — edit them under
+              &apos;Variants &amp; pricing&apos;.
+            </p>
+          </>
+        )}
       </div>
 
       <div className="prod-section">
