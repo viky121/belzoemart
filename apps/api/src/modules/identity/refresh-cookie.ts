@@ -23,10 +23,24 @@ export type RefreshScope = 'customer' | 'admin';
 const cookieName = (scope: RefreshScope): string =>
   scope === 'admin' ? ADMIN_REFRESH_COOKIE : REFRESH_COOKIE;
 
+/**
+ * Whether to mark the refresh cookie `Secure`. Browsers silently REJECT Secure
+ * cookies set over plain HTTP, so keying this on NODE_ENV broke sessions on the
+ * HTTP-only deployment (refresh never stored -> 401s once the access token
+ * expired). Derive it from the public URL scheme instead; COOKIE_SECURE=true|false
+ * overrides. Once the site moves to HTTPS this becomes Secure automatically.
+ */
+function cookieSecure(): boolean {
+  const override = process.env.COOKIE_SECURE;
+  if (override === 'true') return true;
+  if (override === 'false') return false;
+  return (process.env.PUBLIC_BASE_URL ?? '').startsWith('https://');
+}
+
 export function setRefreshCookie(res: Response, token: string, scope: RefreshScope = 'customer'): void {
   res.cookie(cookieName(scope), token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: cookieSecure(),
     sameSite: 'strict',
     // Scoped to the whole API so the relevant refresh/logout endpoints receive
     // it. Customer and admin are separated by cookie NAME, not path.

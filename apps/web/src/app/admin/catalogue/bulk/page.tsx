@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { CategoryNodeDto } from '@belzo/shared';
 import { adminFetch } from '@/lib/admin-api';
+import { ApiClientError } from '@/lib/api-client';
 
 interface Row {
   sku: string;
@@ -35,7 +36,8 @@ const COLUMNS = [
   'imageUrl',
 ];
 
-const FALLBACK_SLUG = 'tea-coffee';
+// Used only if the category tree can't be loaded. Must be a real leaf slug.
+const FALLBACK_SLUG = 'green-tea';
 
 function buildTemplate(leafSlug: string): string {
   return (
@@ -157,8 +159,18 @@ export default function BulkUploadPage() {
         { method: 'POST', body: { rows } },
       );
       setResult(res);
-    } catch {
-      setResult({ ok: 0, errors: [{ row: 0, message: 'Import request failed.' }] });
+    } catch (e) {
+      // Surface the real reason (e.g. expired session, validation error).
+      let message = 'Import request failed.';
+      if (e instanceof ApiClientError) {
+        message =
+          e.payload.statusCode === 401
+            ? 'Your admin session has expired. Please log in again and retry.'
+            : `Import request failed: ${e.payload.message}`;
+      } else if (e instanceof Error && e.message) {
+        message = `Import request failed: ${e.message}`;
+      }
+      setResult({ ok: 0, errors: [{ row: 0, message }] });
     } finally {
       setBusy(false);
     }
