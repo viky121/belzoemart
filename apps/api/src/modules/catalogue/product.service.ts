@@ -485,6 +485,56 @@ export class ProductService {
   ): Promise<{ ok: number; errors: { row: number; message: string }[] }> {
     const errors: { row: number; message: string }[] = [];
     let ok = 0;
+
+    // Tolerant category resolution: an exact slug wins; otherwise match the
+    // category NAME or SLUG ignoring case, punctuation and "&" vs "and" — so
+    // "tea-coffee", "Tea & Coffee" and "tea-and-coffee" all resolve to the same
+    // category. Names that exist in more than one branch (e.g. "Ghee") are
+    // reported as ambiguous with the exact slugs to choose from.
+    const normKey = (s: string): string =>
+      s
+        .toLowerCase()
+        .replace(/&/g, ' and ')
+        .replace(/\band\b/g, ' ')
+        .replace(/[^a-z0-9]+/g, '');
+    let allCats: { id: string; name: string; slug: string }[] | null = null;
+    const resolveCategory = async (input: string): Promise<{ id: string }> => {
+      const raw = input.trim();
+      const exact =
+        (await this.prisma.category.findUnique({ where: { slug: raw } })) ??
+        (raw !== raw.toLowerCase()
+          ? await this.prisma.category.findUnique({ where: { slug: raw.toLowerCase() } })
+          : null);
+      if (exact) return exact;
+
+      allCats ??= await this.prisma.category.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true, slug: true },
+      });
+      const key = normKey(raw);
+      const matches = key
+        ? allCats.filter((c) => normKey(c.slug) === key || normKey(c.name) === key)
+        : [];
+      if (matches.length === 1) return matches[0]!;
+      if (matches.length > 1) {
+        throw new Error(
+          `category "${raw}" is ambiguous — use one of: ${matches.map((m) => m.slug).join(', ')}`,
+        );
+      }
+      const hints = key
+        ? allCats
+            .filter((c) => {
+              const k = normKey(c.slug);
+              return k.length > 2 && (k.includes(key) || key.includes(k));
+            })
+            .slice(0, 3)
+            .map((c) => c.slug)
+        : [];
+      throw new Error(
+        `unknown category "${raw}"` + (hints.length ? ` — did you mean: ${hints.join(', ')}?` : ''),
+      );
+    };
+
     for (const [i, row] of rows.entries()) {
       try {
         if (row.mrp < 0 || row.sellingPrice < 0) throw new Error('prices must be non-negative');
@@ -499,8 +549,7 @@ export class ProductService {
           }
         }
 
-        const category = await this.prisma.category.findUnique({ where: { slug: row.categorySlug } });
-        if (!category) throw new Error(`unknown category "${row.categorySlug}"`);
+        const category = await resolveCategory(row.categorySlug);
 
         const brandId = row.brand ? (await this.findOrCreateBrandByName(row.brand)).id : undefined;
 

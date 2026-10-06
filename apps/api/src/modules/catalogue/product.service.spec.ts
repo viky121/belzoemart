@@ -32,6 +32,12 @@ describe('ProductService.bulkUpsert', () => {
       category: {
         findUnique: async ({ where: { slug } }: { where: { slug: string } }) =>
           slug === 'apparel' ? { id: 'cat-apparel' } : null,
+        findMany: async () => [
+          { id: 'cat-apparel', name: 'Apparel', slug: 'apparel' },
+          { id: 'cat-tea', name: 'Tea & Coffee', slug: 'tea-and-coffee' },
+          { id: 'cat-ghee-1', name: 'Ghee', slug: 'ghee' },
+          { id: 'cat-ghee-2', name: 'Ghee', slug: 'ghee-2' },
+        ],
       },
       brand: {
         findFirst: async ({ where }: { where: { name: { equals: string } } }) =>
@@ -132,6 +138,27 @@ describe('ProductService.bulkUpsert', () => {
     ]);
     expect(res.ok).toBe(0);
     expect(res.errors[0]?.message).toMatch(/unknown category/);
+  });
+
+  it('resolves near-miss category slugs and names (tea-coffee / Tea & Coffee)', async () => {
+    const { svc, products } = build();
+    const res = await svc.bulkUpsert([
+      { sku: 'T1', title: 'Tea A', categorySlug: 'tea-coffee', mrp: 1000, sellingPrice: 800 },
+      { sku: 'T2', title: 'Tea B', categorySlug: 'Tea & Coffee', mrp: 1000, sellingPrice: 800 },
+    ]);
+    expect(res.errors).toEqual([]);
+    expect(res.ok).toBe(2);
+    expect(products.every((p) => p.categoryId === 'cat-tea')).toBe(true);
+  });
+
+  it('reports an ambiguous category name with the exact slugs to choose from', async () => {
+    const { svc } = build();
+    const res = await svc.bulkUpsert([
+      { sku: 'G1', title: 'Ghee pack', categorySlug: 'GHEE ', mrp: 1000, sellingPrice: 800 },
+    ]);
+    // "ghee" exact slug misses (fake only knows 'apparel'), name matches twice
+    expect(res.ok).toBe(0);
+    expect(res.errors[0]?.message).toMatch(/ambiguous.*ghee, ghee-2/);
   });
 
   it('attaches ProductImage rows in order for a new SKU', async () => {
