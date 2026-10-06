@@ -213,6 +213,33 @@ export class ProductService {
     }
   }
 
+  /** Unique brand slug (same dedup loop as BrandService.uniqueSlug). */
+  private async uniqueBrandSlug(name: string): Promise<string> {
+    const base = slugify(name) || 'brand';
+    let slug = base;
+    let n = 1;
+    for (;;) {
+      const existing = await this.prisma.brand.findUnique({ where: { slug } });
+      if (!existing) return slug;
+      slug = `${base}-${++n}`;
+    }
+  }
+
+  /**
+   * Find a brand by name (case-insensitive) or create one with a unique slug.
+   * Used by the bulk importer so a CSV can carry a brand NAME, not an id.
+   */
+  private async findOrCreateBrandByName(name: string): Promise<{ id: string }> {
+    const trimmed = name.trim();
+    const existing = await this.prisma.brand.findFirst({
+      where: { name: { equals: trimmed, mode: 'insensitive' } },
+    });
+    if (existing) return existing;
+    return this.prisma.brand.create({
+      data: { name: trimmed, slug: await this.uniqueBrandSlug(trimmed) },
+    });
+  }
+
   async create(input: {
     title: string;
     description?: string;
@@ -447,40 +474,111 @@ export class ProductService {
       categorySlug: string;
       mrp: number;
       sellingPrice: number;
+      description?: string;
+      brand?: string;
       hsnCode?: string;
       taxRatePct?: number;
+      stock?: number;
+      status?: 'draft' | 'published';
+      imageUrls?: string[];
     }>,
   ): Promise<{ ok: number; errors: { row: number; message: string }[] }> {
     const errors: { row: number; message: string }[] = [];
     let ok = 0;
     for (const [i, row] of rows.entries()) {
       try {
-        if (row.sellingPrice > row.mrp) throw new Error('sellingPrice exceeds mrp');
         if (row.mrp < 0 || row.sellingPrice < 0) throw new Error('prices must be non-negative');
+        if (row.sellingPrice > row.mrp) throw new Error('sellingPrice exceeds mrp');
+
+        // Validate image URLs up-front so a bad URL is reported per-row and no
+        // product is written for that row.
+        const imageUrls = row.imageUrls ?? [];
+        for (const url of imageUrls) {
+          if (!/^https?:\/\//.test(url) && !url.startsWith('/')) {
+            throw new Error(`invalid image url "${url}"`);
+          }
+        }
+
         const category = await this.prisma.category.findUnique({ where: { slug: row.categorySlug } });
         if (!category) throw new Error(`unknown category "${row.categorySlug}"`);
 
+        const brandId = row.brand ? (await this.findOrCreateBrandByName(row.brand)).id : undefined;
+
         const existingVariant = await this.prisma.variant.findUnique({ where: { sku: row.sku } });
+
         if (existingVariant) {
-          await this.prisma.variant.update({
-            where: { sku: row.sku },
-            data: { mrp: row.mrp, sellingPrice: row.sellingPrice },
+          const productId = existingVariant.productId;
+          const productData: Record<string, unknown> = {};
+          if (row.description !== undefined) productData.description = row.description;
+          if (row.hsnCode !== undefined) productData.hsnCode = row.hsnCode;
+          if (row.taxRatePct !== undefined) productData.taxRatePct = row.taxRatePct;
+          if (brandId !== undefined) productData.brandId = brandId;
+          if (row.status !== undefined) productData.status = row.status;
+
+          // Append only images that aren't already attached, after the current
+          // max position. Never wipe existing images.
+          const existingImages = await this.prisma.productImage.findMany({
+            where: { productId },
+            orderBy: { position: 'desc' },
+          });
+          const existingUrls = new Set(existingImages.map((img) => img.url));
+          let nextPos = existingImages.length ? existingImages[0].position + 1 : 0;
+          const imagesToAdd = imageUrls.filter((u) => !existingUrls.has(u));
+
+          await this.prisma.$transaction(async (tx) => {
+            await tx.variant.update({
+              where: { sku: row.sku },
+              data: { mrp: row.mrp, sellingPrice: row.sellingPrice },
+            });
+            if (Object.keys(productData).length > 0) {
+              await tx.product.update({ where: { id: productId }, data: productData });
+            }
+            if (row.stock !== undefined) {
+              await tx.inventory.upsert({
+                where: { variantId: existingVariant.id },
+                create: { variantId: existingVariant.id, available: row.stock },
+                update: { available: row.stock },
+              });
+            }
+            for (const url of imagesToAdd) {
+              await tx.productImage.create({
+                data: { productId, url, alt: '', position: nextPos++ },
+              });
+            }
           });
         } else {
-          const product = await this.prisma.product.create({
-            data: {
-              title: row.title,
-              slug: await this.uniqueSlug(row.title),
-              categoryId: category.id,
-              hsnCode: row.hsnCode ?? '',
-              taxRatePct: row.taxRatePct ?? 0,
-              status: 'draft',
-            },
+          const slug = await this.uniqueSlug(row.title);
+          await this.prisma.$transaction(async (tx) => {
+            const product = await tx.product.create({
+              data: {
+                title: row.title,
+                slug,
+                categoryId: category.id,
+                brandId,
+                description: row.description ?? '',
+                hsnCode: row.hsnCode ?? '',
+                taxRatePct: row.taxRatePct ?? 0,
+                isReturnable: true,
+                status: row.status ?? 'published',
+              },
+            });
+            const variant = await tx.variant.create({
+              data: {
+                productId: product.id,
+                sku: row.sku,
+                mrp: row.mrp,
+                sellingPrice: row.sellingPrice,
+              },
+            });
+            await tx.inventory.create({
+              data: { variantId: variant.id, available: row.stock ?? 0 },
+            });
+            for (let idx = 0; idx < imageUrls.length; idx += 1) {
+              await tx.productImage.create({
+                data: { productId: product.id, url: imageUrls[idx], alt: '', position: idx },
+              });
+            }
           });
-          const variant = await this.prisma.variant.create({
-            data: { productId: product.id, sku: row.sku, mrp: row.mrp, sellingPrice: row.sellingPrice },
-          });
-          await this.prisma.inventory.create({ data: { variantId: variant.id, available: 0 } });
         }
         ok++;
       } catch (e) {
