@@ -17,6 +17,63 @@ interface Paginated<T> {
   pageSize: number;
 }
 
+/** One CSV export row per variant, in the bulk-upload column shape (prices in rupees). */
+export interface ProductExportRow {
+  sku: string;
+  title: string;
+  categorySlug: string;
+  mrp: number;
+  sellingPrice: number;
+  description: string;
+  brand: string;
+  hsnCode: string;
+  taxRatePct: number;
+  stock: number;
+  status: 'draft' | 'published';
+  imageUrl: string;
+}
+
+/**
+ * Map a product (with category, brand, images and variants+inventory) to one
+ * export row per variant. Paise -> rupees; images joined with '|' by position.
+ * A product without variants yields no rows.
+ */
+export function toExportRows(p: {
+  title: string;
+  description: string;
+  hsnCode: string;
+  taxRatePct: number;
+  status: 'draft' | 'published';
+  category: { slug: string };
+  brand: { name: string } | null;
+  images: { url: string; position: number }[];
+  variants: {
+    sku: string;
+    mrp: number;
+    sellingPrice: number;
+    inventory: { available: number } | null;
+  }[];
+}): ProductExportRow[] {
+  const imageUrl = [...p.images]
+    .sort((a, b) => a.position - b.position)
+    .map((i) => i.url)
+    .join('|');
+  return p.variants.map((v) => ({
+    sku: v.sku,
+    title: p.title,
+    categorySlug: p.category.slug,
+    mrp: v.mrp / 100,
+    sellingPrice: v.sellingPrice / 100,
+    description: p.description,
+    brand: p.brand?.name ?? '',
+    hsnCode: p.hsnCode,
+    taxRatePct: p.taxRatePct,
+    stock: v.inventory?.available ?? 0,
+    status: p.status,
+    imageUrl,
+  }));
+}
+
 /**
  * Product catalogue (FR-2, FR-3, FR-8). Read models power the storefront
  * (published only); write operations power the admin panel (all statuses).
@@ -423,6 +480,29 @@ export class ProductService {
     });
   }
 
+  /**
+   * CSV export for the admin catalogue: one row per variant of every draft or
+   * published product (archived excluded), in the bulk-upload column shape so
+   * an edited export can be re-uploaded through bulkUpsert.
+   */
+  async exportRows(): Promise<{ rows: ProductExportRow[] }> {
+    const products = await this.prisma.product.findMany({
+      where: { status: { in: ['draft', 'published'] } },
+      include: {
+        category: { select: { slug: true } },
+        brand: { select: { name: true } },
+        images: { orderBy: { position: 'asc' } },
+        variants: { orderBy: { createdAt: 'asc' }, include: { inventory: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return {
+      rows: products.flatMap((p) =>
+        toExportRows({ ...p, status: p.status as 'draft' | 'published' }),
+      ),
+    };
+  }
+
   /** Full product detail (any status) for the admin editor. */
   async adminDetail(id: string) {
     const p = await this.prisma.product.findUnique({
@@ -466,6 +546,15 @@ export class ProductService {
   /**
    * Bulk upsert from parsed CSV rows (FR-8.3). Returns per-row results so the
    * admin UI can show an error report. Validates the variant price invariant.
+   *
+   * New SKU: creates product + variant + inventory + images.
+   * Existing SKU (edit via re-uploaded export): updates the variant's mrp and
+   * sellingPrice, the product's title and category always, and description,
+   * brand, hsnCode, taxRatePct, status and stock only when the cell is
+   * provided (blank = unchanged). A non-empty imageUrls REPLACES the product's
+   * images with exactly that ordered list; omitted/empty keeps them. Variants
+   * of one product share product-level fields, so when several rows of the
+   * same product disagree the last row wins.
    */
   async bulkUpsert(
     rows: Array<{
@@ -557,22 +646,21 @@ export class ProductService {
 
         if (existingVariant) {
           const productId = existingVariant.productId;
-          const productData: Record<string, unknown> = {};
+          // title + category are required CSV columns, so always applied;
+          // optional cells only when provided (blank = unchanged).
+          const productData: Record<string, unknown> = {
+            title: row.title,
+            categoryId: category.id,
+          };
           if (row.description !== undefined) productData.description = row.description;
           if (row.hsnCode !== undefined) productData.hsnCode = row.hsnCode;
           if (row.taxRatePct !== undefined) productData.taxRatePct = row.taxRatePct;
           if (brandId !== undefined) productData.brandId = brandId;
           if (row.status !== undefined) productData.status = row.status;
 
-          // Append only images that aren't already attached, after the current
-          // max position. Never wipe existing images.
-          const existingImages = await this.prisma.productImage.findMany({
-            where: { productId },
-            orderBy: { position: 'desc' },
-          });
-          const existingUrls = new Set(existingImages.map((img) => img.url));
-          let nextPos = existingImages.length ? existingImages[0].position + 1 : 0;
-          const imagesToAdd = imageUrls.filter((u) => !existingUrls.has(u));
+          // A non-empty imageUrl list REPLACES the gallery in that order
+          // (duplicates dropped, first = main); blank keeps current images.
+          const replaceUrls = [...new Set(imageUrls)];
 
           await this.prisma.$transaction(async (tx) => {
             await tx.variant.update({
@@ -589,10 +677,13 @@ export class ProductService {
                 update: { available: row.stock },
               });
             }
-            for (const url of imagesToAdd) {
-              await tx.productImage.create({
-                data: { productId, url, alt: '', position: nextPos++ },
-              });
+            if (replaceUrls.length > 0) {
+              await tx.productImage.deleteMany({ where: { productId } });
+              for (const [idx, url] of replaceUrls.entries()) {
+                await tx.productImage.create({
+                  data: { productId, url, alt: '', position: idx },
+                });
+              }
             }
           });
         } else {

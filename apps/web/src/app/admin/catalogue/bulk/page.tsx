@@ -5,6 +5,9 @@ import Link from 'next/link';
 import type { CategoryNodeDto } from '@belzo/shared';
 import { adminFetch, adminUpload } from '@/lib/admin-api';
 import { ApiClientError } from '@/lib/api-client';
+import { parseCsv } from '@/lib/csv';
+import { PRODUCT_CSV_COLUMNS } from '@/lib/product-csv';
+import { ExportProductsButton } from '../export-button';
 
 interface Row {
   sku: string;
@@ -21,27 +24,12 @@ interface Row {
   imageUrls?: string[];
 }
 
-const COLUMNS = [
-  'sku',
-  'title',
-  'categorySlug',
-  'mrp',
-  'sellingPrice',
-  'description',
-  'brand',
-  'hsnCode',
-  'taxRatePct',
-  'stock',
-  'status',
-  'imageUrl',
-];
-
 // Used only if the category tree can't be loaded. Must be a real leaf slug.
 const FALLBACK_SLUG = 'green-tea';
 
 function buildTemplate(leafSlug: string): string {
   return (
-    `${COLUMNS.join(',')}\n` +
+    `${PRODUCT_CSV_COLUMNS.join(',')}\n` +
     `RICE-5KG,Basmati Rice 5kg,${leafSlug},899,799,Premium aged basmati rice,Belzo,1006,5,100,published,rice-front.jpg|rice-back.jpg\n`
   );
 }
@@ -60,35 +48,6 @@ function leafCategories(nodes: CategoryNodeDto[]): { name: string; slug: string 
   };
   walk(nodes);
   return out;
-}
-
-/** Minimal CSV parser that supports quoted fields with commas. */
-function parseCsv(text: string): Record<string, string>[] {
-  const lines = text.replace(/\r/g, '').split('\n').filter((l) => l.trim());
-  if (lines.length < 2) return [];
-  const split = (line: string): string[] => {
-    const out: string[] = [];
-    let cur = '';
-    let inq = false;
-    for (let i = 0; i < line.length; i += 1) {
-      const c = line[i];
-      if (c === '"') {
-        if (inq && line[i + 1] === '"') { cur += '"'; i += 1; } else inq = !inq;
-      } else if (c === ',' && !inq) {
-        out.push(cur);
-        cur = '';
-      } else cur += c;
-    }
-    out.push(cur);
-    return out.map((s) => s.trim());
-  };
-  const headers = split(lines[0]);
-  return lines.slice(1).map((l) => {
-    const cells = split(l);
-    const obj: Record<string, string> = {};
-    headers.forEach((h, i) => (obj[h] = cells[i] ?? ''));
-    return obj;
-  });
 }
 
 /** Bulk product upload via CSV (FR-8.3). Prices in the CSV are in rupees. */
@@ -312,10 +271,25 @@ export default function BulkUploadPage() {
       <section className="admin-card">
         <div className="admin-card__head">
           <h2>1. Prepare your CSV</h2>
-          <a className="btn" href={templateHref} download="belzo-products-template.csv">⬇ Download template</a>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <ExportProductsButton />
+            <a className="btn" href={templateHref} download="belzo-products-template.csv">⬇ Download template</a>
+          </div>
         </div>
+        <p className="admin-muted" style={{ marginTop: 0 }}>
+          <strong>To edit existing products:</strong> Export products → edit in Excel → save as{' '}
+          <strong>CSV UTF-8</strong> → upload here. Existing SKUs get title, category, MRP, selling
+          price, description, brand, HSN, GST, stock and status updated; <strong>blank optional
+          cells leave the current value unchanged</strong>. A non-empty <code>imageUrl</code>{' '}
+          <strong>replaces</strong> the product&apos;s images with exactly those images in that order
+          (first = main); a blank <code>imageUrl</code> keeps the current images. Variants of the
+          same product share product-level fields (title, category, description, brand, HSN, GST,
+          status, images) — if their rows disagree, the last row wins. Products without variants
+          are not exported. In Excel, format the <code>sku</code> and <code>hsnCode</code> columns
+          as <strong>Text</strong> so leading zeros are kept.
+        </p>
         <p className="admin-muted" style={{ margin: 0 }}>
-          Columns: <code>{COLUMNS.join(', ')}</code>. Prices are in <strong>rupees</strong>.
+          Columns: <code>{PRODUCT_CSV_COLUMNS.join(', ')}</code>. Prices are in <strong>rupees</strong>.
           Required: <code>sku</code>, <code>title</code>, <code>categorySlug</code>, <code>mrp</code>,{' '}
           <code>sellingPrice</code>. Everything else is optional.
           <code> categorySlug</code> must match an existing leaf category (see the list below).
@@ -326,8 +300,6 @@ export default function BulkUploadPage() {
           — or leave <code>imageUrl</code> empty and name the files after the SKU
           (<code>RICE-5KG.jpg</code>, <code>RICE-5KG-2.jpg</code>). Full links (<code>https://…</code>) also work.
           The first image becomes the main image.
-          Existing SKUs get their price updated, keep their current images, and have any new image
-          URLs appended.
         </p>
         {leaves.length > 0 && (
           <>
@@ -447,7 +419,8 @@ export default function BulkUploadPage() {
           <p><span className="admin-status admin-status--ok">{result.ok} imported</span>{' '}
             {result.errors.length > 0 && <span className="admin-status admin-status--bad">{result.errors.length} failed</span>}</p>
           <p className="admin-muted" style={{ marginTop: 0 }}>
-            New SKUs are published by default and appear on the storefront immediately.
+            New SKUs are published by default and appear on the storefront immediately. Existing
+            SKUs were updated in place (blank cells left unchanged).
           </p>
           {result.errors.length > 0 && (
             <table className="admin-table">

@@ -157,6 +157,11 @@ export class AdminCatalogueController {
     return this.products.adminList();
   }
 
+  @Get('products/export')
+  exportProducts() {
+    return this.products.exportRows();
+  }
+
   @Get('products/:id/detail')
   productDetail(@Param('id') id: string) {
     return this.products.adminDetail(id);

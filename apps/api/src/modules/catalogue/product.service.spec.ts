@@ -1,4 +1,4 @@
-import { ProductService } from './product.service';
+import { ProductService, toExportRows } from './product.service';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { CategoryService } from './category.service';
 
@@ -16,8 +16,9 @@ describe('ProductService.bulkUpsert', () => {
     existingVariants?: FakeVariant[];
     existingImages?: FakeImage[];
     existingBrands?: FakeBrand[];
+    existingProducts?: Record<string, unknown>[];
   } = {}) {
-    const products: Record<string, unknown>[] = [];
+    const products: Record<string, unknown>[] = [...(options.existingProducts ?? [])];
     const variants: FakeVariant[] = [...(options.existingVariants ?? [])];
     const images: FakeImage[] = [...(options.existingImages ?? [])];
     const brands: FakeBrand[] = [...(options.existingBrands ?? [])];
@@ -86,6 +87,16 @@ describe('ProductService.bulkUpsert', () => {
         create: async ({ data }: { data: FakeImage }) => {
           images.push(data);
           return data;
+        },
+        deleteMany: async ({ where: { productId } }: { where: { productId: string } }) => {
+          let count = 0;
+          for (let i = images.length - 1; i >= 0; i -= 1) {
+            if (images[i]!.productId === productId) {
+              images.splice(i, 1);
+              count += 1;
+            }
+          }
+          return { count };
         },
       },
       inventory: {
@@ -237,32 +248,218 @@ describe('ProductService.bulkUpsert', () => {
     expect(products).toHaveLength(0);
   });
 
-  it('updates price and appends a new image for an existing SKU without duplicating', async () => {
-    const { svc, variants, images } = build({
-      existingVariants: [{ id: 'v-ex', sku: 'EX1', productId: 'p-ex', mrp: 1000, sellingPrice: 900 }],
-      existingImages: [{ productId: 'p-ex', url: 'https://cdn.test/old.jpg', alt: '', position: 0 }],
+  describe('existing SKU edits', () => {
+    const exVariant = (): FakeVariant => ({
+      id: 'v-ex',
+      sku: 'EX1',
+      productId: 'p-ex',
+      mrp: 1000,
+      sellingPrice: 900,
     });
-    const res = await svc.bulkUpsert([
-      {
-        sku: 'EX1',
-        title: 'Existing',
-        categorySlug: 'apparel',
-        mrp: 1200,
-        sellingPrice: 1000,
-        imageUrls: ['https://cdn.test/old.jpg', 'https://cdn.test/new.jpg'],
+    const exProduct = (): Record<string, unknown> => ({
+      id: 'p-ex',
+      title: 'Old',
+      slug: 'old',
+      categoryId: 'cat-apparel',
+      description: 'Old description',
+    });
+    const exImages = (): FakeImage[] => [
+      { productId: 'p-ex', url: 'https://cdn.test/old.jpg', alt: '', position: 0 },
+      { productId: 'p-ex', url: 'https://cdn.test/keep.jpg', alt: '', position: 1 },
+    ];
+    const byPosition = (images: FakeImage[]) =>
+      images
+        .filter((i) => i.productId === 'p-ex')
+        .sort((a, b) => a.position - b.position)
+        .map((i) => [i.url, i.position]);
+
+    it('updates mrp/sellingPrice, title and category', async () => {
+      const { svc, variants, products } = build({
+        existingVariants: [exVariant()],
+        existingProducts: [exProduct()],
+      });
+      const res = await svc.bulkUpsert([
+        { sku: 'EX1', title: 'New title', categorySlug: 'Tea & Coffee', mrp: 1200, sellingPrice: 1000 },
+      ]);
+      expect(res.errors).toEqual([]);
+      expect(res.ok).toBe(1);
+      const updated = variants.find((v) => v.sku === 'EX1');
+      expect(updated?.mrp).toBe(1200);
+      expect(updated?.sellingPrice).toBe(1000);
+      expect(products[0]?.categoryId).toBe('cat-tea');
+      expect(products[0]?.title).toBe('New title');
+      // blank optional cells leave the current value unchanged
+      expect(products[0]?.description).toBe('Old description');
+    });
+
+    it('replaces images in order when imageUrls is non-empty', async () => {
+      const { svc, images } = build({
+        existingVariants: [exVariant()],
+        existingProducts: [exProduct()],
+        existingImages: exImages(),
+      });
+      const res = await svc.bulkUpsert([
+        {
+          sku: 'EX1',
+          title: 'Old',
+          categorySlug: 'apparel',
+          mrp: 1000,
+          sellingPrice: 900,
+          imageUrls: ['https://cdn.test/new.jpg', 'https://cdn.test/keep.jpg'],
+        },
+      ]);
+      expect(res.ok).toBe(1);
+      expect(byPosition(images)).toEqual([
+        ['https://cdn.test/new.jpg', 0],
+        ['https://cdn.test/keep.jpg', 1],
+      ]);
+      expect(images.some((i) => i.url === 'https://cdn.test/old.jpg')).toBe(false);
+    });
+
+    it('keeps existing images exactly when imageUrls is omitted', async () => {
+      const { svc, images } = build({
+        existingVariants: [exVariant()],
+        existingProducts: [exProduct()],
+        existingImages: exImages(),
+      });
+      const res = await svc.bulkUpsert([
+        { sku: 'EX1', title: 'Old', categorySlug: 'apparel', mrp: 1100, sellingPrice: 950 },
+      ]);
+      expect(res.ok).toBe(1);
+      expect(images).toEqual(exImages());
+    });
+
+    it('leaves everything identical for an unchanged round trip', async () => {
+      const { svc, images, variants, products } = build({
+        existingVariants: [exVariant()],
+        existingProducts: [exProduct()],
+        existingImages: exImages(),
+      });
+      const res = await svc.bulkUpsert([
+        {
+          sku: 'EX1',
+          title: 'Old',
+          categorySlug: 'apparel',
+          mrp: 1000,
+          sellingPrice: 900,
+          description: 'Old description',
+          imageUrls: ['https://cdn.test/old.jpg', 'https://cdn.test/keep.jpg'],
+        },
+      ]);
+      expect(res.ok).toBe(1);
+      expect(byPosition(images)).toEqual(byPosition(exImages()));
+      expect(variants).toEqual([exVariant()]);
+      expect(products).toEqual([exProduct()]);
+    });
+  });
+});
+
+/** Pure CSV-export mapping (paise -> rupees, one row per variant). */
+describe('toExportRows', () => {
+  function product(overrides: Partial<Parameters<typeof toExportRows>[0]> = {}) {
+    return {
+      title: 'Basmati Rice',
+      description: 'Premium, "aged"',
+      hsnCode: '1006',
+      taxRatePct: 5,
+      status: 'published' as const,
+      category: { slug: 'rice' },
+      brand: { name: 'Belzo' },
+      images: [
+        { url: '/uploads/b.jpg', position: 1 },
+        { url: 'https://cdn.test/a.jpg', position: 0 },
+      ],
+      variants: [
+        { sku: 'RICE-5KG', mrp: 89900, sellingPrice: 79950, inventory: { available: 12 } },
+      ],
+      ...overrides,
+    };
+  }
+
+  it('converts paise to rupees and joins images by position', () => {
+    const [row] = toExportRows(product());
+    expect(row).toEqual({
+      sku: 'RICE-5KG',
+      title: 'Basmati Rice',
+      categorySlug: 'rice',
+      mrp: 899,
+      sellingPrice: 799.5,
+      description: 'Premium, "aged"',
+      brand: 'Belzo',
+      hsnCode: '1006',
+      taxRatePct: 5,
+      stock: 12,
+      status: 'published',
+      imageUrl: 'https://cdn.test/a.jpg|/uploads/b.jpg',
+    });
+  });
+
+  it('yields one row per variant sharing product-level fields', () => {
+    const rows = toExportRows(
+      product({
+        variants: [
+          { sku: 'R-1', mrp: 10000, sellingPrice: 9000, inventory: { available: 3 } },
+          { sku: 'R-5', mrp: 45000, sellingPrice: 40000, inventory: { available: 7 } },
+        ],
+      }),
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => [r.sku, r.mrp, r.sellingPrice, r.stock])).toEqual([
+      ['R-1', 100, 90, 3],
+      ['R-5', 450, 400, 7],
+    ]);
+    for (const r of rows) {
+      expect(r.title).toBe('Basmati Rice');
+      expect(r.categorySlug).toBe('rice');
+      expect(r.brand).toBe('Belzo');
+      expect(r.imageUrl).toBe('https://cdn.test/a.jpg|/uploads/b.jpg');
+    }
+  });
+
+  it('uses stock 0 for null inventory and empty brand for null brand', () => {
+    const [row] = toExportRows(
+      product({
+        brand: null,
+        variants: [{ sku: 'X', mrp: 100, sellingPrice: 100, inventory: null }],
+      }),
+    );
+    expect(row?.stock).toBe(0);
+    expect(row?.brand).toBe('');
+  });
+
+  it('returns no rows for a product without variants', () => {
+    expect(toExportRows(product({ variants: [] }))).toEqual([]);
+  });
+});
+
+describe('ProductService.exportRows', () => {
+  it('queries draft+published only and maps each product to rows', async () => {
+    const fixture = {
+      id: 'p1',
+      title: 'Tea',
+      description: '',
+      hsnCode: '0902',
+      taxRatePct: 5,
+      status: 'draft' as const,
+      category: { slug: 'green-tea' },
+      brand: null,
+      images: [{ url: '/uploads/t.jpg', position: 0 }],
+      variants: [{ sku: 'TEA-1', mrp: 25000, sellingPrice: 20000, inventory: { available: 4 } }],
+    };
+    const calls: { where: { status: { in: string[] } } }[] = [];
+    const prisma = {
+      product: {
+        findMany: async (args: { where: { status: { in: string[] } } }) => {
+          calls.push(args);
+          return [fixture];
+        },
       },
-    ]);
-    expect(res.ok).toBe(1);
-    const updated = variants.find((v) => v.sku === 'EX1');
-    expect(updated?.sellingPrice).toBe(1000);
-    expect(updated?.mrp).toBe(1200);
-    // old.jpg not duplicated; new.jpg appended at the next position
-    expect(images).toHaveLength(2);
-    expect(images.map((i) => i.url).sort()).toEqual([
-      'https://cdn.test/new.jpg',
-      'https://cdn.test/old.jpg',
-    ]);
-    expect(images.find((i) => i.url === 'https://cdn.test/new.jpg')?.position).toBe(1);
+    } as unknown as PrismaService;
+    const svc = new ProductService(prisma, {} as CategoryService);
+    const res = await svc.exportRows();
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.where.status.in).toEqual(['draft', 'published']);
+    expect(res).toEqual({ rows: toExportRows(fixture) });
   });
 });
 
