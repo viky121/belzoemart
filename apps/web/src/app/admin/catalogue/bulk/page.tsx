@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { CategoryNodeDto } from '@belzo/shared';
-import { adminFetch } from '@/lib/admin-api';
+import { adminFetch, adminUpload } from '@/lib/admin-api';
 import { ApiClientError } from '@/lib/api-client';
 
 interface Row {
@@ -42,9 +42,12 @@ const FALLBACK_SLUG = 'green-tea';
 function buildTemplate(leafSlug: string): string {
   return (
     `${COLUMNS.join(',')}\n` +
-    `RICE-5KG,Basmati Rice 5kg,${leafSlug},899,799,Premium aged basmati rice,Belzo,1006,5,100,published,https://example.com/rice-front.jpg|https://example.com/rice-back.jpg\n`
+    `RICE-5KG,Basmati Rice 5kg,${leafSlug},899,799,Premium aged basmati rice,Belzo,1006,5,100,published,rice-front.jpg|rice-back.jpg\n`
   );
 }
+
+/** An imageUrl entry that is already a usable link (vs. a local file name). */
+const isUrlRef = (s: string): boolean => /^https?:\/\//i.test(s) || s.startsWith('/');
 
 /** Flatten the nested category tree to leaf nodes (those without children). */
 function leafCategories(nodes: CategoryNodeDto[]): { name: string; slug: string }[] {
@@ -96,6 +99,49 @@ export default function BulkUploadPage() {
   const [result, setResult] = useState<{ ok: number; errors: { row: number; message: string }[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [leaves, setLeaves] = useState<{ name: string; slug: string }[]>([]);
+  // Image files picked on this page, keyed by lower-cased file name. CSV rows
+  // reference them by name in `imageUrl` (or by SKU-based file names).
+  const [imageFiles, setImageFiles] = useState<Map<string, File>>(new Map());
+  const [progress, setProgress] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  function addImageFiles(list: FileList | null) {
+    const files = Array.from(list ?? []).filter((f) => f.type.startsWith('image/'));
+    if (files.length === 0) return;
+    setImageFiles((prev) => {
+      const next = new Map(prev);
+      for (const f of files) next.set(f.name.toLowerCase(), f);
+      return next;
+    });
+  }
+
+  /** Files named after the SKU: RICE-5KG.jpg, RICE-5KG-2.jpg, RICE-5KG_back.png… */
+  function skuFiles(sku: string): string[] {
+    const s = sku.trim().toLowerCase();
+    if (!s) return [];
+    return [...imageFiles.keys()]
+      .filter((name) => {
+        const base = name.replace(/\.[^.]+$/, '');
+        return base === s || base.startsWith(`${s}-`) || base.startsWith(`${s}_`);
+      })
+      .sort();
+  }
+
+  /** Image references for a row: its imageUrl entries, else SKU-named files. */
+  function imageRefs(r: Row): string[] {
+    return r.imageUrls && r.imageUrls.length > 0 ? r.imageUrls : skuFiles(r.sku);
+  }
+
+  const missingFiles = useMemo(() => {
+    const out = new Set<string>();
+    for (const r of rows) {
+      for (const ref of imageRefs(r)) {
+        if (!isUrlRef(ref) && !imageFiles.has(ref.toLowerCase())) out.add(ref);
+      }
+    }
+    return [...out];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, imageFiles]);
 
   // Load the category tree so the template uses a REAL leaf slug and admins can
   // see/copy valid slugs (the key usability fix — the old 'grocery' slug did
@@ -154,11 +200,72 @@ export default function BulkUploadPage() {
     setBusy(true);
     setResult(null);
     try {
-      const res = await adminFetch<{ ok: number; errors: { row: number; message: string }[] }>(
-        '/admin/products/bulk',
-        { method: 'POST', body: { rows } },
-      );
-      setResult(res);
+      // 1) Upload every image file referenced by the rows (each file once).
+      const needed = new Set<string>();
+      for (const r of rows) {
+        for (const ref of imageRefs(r)) {
+          const key = ref.toLowerCase();
+          if (!isUrlRef(ref) && imageFiles.has(key)) needed.add(key);
+        }
+      }
+      const urlByName = new Map<string, string>();
+      const failed = new Map<string, string>();
+      let n = 0;
+      for (const key of needed) {
+        n += 1;
+        setProgress(`Uploading images… ${n}/${needed.size}`);
+        try {
+          const { url } = await adminUpload(imageFiles.get(key)!, 'products');
+          urlByName.set(key, url);
+        } catch (err) {
+          failed.set(key, err instanceof Error ? err.message : 'upload failed');
+        }
+      }
+      setProgress(needed.size > 0 ? 'Importing…' : null);
+
+      // 2) Swap file names for uploaded URLs; rows with a missing/failed image
+      //    are reported here and not sent (so no product gets a broken image).
+      const clientErrors: { row: number; message: string }[] = [];
+      const payload: Row[] = [];
+      const originalIndex: number[] = [];
+      rows.forEach((r, i) => {
+        const urls: string[] = [];
+        let problem: string | null = null;
+        for (const ref of imageRefs(r)) {
+          if (isUrlRef(ref)) {
+            urls.push(ref);
+            continue;
+          }
+          const key = ref.toLowerCase();
+          const u = urlByName.get(key);
+          if (u) urls.push(u);
+          else if (failed.has(key)) problem = `image upload failed for "${ref}": ${failed.get(key)}`;
+          else problem = `image file "${ref}" was not selected in step 2`;
+          if (problem) break;
+        }
+        if (problem) {
+          clientErrors.push({ row: i + 1, message: problem });
+          return;
+        }
+        payload.push({ ...r, imageUrls: urls.length > 0 ? urls : undefined });
+        originalIndex.push(i);
+      });
+
+      // 3) Import the remaining rows; map server row numbers back to the CSV.
+      let ok = 0;
+      let serverErrors: { row: number; message: string }[] = [];
+      if (payload.length > 0) {
+        const res = await adminFetch<{ ok: number; errors: { row: number; message: string }[] }>(
+          '/admin/products/bulk',
+          { method: 'POST', body: { rows: payload } },
+        );
+        ok = res.ok;
+        serverErrors = res.errors.map((e) => ({
+          ...e,
+          row: e.row >= 1 ? (originalIndex[e.row - 1] ?? e.row - 1) + 1 : e.row,
+        }));
+      }
+      setResult({ ok, errors: [...clientErrors, ...serverErrors].sort((a, b) => a.row - b.row) });
     } catch (e) {
       // Surface the real reason (e.g. expired session, validation error).
       let message = 'Import request failed.';
@@ -172,6 +279,7 @@ export default function BulkUploadPage() {
       }
       setResult({ ok: 0, errors: [{ row: 0, message }] });
     } finally {
+      setProgress(null);
       setBusy(false);
     }
   }
@@ -200,8 +308,11 @@ export default function BulkUploadPage() {
           <code> categorySlug</code> must match an existing leaf category (see the list below).
           <code> status</code> accepts <code>draft</code> or <code>published</code>; new SKUs
           default to <strong>published</strong> so they appear on the storefront.
-          Images are referenced by <strong>URL</strong> (a CSV cannot carry image files) — put one
-          or more URLs in <code>imageUrl</code> separated by <code>|</code>.
+          <strong>Images:</strong> select the image files in step 2 and write their file names in{' '}
+          <code>imageUrl</code> separated by <code>|</code> (e.g. <code>rice-front.jpg|rice-back.jpg</code>)
+          — or leave <code>imageUrl</code> empty and name the files after the SKU
+          (<code>RICE-5KG.jpg</code>, <code>RICE-5KG-2.jpg</code>). Full links (<code>https://…</code>) also work.
+          The first image becomes the main image.
           Existing SKUs get their price updated, keep their current images, and have any new image
           URLs appended.
         </p>
@@ -233,6 +344,64 @@ export default function BulkUploadPage() {
         {fileName && <span className="admin-muted"> {fileName} — {rows.length} rows</span>}
         {parseErr && <p className="prod-form__msg">{parseErr}</p>}
 
+        <div style={{ marginTop: 14 }}>
+          <label className="auth-label">Product images (optional)</label>
+          <label
+            className={`wiz__drop${dragOver ? ' wiz__drop--over' : ''}`}
+            aria-disabled={busy}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (!busy) setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              if (!busy) addImageFiles(e.dataTransfer.files);
+            }}
+          >
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="wiz__drop-input"
+              disabled={busy}
+              data-testid="bulk-images"
+              onChange={(e) => {
+                addImageFiles(e.target.files);
+                e.target.value = '';
+              }}
+            />
+            <span className="wiz__drop-ic">⬆</span>
+            <span className="wiz__drop-main">
+              {dragOver ? 'Drop images here' : 'Click or drag product images here'}
+            </span>
+            <span className="wiz__drop-sub">
+              Select all images used in the CSV at once · matched by file name (or by SKU)
+            </span>
+          </label>
+          {imageFiles.size > 0 && (
+            <p className="admin-muted" style={{ marginTop: 6 }}>
+              {imageFiles.size} image{imageFiles.size === 1 ? '' : 's'} selected:{' '}
+              {[...imageFiles.values()].map((f) => f.name).join(', ')}{' '}
+              <button
+                type="button"
+                className="admin-inline-btn"
+                onClick={() => setImageFiles(new Map())}
+                disabled={busy}
+              >
+                Clear
+              </button>
+            </p>
+          )}
+          {missingFiles.length > 0 && (
+            <p className="prod-form__msg" data-testid="bulk-missing-images">
+              ⚠ Not selected yet: {missingFiles.join(', ')}. Add these image files above, or those
+              rows will be skipped.
+            </p>
+          )}
+        </div>
+
         {rows.length > 0 && (
           <>
             <table className="admin-table" style={{ marginTop: 12 }}>
@@ -242,14 +411,18 @@ export default function BulkUploadPage() {
                   <tr key={i}>
                     <td>{r.sku}</td><td>{r.title}</td><td>{r.categorySlug}</td>
                     <td>₹{(r.mrp / 100).toFixed(2)}</td><td>₹{(r.sellingPrice / 100).toFixed(2)}</td><td>{r.taxRatePct ?? '—'}</td>
-                    <td>{r.stock ?? '—'}</td><td>{r.imageUrls?.length ?? 0}</td>
+                    <td>{r.stock ?? '—'}</td>
+                    <td>
+                      {imageRefs(r).length}
+                      {imageRefs(r).some((ref) => !isUrlRef(ref) && !imageFiles.has(ref.toLowerCase())) && ' ⚠'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
             {rows.length > 12 && <p className="admin-muted">…and {rows.length - 12} more rows.</p>}
             <button className="btn" onClick={importRows} disabled={busy} data-testid="bulk-import" style={{ marginTop: 12 }}>
-              {busy ? 'Importing…' : `Import ${rows.length} products`}
+              {busy ? (progress ?? 'Importing…') : `Import ${rows.length} products`}
             </button>
           </>
         )}
