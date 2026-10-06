@@ -127,6 +127,19 @@ export default function BulkUploadPage() {
       .sort();
   }
 
+  /**
+   * Find the selected file for an imageUrl entry. Exact (case-insensitive) name
+   * first; otherwise match on the name WITHOUT its extension when exactly one
+   * selected file has it — so "photo.png" in the CSV still finds "photo.jpg".
+   */
+  function fileKeyFor(ref: string): string | undefined {
+    const key = ref.trim().toLowerCase();
+    if (imageFiles.has(key)) return key;
+    const base = key.replace(/\.[^.]+$/, '');
+    const hits = [...imageFiles.keys()].filter((k) => k.replace(/\.[^.]+$/, '') === base);
+    return hits.length === 1 ? hits[0] : undefined;
+  }
+
   /** Image references for a row: its imageUrl entries, else SKU-named files. */
   function imageRefs(r: Row): string[] {
     return r.imageUrls && r.imageUrls.length > 0 ? r.imageUrls : skuFiles(r.sku);
@@ -136,7 +149,7 @@ export default function BulkUploadPage() {
     const out = new Set<string>();
     for (const r of rows) {
       for (const ref of imageRefs(r)) {
-        if (!isUrlRef(ref) && !imageFiles.has(ref.toLowerCase())) out.add(ref);
+        if (!isUrlRef(ref) && !fileKeyFor(ref)) out.add(ref);
       }
     }
     return [...out];
@@ -204,8 +217,8 @@ export default function BulkUploadPage() {
       const needed = new Set<string>();
       for (const r of rows) {
         for (const ref of imageRefs(r)) {
-          const key = ref.toLowerCase();
-          if (!isUrlRef(ref) && imageFiles.has(key)) needed.add(key);
+          const key = isUrlRef(ref) ? undefined : fileKeyFor(ref);
+          if (key) needed.add(key);
         }
       }
       const urlByName = new Map<string, string>();
@@ -236,7 +249,7 @@ export default function BulkUploadPage() {
             urls.push(ref);
             continue;
           }
-          const key = ref.toLowerCase();
+          const key = fileKeyFor(ref) ?? ref.trim().toLowerCase();
           const u = urlByName.get(key);
           if (u) urls.push(u);
           else if (failed.has(key)) problem = `image upload failed for "${ref}": ${failed.get(key)}`;
@@ -414,7 +427,7 @@ export default function BulkUploadPage() {
                     <td>{r.stock ?? '—'}</td>
                     <td>
                       {imageRefs(r).length}
-                      {imageRefs(r).some((ref) => !isUrlRef(ref) && !imageFiles.has(ref.toLowerCase())) && ' ⚠'}
+                      {imageRefs(r).some((ref) => !isUrlRef(ref) && !fileKeyFor(ref)) && ' ⚠'}
                     </td>
                   </tr>
                 ))}
