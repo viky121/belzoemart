@@ -207,6 +207,11 @@ export class AdminCatalogueController {
     return this.variants.upsert(dto);
   }
 
+  @Delete('variants/:id')
+  removeVariant(@Param('id') id: string) {
+    return this.variants.remove(id);
+  }
+
   @Post('products/:id/price-slabs')
   applyProductSlabs(@Param('id') id: string, @Body() dto: ProductSlabsDto) {
     return this.products.applyPriceSlabs(id, dto.tiers);

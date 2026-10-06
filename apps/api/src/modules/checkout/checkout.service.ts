@@ -129,6 +129,11 @@ export class CheckoutService {
     const lines: PriceLine[] = [];
     const snapshot = [];
     for (const item of active) {
+      if (item.unavailable) {
+        throw new BadRequestException(
+          `"${item.title}" is no longer available — remove it from your cart`,
+        );
+      }
       if (!item.inStock) throw new BadRequestException(`"${item.title}" is out of stock`);
       lines.push({ unitPrice: item.unitPrice, quantity: item.quantity, taxRatePct: item.taxRatePct });
       snapshot.push({

@@ -9,7 +9,14 @@ import type { CategoryService } from './category.service';
  */
 describe('ProductService.bulkUpsert', () => {
   interface FakeImage { productId: string; url: string; alt: string; position: number }
-  interface FakeVariant { id: string; sku: string; productId: string; mrp: number; sellingPrice: number }
+  interface FakeVariant {
+    id: string;
+    sku: string;
+    productId: string;
+    mrp: number;
+    sellingPrice: number;
+    isActive?: boolean;
+  }
   interface FakeBrand { id: string; name: string; slug: string }
 
   function build(options: {
@@ -351,6 +358,32 @@ describe('ProductService.bulkUpsert', () => {
       expect(variants).toEqual([exVariant()]);
       expect(products).toEqual([exProduct()]);
     });
+
+    it('reactivates a soft-deleted (removed) SKU and applies the row', async () => {
+      const { svc, variants, inventory } = build({
+        existingVariants: [{ ...exVariant(), isActive: false }],
+        existingProducts: [exProduct()],
+      });
+      const res = await svc.bulkUpsert([
+        { sku: 'EX1', title: 'Old', categorySlug: 'apparel', mrp: 1500, sellingPrice: 1200, stock: 9 },
+      ]);
+      expect(res.errors).toEqual([]);
+      expect(res.ok).toBe(1);
+      expect(variants).toHaveLength(1); // updated in place, no duplicate SKU created
+      expect(variants[0]).toMatchObject({ isActive: true, mrp: 1500, sellingPrice: 1200 });
+      expect(inventory).toEqual([{ variantId: 'v-ex', available: 9 }]);
+    });
+
+    it('does not touch isActive for an active existing SKU', async () => {
+      const { svc, variants } = build({
+        existingVariants: [{ ...exVariant(), isActive: true }],
+        existingProducts: [exProduct()],
+      });
+      await svc.bulkUpsert([
+        { sku: 'EX1', title: 'Old', categorySlug: 'apparel', mrp: 1000, sellingPrice: 900 },
+      ]);
+      expect(variants[0]?.isActive).toBe(true);
+    });
   });
 });
 
@@ -446,10 +479,14 @@ describe('ProductService.exportRows', () => {
       images: [{ url: '/uploads/t.jpg', position: 0 }],
       variants: [{ sku: 'TEA-1', mrp: 25000, sellingPrice: 20000, inventory: { available: 4 } }],
     };
-    const calls: { where: { status: { in: string[] } } }[] = [];
+    type Args = {
+      where: { status: { in: string[] } };
+      include: { variants: { where: unknown } };
+    };
+    const calls: Args[] = [];
     const prisma = {
       product: {
-        findMany: async (args: { where: { status: { in: string[] } } }) => {
+        findMany: async (args: Args) => {
           calls.push(args);
           return [fixture];
         },
@@ -459,7 +496,89 @@ describe('ProductService.exportRows', () => {
     const res = await svc.exportRows();
     expect(calls).toHaveLength(1);
     expect(calls[0]?.where.status.in).toEqual(['draft', 'published']);
+    // Removed (deactivated) variants are not exported.
+    expect(calls[0]?.include.variants.where).toEqual({ isActive: true });
     expect(res).toEqual({ rows: toExportRows(fixture) });
+  });
+});
+
+describe('ProductService.adminList', () => {
+  it('counts only active variants for price, stock and variant count', async () => {
+    const calls: { include: { variants: unknown } }[] = [];
+    const prisma = {
+      product: {
+        findMany: async (args: { include: { variants: unknown } }) => {
+          calls.push(args);
+          return [
+            {
+              id: 'p1',
+              title: 'Oil',
+              slug: 'oil',
+              status: 'published',
+              brand: null,
+              images: [],
+              variants: [
+                { id: 'v200', mrp: 300, sellingPrice: 250 },
+                { id: 'v1000', mrp: 1200, sellingPrice: 1000 },
+              ],
+            },
+          ];
+        },
+      },
+      inventory: {
+        findMany: async () => [
+          { variantId: 'v200', available: 4 },
+          { variantId: 'v1000', available: 6 },
+        ],
+      },
+    } as unknown as PrismaService;
+    const svc = new ProductService(prisma, {} as CategoryService);
+    const [row] = await svc.adminList();
+    expect(calls[0]?.include.variants).toEqual({ where: { isActive: true } });
+    expect(row).toMatchObject({ variantCount: 2, stock: 10, sellingPrice: 250 });
+  });
+});
+
+describe('ProductService.list — paginated', () => {
+  it('prices cards from active variants and hides products with none (where + count)', async () => {
+    const calls: { findMany: { where: unknown; include: { variants: unknown } }[]; count: unknown[] } = {
+      findMany: [],
+      count: [],
+    };
+    const prisma = {
+      product: {
+        findMany: async (args: { where: unknown; include: { variants: unknown } }) => {
+          calls.findMany.push(args);
+          return [
+            {
+              id: 'a',
+              title: 'A',
+              slug: 'a',
+              ratingAvg: 0,
+              ratingCount: 0,
+              images: [],
+              variants: [
+                { id: 'a-cheap', mrp: 500, sellingPrice: 300, isActive: false },
+                { id: 'a-v', mrp: 1000, sellingPrice: 800, isActive: true },
+              ],
+            },
+          ];
+        },
+        count: async (args: unknown) => {
+          calls.count.push(args);
+          return 1;
+        },
+      },
+    } as unknown as PrismaService;
+    const svc = new ProductService(prisma, {} as CategoryService);
+    const res = await svc.list({ sort: 'relevance', page: 1, pageSize: 20 } as never);
+    expect(res.items[0]).toMatchObject({ sellingPrice: 800, mrp: 1000, defaultVariantId: 'a-v' });
+    expect(calls.findMany[0]?.where).toMatchObject({
+      status: 'published',
+      variants: { some: { isActive: true } },
+    });
+    expect(calls.findMany[0]?.include.variants).toEqual({ where: { isActive: true } });
+    expect(calls.count[0]).toEqual({ where: calls.findMany[0]?.where });
   });
 });
 
@@ -471,6 +590,9 @@ describe('ProductService.exportRows', () => {
  */
 describe('ProductService.list — ids branch', () => {
   function row(id: string) {
+    const variants: { id: string; mrp: number; sellingPrice: number; isActive?: boolean }[] = [
+      { id: `${id}-v`, mrp: 1000, sellingPrice: 800 },
+    ];
     return {
       id,
       title: `Product ${id}`,
@@ -478,7 +600,7 @@ describe('ProductService.list — ids branch', () => {
       ratingAvg: 0,
       ratingCount: 0,
       images: [],
-      variants: [{ id: `${id}-v`, mrp: 1000, sellingPrice: 800 }],
+      variants,
     };
   }
 
@@ -528,5 +650,25 @@ describe('ProductService.list — ids branch', () => {
     expect(res.items).toHaveLength(0);
     expect(res.total).toBe(0);
     expect(calls.findMany).toHaveLength(0);
+  });
+
+  it('ignores removed (inactive) variants for the card price and filters them in the query', async () => {
+    const { svc, calls } = build([
+      {
+        ...row('x'),
+        variants: [
+          { id: 'x-cheap', mrp: 500, sellingPrice: 300, isActive: false },
+          { id: 'x-v', mrp: 1000, sellingPrice: 800, isActive: true },
+        ],
+      },
+    ]);
+    const res = await svc.list({ ids: 'x', sort: 'relevance', page: 1, pageSize: 20 } as never);
+    expect(res.items[0]).toMatchObject({ sellingPrice: 800, defaultVariantId: 'x-v' });
+    const args = calls.findMany[0] as {
+      where: { variants: unknown };
+      include: { variants: unknown };
+    };
+    expect(args.where.variants).toEqual({ some: { isActive: true } });
+    expect(args.include.variants).toEqual({ where: { isActive: true } });
   });
 });

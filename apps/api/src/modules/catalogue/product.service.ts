@@ -122,9 +122,12 @@ export class ProductService {
       sellingPrice: number;
       attributesJson?: unknown;
       weightGrams?: number;
+      isActive?: boolean;
     }[];
   }): ProductCardDto {
-    const v = this.cheapestVariant(p.variants);
+    // Removed (deactivated) variants never drive the card price/default variant.
+    const active = p.variants.filter((x) => x.isActive !== false);
+    const v = this.cheapestVariant(active);
     const hasId = (x: typeof v): x is (typeof p.variants)[number] => 'id' in x;
     return {
       id: p.id,
@@ -153,8 +156,11 @@ export class ProductService {
       const ids = query.ids.split(',').map((s) => s.trim()).filter(Boolean);
       if (ids.length === 0) return { items: [], total: 0, page: 1, pageSize };
       const rows = await this.prisma.product.findMany({
-        where: { status: 'published', id: { in: ids } },
-        include: { images: { orderBy: { position: 'asc' }, take: 1 }, variants: true },
+        where: { status: 'published', id: { in: ids }, variants: { some: { isActive: true } } },
+        include: {
+          images: { orderBy: { position: 'asc' }, take: 1 },
+          variants: { where: { isActive: true } },
+        },
       });
       const byId = new Map(rows.map((p) => [p.id, this.toCard(p)]));
       const items = ids
@@ -166,7 +172,11 @@ export class ProductService {
 
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
-    const where: Record<string, unknown> = { status: 'published' };
+    // A published product whose variants were all removed has nothing to buy: hide it.
+    const where: Record<string, unknown> = {
+      status: 'published',
+      variants: { some: { isActive: true } },
+    };
 
     if (query.categoryId) {
       where.categoryId = { in: await this.categories.descendantIds(query.categoryId) };
@@ -177,7 +187,10 @@ export class ProductService {
     const [rows, total] = await Promise.all([
       this.prisma.product.findMany({
         where,
-        include: { images: { orderBy: { position: 'asc' }, take: 1 }, variants: true },
+        include: {
+          images: { orderBy: { position: 'asc' }, take: 1 },
+          variants: { where: { isActive: true } },
+        },
         orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -212,7 +225,11 @@ export class ProductService {
 
   async detail(idOrSlug: string): Promise<ProductDetailDto> {
     const p = await this.prisma.product.findFirst({
-      where: { OR: [{ id: idOrSlug }, { slug: idOrSlug }], status: 'published' },
+      where: {
+        OR: [{ id: idOrSlug }, { slug: idOrSlug }],
+        status: 'published',
+        variants: { some: { isActive: true } },
+      },
       include: {
         images: { orderBy: { position: 'asc' } },
         brand: true,
@@ -336,7 +353,7 @@ export class ProductService {
   async setStatus(id: string, status: 'draft' | 'published' | 'archived') {
     const product = await this.prisma.product.findUnique({
       where: { id },
-      include: { variants: true },
+      include: { variants: { where: { isActive: true } } },
     });
     if (!product) throw new NotFoundException('Product not found');
     if (status === 'published' && product.variants.length === 0) {
@@ -447,7 +464,11 @@ export class ProductService {
   /** All products (any status) for the admin catalogue table. */
   async adminList() {
     const rows = await this.prisma.product.findMany({
-      include: { images: { orderBy: { position: 'asc' }, take: 1 }, variants: true, brand: true },
+      include: {
+        images: { orderBy: { position: 'asc' }, take: 1 },
+        variants: { where: { isActive: true } },
+        brand: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
     // Need inventory for the dashboard stock totals.
@@ -492,7 +513,11 @@ export class ProductService {
         category: { select: { slug: true } },
         brand: { select: { name: true } },
         images: { orderBy: { position: 'asc' } },
-        variants: { orderBy: { createdAt: 'asc' }, include: { inventory: true } },
+        variants: {
+          where: { isActive: true },
+          orderBy: { createdAt: 'asc' },
+          include: { inventory: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -509,7 +534,7 @@ export class ProductService {
       where: { id },
       include: {
         images: { orderBy: { position: 'asc' } },
-        variants: { include: { inventory: true } },
+        variants: { where: { isActive: true }, include: { inventory: true } },
         brand: true,
       },
     });
@@ -554,7 +579,8 @@ export class ProductService {
    * provided (blank = unchanged). A non-empty imageUrls REPLACES the product's
    * images with exactly that ordered list; omitted/empty keeps them. Variants
    * of one product share product-level fields, so when several rows of the
-   * same product disagree the last row wins.
+   * same product disagree the last row wins. A SKU that belongs to a removed
+   * (deactivated) variant is reactivated and updated like any existing SKU.
    */
   async bulkUpsert(
     rows: Array<{
@@ -665,7 +691,12 @@ export class ProductService {
           await this.prisma.$transaction(async (tx) => {
             await tx.variant.update({
               where: { sku: row.sku },
-              data: { mrp: row.mrp, sellingPrice: row.sellingPrice },
+              data: {
+                mrp: row.mrp,
+                sellingPrice: row.sellingPrice,
+                // Re-uploading a removed variant's SKU restores it.
+                ...(existingVariant.isActive === false ? { isActive: true } : {}),
+              },
             });
             if (Object.keys(productData).length > 0) {
               await tx.product.update({ where: { id: productId }, data: productData });

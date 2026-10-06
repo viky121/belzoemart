@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 /**
@@ -35,8 +40,52 @@ export class VariantService {
     return sorted;
   }
 
+  /** Active variants only — removed (deactivated) variants are kept for order history but hidden. */
   listByProduct(productId: string) {
-    return this.prisma.variant.findMany({ where: { productId }, include: { inventory: true } });
+    return this.prisma.variant.findMany({
+      where: { productId, isActive: true },
+      include: { inventory: true },
+    });
+  }
+
+  /**
+   * Remove a variant from a product (e.g. drop 500 ml from 200 ml / 500 ml / 1000 ml).
+   * - A variant that appears in any OrderItem is SOFT-deleted (isActive=false): the row and its
+   *   inventory stay so invoices, returns, cancellations and restocks keep working.
+   * - A never-ordered variant is HARD-deleted (inventory cascades) so its SKU can be reused.
+   * - Either way it is taken out of every cart and wishlist. StockMovement history is untouched.
+   * - The last active variant of a PUBLISHED product cannot be removed (unpublish or delete the
+   *   product instead); draft/archived products may lose their last variant.
+   * Removing an already-inactive variant is idempotent (mode 'deactivated').
+   */
+  async remove(id: string): Promise<{ removed: true; mode: 'deleted' | 'deactivated' }> {
+    const v = await this.prisma.variant.findUnique({
+      where: { id },
+      include: { product: { select: { id: true, status: true } } },
+    });
+    if (!v) throw new NotFoundException('Variant not found');
+    if (v.isActive && v.product.status === 'published') {
+      const active = await this.prisma.variant.count({
+        where: { productId: v.productId, isActive: true },
+      });
+      if (active <= 1) {
+        throw new BadRequestException(
+          'This is the last active variant of a published product. Unpublish the product (set it to Draft) or delete the whole product instead.',
+        );
+      }
+    }
+    const ordered = (await this.prisma.orderItem.count({ where: { variantId: id } })) > 0;
+    const soft = ordered || !v.isActive;
+    await this.prisma.$transaction(async (tx) => {
+      await tx.cartItem.deleteMany({ where: { variantId: id } });
+      await tx.wishlistItem.deleteMany({ where: { variantId: id } });
+      if (soft) {
+        await tx.variant.update({ where: { id }, data: { isActive: false } });
+      } else {
+        await tx.variant.delete({ where: { id } });
+      }
+    });
+    return { removed: true, mode: soft ? 'deactivated' : 'deleted' };
   }
 
   async upsert(input: {
@@ -55,9 +104,14 @@ export class VariantService {
     // Variant.sku is unique: report a clash as 409 instead of a generic 500.
     const clash = await this.prisma.variant.findUnique({
       where: { sku: input.sku },
-      select: { id: true },
+      select: { id: true, isActive: true },
     });
     if (clash && clash.id !== input.id) {
+      if (clash.isActive === false) {
+        throw new ConflictException(
+          `SKU "${input.sku}" belongs to a removed variant kept for order history — re-upload it via Bulk upload to restore it, or use a different SKU`,
+        );
+      }
       throw new ConflictException(`SKU "${input.sku}" is already used by another variant`);
     }
     if (input.id) {

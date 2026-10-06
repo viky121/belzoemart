@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { CheckoutService } from './checkout.service';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { CartService } from '../cart/cart.service';
@@ -90,5 +91,40 @@ describe('CheckoutService.place — idempotency', () => {
     await expect(
       svc.place({ guestToken: 'g1' }, { addressId: 'addr1', paymentMethod: 'upi' }, 'KEY-X'),
     ).rejects.toThrow(/Login required/);
+  });
+});
+
+describe('CheckoutService — removed variants in the cart', () => {
+  it('blocks preview when a cart line is for a removed (unavailable) variant', async () => {
+    const prisma = {
+      address: {
+        findUnique: async () => ({ id: 'addr1', customerId: 'cust1', state: 'Karnataka', pincode: '560001' }),
+      },
+    } as unknown as PrismaService;
+    const cart = {
+      getCart: async () => ({
+        cartId: 'c1',
+        items: [
+          {
+            variantId: 'v-gone', title: 'Oil', sku: 'OIL-500', unitPrice: 50000, quantity: 1,
+            taxRatePct: 5, savedForLater: false, inStock: false, unavailable: true,
+          },
+        ],
+      }),
+    } as unknown as CartService;
+    const svc = new CheckoutService(
+      prisma,
+      cart,
+      {} as PricingService,
+      {} as CouponService,
+      {} as InventoryService,
+      { get: async () => undefined } as unknown as SettingsService,
+    );
+    await expect(svc.preview({ customerId: 'cust1' }, 'addr1')).rejects.toThrow(
+      /no longer available/,
+    );
+    await expect(svc.preview({ customerId: 'cust1' }, 'addr1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 });
