@@ -18,6 +18,7 @@ import {
   type MediaItem,
   type StorageProvider,
 } from '../../integrations/storage/storage.provider';
+import { LocalStorageProvider } from '../../integrations/storage/local-storage.provider';
 
 /** Minimal shape of a multer memory-storage file (avoids a @types/multer dep). */
 interface UploadedFileLike {
@@ -42,7 +43,10 @@ const LIST_CAP = 500; // max media items returned to the admin library
 @Roles('catalogue_manager', 'marketing')
 @Controller('admin/media')
 export class MediaController {
-  constructor(@Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider) {}
+  constructor(
+    @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
+    private readonly local: LocalStorageProvider,
+  ) {}
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_BYTES } }))
@@ -80,8 +84,20 @@ export class MediaController {
     const parsed = Number.parseInt(limit ?? '', 10);
     const cap = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), LIST_CAP) : LIST_CAP;
 
-    const { items } = await this.storage.list(prefix, cap);
-    const sorted = [...items].sort((a, b) =>
+    // Always include files physically present on the box (served at
+    // /api/uploads). When the active provider is a different adapter (S3), merge
+    // its objects in too. De-duplicate by key so a file in both places appears
+    // once. This keeps already-uploaded server images reusable even when S3
+    // listing is unavailable (no s3:ListBucket).
+    const sources = [this.local.list(prefix, cap)];
+    if (this.storage !== this.local) sources.push(this.storage.list(prefix, cap));
+    const results = await Promise.all(sources);
+
+    const byKey = new Map<string, MediaItem>();
+    for (const r of results) {
+      for (const it of r.items) if (!byKey.has(it.key)) byKey.set(it.key, it);
+    }
+    const sorted = [...byKey.values()].sort((a, b) =>
       (b.lastModified ?? '').localeCompare(a.lastModified ?? ''),
     );
     return { items: sorted.slice(0, cap) };
