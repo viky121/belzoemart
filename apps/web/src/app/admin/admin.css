@@ -348,6 +348,136 @@
   margin-top: 16px;
 }
 
+/* ===== Media picker (reusable image library + upload modal) ===== */
+.mediapick__card {
+  max-width: 720px;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+}
+.mediapick__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.mediapick__close {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: #64748b;
+}
+.mediapick__tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid #e2e8f0;
+  margin: 10px 0 12px;
+}
+.mediapick__tab {
+  border: 0;
+  background: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #64748b;
+  border-bottom: 2px solid transparent;
+}
+.mediapick__tab.is-on {
+  color: #0f172a;
+  border-bottom-color: #2563eb;
+}
+.mediapick__body {
+  overflow-y: auto;
+  flex: 1;
+}
+.mediapick__filter {
+  margin-bottom: 12px;
+  max-width: 220px;
+}
+.mediapick__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+}
+.mediapick__tile {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 6px;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+.mediapick__tile:hover {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+.mediapick__thumb {
+  width: 100%;
+  height: 92px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+.mediapick__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.mediapick__name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mediapick__sub {
+  font-size: 0.68rem;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mediapick__selected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.82rem;
+  color: #334155;
+}
+.mediapick__selected img {
+  height: 40px;
+  width: 40px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+/* "Choose from library" button sitting next to the existing uploaders. */
+.mediapick__open {
+  margin-top: 6px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mediapick__open:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
 /* ===== Add Product wizard ===== */
 /* Stepper styles live in the "--- Stepper ---" block below (uses
    .wiz__step-no / .wiz__step-label). The earlier generic `.wiz__step span`

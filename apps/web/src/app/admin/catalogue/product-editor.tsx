@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { adminFetch, adminUpload } from '@/lib/admin-api';
+import { MediaPicker } from '@/components/media-picker';
 
 interface Opt {
   id: string;
@@ -54,6 +55,7 @@ export function ProductEditor({
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -221,6 +223,14 @@ export function ProductEditor({
       <div className="prod-section">
         <label className="auth-label">Images</label>
         <input type="file" accept="image/*" multiple onChange={handleFiles} disabled={uploading} />
+        <button
+          type="button"
+          className="mediapick__open"
+          onClick={() => setPickerOpen(true)}
+          data-testid="editor-images-choose-library"
+        >
+          Choose from library
+        </button>
         {uploading && <span className="prod-form__hint"> Uploading…</span>}
         {images.length > 0 && (
           <>
@@ -290,6 +300,15 @@ export function ProductEditor({
       <button className="auth-btn prod-save" onClick={save} disabled={busy}>
         {busy ? 'Saving…' : 'Save details'}
       </button>
+
+      {pickerOpen && (
+        <MediaPicker
+          folder="products"
+          title="Choose product image"
+          onSelect={(url) => setImages((cur) => [...cur, url])}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }

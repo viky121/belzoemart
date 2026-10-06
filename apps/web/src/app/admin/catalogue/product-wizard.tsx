@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { adminFetch, adminUpload } from '@/lib/admin-api';
+import { MediaPicker } from '@/components/media-picker';
 
 export interface CatNode {
   id: string;
@@ -60,6 +61,9 @@ export function ProductWizard({
   const [catEditParent, setCatEditParent] = useState<string | null>(null);
   const [catEditBusy, setCatEditBusy] = useState(false);
   const [catEditUploading, setCatEditUploading] = useState(false);
+
+  // Which media picker is open: category-icon edit, product images, or none.
+  const [pickerMode, setPickerMode] = useState<'cat' | 'product' | null>(null);
 
   // Keep the selected primary/sub/final in sync with fresh category data
   // after an inline edit (the parent reloads and passes new `categories`).
@@ -354,6 +358,14 @@ export function ProductWizard({
           />
           <div className="wiz__cat-edit-img">
             <input type="file" accept="image/*" onChange={uploadCatEditImg} disabled={catEditUploading} />
+            <button
+              type="button"
+              className="mediapick__open"
+              onClick={() => setPickerMode('cat')}
+              data-testid="wiz-cat-edit-choose-library"
+            >
+              Choose from library
+            </button>
             {catEditUploading && <span className="prod-form__hint"> Uploading…</span>}
             {catEditImage && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -555,6 +567,14 @@ export function ProductWizard({
               </span>
               <span className="wiz__drop-sub">PNG or JPG · drag &amp; drop or click · multiple allowed</span>
             </label>
+            <button
+              type="button"
+              className="mediapick__open"
+              onClick={() => setPickerMode('product')}
+              data-testid="wiz-images-choose-library"
+            >
+              Choose from library
+            </button>
             {images.length > 0 && (
               <>
                 <p className="prod-imghint">
@@ -957,6 +977,17 @@ export function ProductWizard({
             </button>
           </div>
         </div>
+      )}
+
+      {pickerMode && (
+        <MediaPicker
+          folder={pickerMode === 'cat' ? 'categories' : 'products'}
+          title={pickerMode === 'cat' ? 'Choose category icon' : 'Choose product image'}
+          onSelect={(url) =>
+            pickerMode === 'cat' ? setCatEditImage(url) : setImages((cur) => [...cur, url])
+          }
+          onClose={() => setPickerMode(null)}
+        />
       )}
     </div>
   );

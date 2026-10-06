@@ -3,6 +3,7 @@
 import { useId, useRef, useState } from 'react';
 import { adminUpload } from '@/lib/admin-api';
 import { isUsableImageUrl } from '@/lib/category-theme';
+import { MediaPicker } from '@/components/media-picker';
 
 interface ImageDropProps {
   value: string;
@@ -22,6 +23,7 @@ export function ImageDrop({ value, onChange, label }: ImageDropProps) {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   async function upload(file: File) {
     if (!file.type.startsWith('image/')) return; // ignore non-images
@@ -85,10 +87,26 @@ export function ImageDrop({ value, onChange, label }: ImageDropProps) {
           <span className="prod-form__hint">Drag &amp; drop an image here, or click to browse</span>
         )}
       </div>
+      <button
+        type="button"
+        className="mediapick__open"
+        onClick={() => setPickerOpen(true)}
+        data-testid="imagedrop-choose-library"
+      >
+        Choose from library
+      </button>
       {error && <p className="prod-form__msg">{error}</p>}
       {isUsableImageUrl(value) && value !== '#' && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={value} alt="" style={{ marginTop: 8, maxHeight: 90, borderRadius: 8 }} />
+      )}
+      {pickerOpen && (
+        <MediaPicker
+          folder="banners"
+          title="Choose image"
+          onSelect={(url) => onChange(url)}
+          onClose={() => setPickerOpen(false)}
+        />
       )}
     </div>
   );
