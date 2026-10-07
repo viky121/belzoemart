@@ -36,6 +36,8 @@ export function ProfilePrompt() {
   const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // true when opened from the account page's Edit button (show every field)
+  const [editAll, setEditAll] = useState(false);
 
   const needsName = !!customer && (!customer.name || customer.name.trim() === DEFAULT_NAME);
   const needsEmail = !!customer && !customer.email;
@@ -46,6 +48,7 @@ export function ProfilePrompt() {
   useEffect(() => {
     if (!ready || !customer || !incomplete || typeof window === 'undefined') return;
     if (window.sessionStorage.getItem(DISMISS_KEY) === '1') return;
+    setEditAll(false);
     setName(needsName ? '' : customer.name);
     setEmail(customer.email ?? '');
     setPhone(customer.phone ?? '');
@@ -53,10 +56,11 @@ export function ProfilePrompt() {
     setOpen(true);
   }, [ready, customer, incomplete, needsName]);
 
-  // Let the account page open the same prompt on demand.
+  // Let the account page open the same prompt on demand — showing ALL fields.
   useEffect(() => {
     const onEdit = () => {
       if (!customer) return;
+      setEditAll(true);
       setName(customer.name === DEFAULT_NAME ? '' : customer.name);
       setEmail(customer.email ?? '');
       setPhone(customer.phone ?? '');
@@ -87,16 +91,16 @@ export function ProfilePrompt() {
       }
       patch.name = n;
     }
-    if (needsEmail) {
-      const e = email.trim();
+    const e = email.trim();
+    if (needsEmail || (editAll && e && e.toLowerCase() !== (customer.email ?? '').toLowerCase())) {
       if (!EMAIL_RE.test(e)) {
         setErr('Enter a valid email address.');
         return;
       }
       patch.email = e;
     }
-    if (needsPhone) {
-      const p = phone.replace(/\D/g, '').slice(-10);
+    const p = phone.replace(/\D/g, '').slice(-10);
+    if (needsPhone || (editAll && p && p !== (customer.phone ?? ''))) {
       if (!PHONE_RE.test(p)) {
         setErr('Enter a valid 10-digit mobile number.');
         return;
@@ -121,7 +125,11 @@ export function ProfilePrompt() {
           locale: updated.locale,
         });
       }
-      if (typeof window !== 'undefined') window.sessionStorage.setItem(DISMISS_KEY, '1');
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(DISMISS_KEY, '1');
+        // Let pages that show profile data (e.g. My Account) refresh in place.
+        window.dispatchEvent(new CustomEvent('belzo:profile-updated', { detail: updated }));
+      }
       setOpen(false);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not save. Please try again.');
@@ -133,12 +141,12 @@ export function ProfilePrompt() {
   return (
     <div className="profprompt" role="dialog" aria-modal="true" data-testid="profile-prompt">
       <div className="profprompt__card">
-        <h2 className="profprompt__title">Complete your profile</h2>
+        <h2 className="profprompt__title">{editAll ? 'Edit your details' : 'Complete your profile'}</h2>
         <p className="profprompt__sub">
           Add a few details so we can personalise your orders and keep you updated.
         </p>
 
-        {needsName && (
+        {(editAll || needsName) && (
           <div className="profprompt__field">
             <label className="auth-label" htmlFor="pp-name">
               Your name
@@ -154,7 +162,7 @@ export function ProfilePrompt() {
             />
           </div>
         )}
-        {needsEmail && (
+        {(editAll || needsEmail) && (
           <div className="profprompt__field">
             <label className="auth-label" htmlFor="pp-email">
               Email address
@@ -170,7 +178,7 @@ export function ProfilePrompt() {
             />
           </div>
         )}
-        {needsPhone && (
+        {(editAll || needsPhone) && (
           <div className="profprompt__field">
             <label className="auth-label" htmlFor="pp-phone">
               Mobile number

@@ -68,6 +68,16 @@ export default function AccountPage() {
     })();
   }, [accessToken, authFetch, router]);
 
+  // Refresh the shown profile when the "Complete your profile" popup saves.
+  useEffect(() => {
+    const onUpdated = (e: Event) => {
+      const d = (e as CustomEvent<Partial<Profile>>).detail;
+      if (d) setProfile((p) => (p ? { ...p, ...d } : (d as Profile)));
+    };
+    window.addEventListener('belzo:profile-updated', onUpdated);
+    return () => window.removeEventListener('belzo:profile-updated', onUpdated);
+  }, []);
+
   async function requestExport() {
     await authFetch('/me/data/export', { method: 'POST' });
     alert('Data export requested. You will be notified when it is ready.');
