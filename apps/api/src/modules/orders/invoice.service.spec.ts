@@ -4,85 +4,222 @@ import type { StorageProvider } from '../../integrations/storage/storage.provide
 import type { SettingsService } from '../admin/settings.service';
 
 /**
- * Proves InvoiceService sources the store GSTIN and name from admin settings
- * when present, and falls back to env/default when absent — while the invoice
- * HTML structure stays unchanged.
+ * InvoiceService: store identity from settings (with env/default fallbacks),
+ * storage key + Cache-Control, HSN lookup via variant -> product, and
+ * regenerate() keeping the same number and key.
  */
-describe('InvoiceService — store identity from settings', () => {
-  function build(settingsMap: Record<string, unknown>) {
-    let capturedHtml = '';
+describe('InvoiceService', () => {
+  const ORDER = {
+    id: 'order-1',
+    customerId: 'cust-1',
+    addressId: 'addr-1',
+    createdAt: new Date('2025-03-14T10:00:00Z'),
+    couponCode: null,
+    subtotal: 100000,
+    discount: 0,
+    shipping: 4900,
+    codFee: 0,
+    tax: 18000,
+    cgst: 9000,
+    sgst: 9000,
+    igst: 0,
+    grandTotal: 122900,
+    items: [{ variantId: 'v-1', title: 'Widget', sku: 'W-1', unitPrice: 50000, quantity: 2, taxRatePct: 18 }],
+    payments: [],
+  };
+
+  function build(
+    settingsMap: Record<string, unknown>,
+    existingInvoice: { orderId: string; number: string; url: string; createdAt: Date } | null = null,
+  ) {
+    const puts: { key: string; html: string; cacheControl?: string }[] = [];
     const prisma = {
       invoice: {
-        findUnique: async () => null,
-        create: async () => ({}),
+        findUnique: jest.fn(async () => existingInvoice),
+        create: jest.fn(async () => ({})),
+        update: jest.fn(async () => ({})),
       },
       order: {
-        findUnique: async () => ({
-          id: 'order-1',
-          subtotal: 100000,
-          discount: 0,
-          shipping: 4900,
-          tax: 18000,
-          cgst: 9000,
-          sgst: 9000,
-          igst: 0,
-          grandTotal: 122900,
-          items: [{ title: 'Widget', sku: 'W-1', unitPrice: 50000, quantity: 2, taxRatePct: 18 }],
-        }),
-        update: async () => ({}),
+        findUnique: jest.fn(async () => ORDER),
+        update: jest.fn(async () => ({})),
       },
+      address: {
+        findUnique: jest.fn(async () => ({
+          fullName: 'Asha Rao',
+          phone: '9876543210',
+          line1: '221B Residency Road',
+          line2: null,
+          city: 'Bengaluru',
+          state: 'Karnataka',
+          pincode: '560025',
+        })),
+      },
+      customer: { findUnique: jest.fn(async () => ({ name: 'Asha', email: 'asha@example.com', phone: null })) },
+      variant: { findMany: jest.fn(async () => [{ id: 'v-1', product: { hsnCode: '8471' } }]) },
       invoiceCounter: {
-        upsert: async ({ where: { year } }: { where: { year: number } }) => ({ year, seq: 7 }),
+        upsert: jest.fn(async ({ where: { year } }: { where: { year: number } }) => ({ year, seq: 7 })),
       },
-      $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
-    } as unknown as PrismaService;
+      $transaction: jest.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
+    };
 
     const storage = {
-      put: async ({ body }: { body: Buffer }) => {
-        capturedHtml = body.toString('utf8');
-        return { url: 'https://files/invoices/order-1.html' };
-      },
+      put: jest.fn(async ({ key, body, cacheControl }: { key: string; body: Buffer; cacheControl?: string }) => {
+        puts.push({ key, html: body.toString('utf8'), cacheControl });
+        return { url: `https://files/${key}` };
+      }),
       getUrl: (key: string) => `https://files/${key}`,
     } as unknown as StorageProvider;
 
     const settings = { get: async (key: string) => settingsMap[key] } as unknown as SettingsService;
 
-    return { svc: new InvoiceService(prisma, storage, settings), getHtml: () => capturedHtml };
+    return {
+      svc: new InvoiceService(prisma as unknown as PrismaService, storage, settings),
+      prisma,
+      puts,
+      getHtml: () => puts[puts.length - 1]?.html ?? '',
+    };
   }
 
-  it('uses the configured GSTIN and store name when settings are present', async () => {
-    const { svc, getHtml } = build({ 'store.gstin': '29ABCDE1234F1Z5', 'store.name': 'Acme Traders' });
-    await svc.generate('order-1');
-    const html = getHtml();
-    expect(html).toContain('29ABCDE1234F1Z5');
-    expect(html).toContain('Acme Traders');
-    expect(html).not.toContain('Belzo eMart');
-  });
-
-  it('falls back to env STORE_GSTIN and default store name when settings are absent', async () => {
-    const prev = process.env.STORE_GSTIN;
-    process.env.STORE_GSTIN = '27ENVGSTIN999Z1';
-    try {
-      const { svc, getHtml } = build({});
+  describe('store identity from settings', () => {
+    it('uses the configured GSTIN and store name when settings are present', async () => {
+      const { svc, getHtml } = build({ 'store.gstin': '29ABCDE1234F1Z5', 'store.name': 'Acme Traders' });
       await svc.generate('order-1');
       const html = getHtml();
-      expect(html).toContain('27ENVGSTIN999Z1');
-      expect(html).toContain('Belzo eMart');
-    } finally {
-      if (prev === undefined) delete process.env.STORE_GSTIN;
-      else process.env.STORE_GSTIN = prev;
-    }
+      expect(html).toContain('29ABCDE1234F1Z5');
+      expect(html).toContain('PAN:</span> ABCDE1234F');
+      expect(html).toContain('Acme Traders');
+      expect(html).not.toContain('Belzo eMart');
+    });
+
+    it('falls back to env STORE_GSTIN and default store name when settings are absent', async () => {
+      const prev = process.env.STORE_GSTIN;
+      process.env.STORE_GSTIN = '27ENVGSTIN999Z1';
+      try {
+        const { svc, getHtml } = build({});
+        await svc.generate('order-1');
+        const html = getHtml();
+        expect(html).toContain('27ENVGSTIN999Z1');
+        expect(html).toContain('Belzo eMart');
+      } finally {
+        if (prev === undefined) delete process.env.STORE_GSTIN;
+        else process.env.STORE_GSTIN = prev;
+      }
+    });
+
+    it("prints 'GSTIN: Not registered' when neither settings nor env provide a GSTIN", async () => {
+      const prev = process.env.STORE_GSTIN;
+      delete process.env.STORE_GSTIN;
+      try {
+        const { svc, getHtml } = build({});
+        await svc.generate('order-1');
+        expect(getHtml()).toContain('GSTIN:</span> Not registered');
+        expect(getHtml()).not.toContain('GSTIN-UNSET');
+        expect(getHtml()).not.toContain('PAN:');
+      } finally {
+        if (prev !== undefined) process.env.STORE_GSTIN = prev;
+      }
+    });
+
+    it('renders the new store identity settings and the product HSN', async () => {
+      const { svc, getHtml, prisma } = build({
+        'store.name': 'Belzo eMart',
+        'store.legalName': 'Belzo Retail Pvt Ltd',
+        'store.address': '12 MG Road',
+        'store.city': 'Bengaluru',
+        'store.pincode': '560038',
+        'store.state': 'Karnataka',
+        'store.phone': '+91 80 1234 5678',
+        'store.email': 'billing@belzo.example',
+        'store.website': 'https://belzo.example',
+        'store.invoiceTerms': 'No returns on perishables.',
+      });
+      await svc.generate('order-1');
+      const html = getHtml();
+      for (const s of [
+        'Belzo Retail Pvt Ltd',
+        'Trade name: Belzo eMart',
+        '12 MG Road',
+        'Bengaluru - 560038',
+        'Karnataka (Code 29)',
+        '+91 80 1234 5678',
+        'billing@belzo.example',
+        'https://belzo.example',
+        'No returns on perishables.',
+        '>8471<',
+        'Asha',
+        'asha@example.com',
+        'Karnataka (29)',
+      ]) {
+        expect(html).toContain(s);
+      }
+      expect(prisma.variant.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: { in: ['v-1'] } } }),
+      );
+    });
   });
 
-  it('falls back to GSTIN-UNSET when neither settings nor env provide a GSTIN', async () => {
-    const prev = process.env.STORE_GSTIN;
-    delete process.env.STORE_GSTIN;
-    try {
-      const { svc, getHtml } = build({});
-      await svc.generate('order-1');
-      expect(getHtml()).toContain('GSTIN-UNSET');
-    } finally {
-      if (prev !== undefined) process.env.STORE_GSTIN = prev;
-    }
+  describe('generate()', () => {
+    it('stores at invoices/<orderId>.html with a no-cache policy and allocates one number', async () => {
+      const { svc, puts, prisma } = build({});
+      const res = await svc.generate('order-1');
+      expect(res.number).toMatch(/^BELZO\/\d{4}\/00007$/);
+      expect(puts).toHaveLength(1);
+      expect(puts[0]!.key).toBe('invoices/order-1.html');
+      expect(puts[0]!.cacheControl).toMatch(/^no-cache/);
+      expect(prisma.invoiceCounter.upsert).toHaveBeenCalledTimes(1);
+      expect(prisma.invoice.create).toHaveBeenCalledWith({
+        data: { orderId: 'order-1', number: res.number, url: 'https://files/invoices/order-1.html' },
+      });
+    });
+
+    it('returns the existing invoice without rendering again', async () => {
+      const existing = { orderId: 'order-1', number: 'BELZO/2025/00003', url: 'https://files/x', createdAt: new Date() };
+      const { svc, puts, prisma } = build({}, existing);
+      await expect(svc.generate('order-1')).resolves.toEqual({ url: 'https://files/x', number: 'BELZO/2025/00003' });
+      expect(puts).toHaveLength(0);
+      expect(prisma.invoiceCounter.upsert).not.toHaveBeenCalled();
+    });
+
+    it('does not allocate a number when the order is missing', async () => {
+      const { svc, prisma } = build({});
+      prisma.order.findUnique.mockResolvedValueOnce(null as never);
+      await expect(svc.generate('missing')).rejects.toThrow('Order not found');
+      expect(prisma.invoiceCounter.upsert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('regenerate()', () => {
+    it('re-renders the SAME key with the SAME number and never allocates a new one', async () => {
+      const existing = {
+        orderId: 'order-1',
+        number: 'BELZO/2025/00003',
+        url: 'https://files/invoices/order-1.html?v=1',
+        createdAt: new Date('2025-03-15T09:00:00Z'),
+      };
+      const { svc, puts, prisma, getHtml } = build({}, existing);
+      const res = await svc.regenerate('order-1');
+
+      expect(res.number).toBe('BELZO/2025/00003');
+      expect(prisma.invoiceCounter.upsert).not.toHaveBeenCalled();
+      expect(prisma.invoice.create).not.toHaveBeenCalled();
+      expect(puts).toHaveLength(1);
+      expect(puts[0]!.key).toBe('invoices/order-1.html');
+      expect(puts[0]!.cacheControl).toMatch(/^no-cache/);
+      expect(getHtml()).toContain('BELZO/2025/00003');
+      expect(getHtml()).toContain('15 Mar 2025'); // original invoice date kept
+
+      expect(res.url).toMatch(/^https:\/\/files\/invoices\/order-1\.html\?v=\d+$/);
+      expect(prisma.invoice.update).toHaveBeenCalledWith({ where: { orderId: 'order-1' }, data: { url: res.url } });
+      expect(prisma.order.update).toHaveBeenCalledWith({ where: { id: 'order-1' }, data: { invoiceUrl: res.url } });
+    });
+
+    it('falls back to generate() when the order has no invoice yet', async () => {
+      const { svc, prisma, puts } = build({});
+      const res = await svc.regenerate('order-1');
+      expect(prisma.invoiceCounter.upsert).toHaveBeenCalledTimes(1);
+      expect(prisma.invoice.create).toHaveBeenCalledTimes(1);
+      expect(puts[0]!.key).toBe('invoices/order-1.html');
+      expect(res.number).toMatch(/00007$/);
+    });
   });
 });

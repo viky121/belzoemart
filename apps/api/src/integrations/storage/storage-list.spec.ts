@@ -120,3 +120,41 @@ describe('S3StorageProvider.list', () => {
     expect(items).toEqual([]);
   });
 });
+
+describe('S3StorageProvider.put Cache-Control', () => {
+  const OLD_ENV = process.env;
+
+  beforeEach(() => {
+    process.env = { ...OLD_ENV, S3_BUCKET: 'belzo-media', CDN_BASE_URL: 'https://cdn.example.com' };
+  });
+
+  afterEach(() => {
+    process.env = OLD_ENV;
+    jest.restoreAllMocks();
+  });
+
+  function withSend() {
+    const provider = new S3StorageProvider();
+    const send = jest.fn().mockResolvedValue({});
+    (provider as unknown as { client: { send: typeof send } }).client = { send };
+    return { provider, send };
+  }
+
+  it('defaults to the long-lived immutable policy when cacheControl is omitted', async () => {
+    const { provider, send } = withSend();
+    const { url } = await provider.put({ key: 'products/a.png', body: Buffer.from('x'), contentType: 'image/png' });
+    expect(send.mock.calls[0][0].input.CacheControl).toBe('public, max-age=31536000, immutable');
+    expect(url).toBe('https://cdn.example.com/products/a.png');
+  });
+
+  it('uses the given cacheControl when provided', async () => {
+    const { provider, send } = withSend();
+    await provider.put({
+      key: 'invoices/o-1.html',
+      body: Buffer.from('<html></html>'),
+      contentType: 'text/html; charset=utf-8',
+      cacheControl: 'no-cache, max-age=0, must-revalidate',
+    });
+    expect(send.mock.calls[0][0].input.CacheControl).toBe('no-cache, max-age=0, must-revalidate');
+  });
+});

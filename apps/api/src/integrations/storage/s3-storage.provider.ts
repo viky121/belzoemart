@@ -45,7 +45,7 @@ export class S3StorageProvider implements StorageProvider {
         Key: input.key,
         Body: input.body,
         ContentType: input.contentType,
-        CacheControl: 'public, max-age=31536000, immutable',
+        CacheControl: input.cacheControl ?? 'public, max-age=31536000, immutable',
       }),
     );
     this.logger.log(`Uploaded s3://${this.bucket}/${input.key}`);

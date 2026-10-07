@@ -1,15 +1,33 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { formatInvoiceNumber } from '@belzo/shared';
+import { formatInvoiceNumber, gstStateCode, panFromGstin } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { STORAGE_PROVIDER, type StorageProvider } from '../../integrations/storage/storage.provider';
 import { SettingsService } from '../admin/settings.service';
+import {
+  buildInvoiceDocument,
+  renderInvoiceHtml,
+  type InvoiceOrder,
+  type InvoiceSeller,
+} from './invoice-document';
+
+export const INVOICE_KEY = (orderId: string) => `invoices/${orderId}.html`;
+/** Invoices are overwritten in place on regenerate, so they must not be cached as immutable. */
+export const INVOICE_CACHE_CONTROL = 'no-cache, max-age=0, must-revalidate';
 
 /**
- * GST invoice generation (BR-4, BR-5, NFR-2.1). Idempotent per order: one
- * invoice with a unique sequential number (BELZO/YYYY/NNNNN). Invoice content
- * includes GSTIN, per-item HSN, place of supply, and the CGST/SGST/IGST split
- * from the order snapshot. Rendered as HTML and stored via the storage port
- * (a PDF renderer can replace the HTML body without interface changes).
+ * GST tax invoice generation (BR-4, BR-5, NFR-2.1).
+ *
+ * - `generate()` is idempotent per order: one invoice with a unique sequential
+ *   number (BELZO/YYYY/NNNNN), stored at `invoices/<orderId>.html`.
+ * - `regenerate()` re-renders an existing invoice with the current template and
+ *   store details, overwriting the SAME key and keeping the SAME number and
+ *   invoice date (a number is never re-allocated). The stored URL gets a `?v=`
+ *   cache-buster so customer/admin links open the current file.
+ *
+ * Layout (see invoice-document.ts): TAX INVOICE header with seller identity
+ * (GSTIN/PAN/state code), invoice + order meta, Bill To / Ship To, per-line
+ * HSN/discount/taxable/GST split, totals with amount in words, HSN summary and
+ * the declaration/signatory footer. All amounts come from the order snapshot.
  */
 @Injectable()
 export class InvoiceService {
@@ -35,24 +53,10 @@ export class InvoiceService {
     const existing = await this.prisma.invoice.findUnique({ where: { orderId } });
     if (existing) return { url: existing.url, number: existing.number };
 
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
-      include: { items: true },
-    });
-    if (!order) throw new NotFoundException('Order not found');
-
+    // Check the order exists BEFORE allocating a number.
+    const order = await this.loadOrder(orderId);
     const number = await this.nextNumber();
-    // Store identity is admin-configurable; fall back to env/default so a fresh
-    // DB renders exactly as before. Only the source of these values changes.
-    const storeName = (await this.resolveString('store.name')) ?? 'Belzo eMart';
-    const gstin =
-      (await this.resolveString('store.gstin')) ?? (process.env.STORE_GSTIN || 'GSTIN-UNSET');
-    const html = this.renderHtml(number, order, storeName, gstin);
-    const { url } = await this.storage.put({
-      key: `invoices/${order.id}.html`,
-      body: Buffer.from(html, 'utf8'),
-      contentType: 'text/html; charset=utf-8',
-    });
+    const url = await this.render(order, number, new Date());
 
     await this.prisma.$transaction([
       this.prisma.invoice.create({ data: { orderId, number, url } }),
@@ -61,50 +65,113 @@ export class InvoiceService {
     return { url, number };
   }
 
+  /**
+   * Re-render an existing invoice in place (same key, same number, same
+   * invoice date). Falls back to `generate()` when the order has no invoice yet.
+   */
+  async regenerate(orderId: string): Promise<{ url: string; number: string }> {
+    const existing = await this.prisma.invoice.findUnique({ where: { orderId } });
+    if (!existing) return this.generate(orderId);
+
+    const order = await this.loadOrder(orderId);
+    const url = await this.render(order, existing.number, existing.createdAt);
+    const versioned = `${url.split('?')[0]}?v=${Date.now()}`;
+
+    await this.prisma.$transaction([
+      this.prisma.invoice.update({ where: { orderId }, data: { url: versioned } }),
+      this.prisma.order.update({ where: { id: orderId }, data: { invoiceUrl: versioned } }),
+    ]);
+    return { url: versioned, number: existing.number };
+  }
+
+  private async loadOrder(orderId: string): Promise<InvoiceOrder & { customerId: string; addressId: string }> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { items: true, payments: true },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    return order;
+  }
+
+  /** Render the invoice HTML for `order` and store it at the invoice key; returns the storage URL. */
+  private async render(
+    order: InvoiceOrder & { customerId: string; addressId: string },
+    number: string,
+    invoiceDate: Date,
+  ): Promise<string> {
+    const variantIds = [...new Set(order.items.map((i) => i.variantId))];
+    // Address/customer may be gone (deleted / DPDP-anonymised): render '-' instead of failing.
+    const [address, customer, variants, seller] = await Promise.all([
+      this.prisma.address.findUnique({ where: { id: order.addressId } }),
+      this.prisma.customer.findUnique({ where: { id: order.customerId } }),
+      variantIds.length
+        ? this.prisma.variant.findMany({
+            where: { id: { in: variantIds } },
+            select: { id: true, product: { select: { hsnCode: true } } },
+          })
+        : Promise.resolve([] as { id: string; product: { hsnCode: string } | null }[]),
+      this.loadSeller(),
+    ]);
+    const hsnByVariant = new Map<string, string>(
+      variants.map((v) => [v.id, v.product?.hsnCode ?? ''] as [string, string]),
+    );
+
+    const html = renderInvoiceHtml(
+      buildInvoiceDocument({ number, invoiceDate, order, hsnByVariant, address, customer, seller }),
+    );
+    const { url } = await this.storage.put({
+      key: INVOICE_KEY(order.id),
+      body: Buffer.from(html, 'utf8'),
+      contentType: 'text/html; charset=utf-8',
+      cacheControl: INVOICE_CACHE_CONTROL,
+    });
+    return url;
+  }
+
+  /** Store identity for the invoice header, from admin settings with env/default fallbacks. */
+  private async loadSeller(): Promise<InvoiceSeller> {
+    const [name, legalName, gstinSetting, address, city, pincode, stateSetting, phone, email, website, logoUrl, terms] =
+      await Promise.all(
+        [
+          'store.name',
+          'store.legalName',
+          'store.gstin',
+          'store.address',
+          'store.city',
+          'store.pincode',
+          'store.state',
+          'store.phone',
+          'store.email',
+          'store.website',
+          'store.logoUrl',
+          'store.invoiceTerms',
+        ].map((k) => this.resolveString(k)),
+      );
+    const storeName = name ?? 'Belzo eMart';
+    const gstin = (gstinSetting ?? (process.env.STORE_GSTIN || '').trim()) || null;
+    // Same fallback chain as checkout pricing so the seller state matches the charged regime.
+    const sellerState = stateSetting ?? (process.env.STORE_STATE?.trim() || 'Karnataka');
+    return {
+      name: storeName,
+      legalName: legalName ?? storeName,
+      address: address ?? null,
+      city: city ?? null,
+      state: sellerState,
+      stateCode: gstStateCode(sellerState),
+      pincode: pincode ?? null,
+      gstin: gstin ? gstin.toUpperCase() : null,
+      pan: panFromGstin(gstin),
+      phone: phone ?? null,
+      email: email ?? null,
+      website: website ?? null,
+      logoUrl: logoUrl ?? null,
+      terms: terms ?? null,
+    };
+  }
+
   /** Read a string setting, returning undefined when absent or not a non-empty string. */
   private async resolveString(key: string): Promise<string | undefined> {
     const raw = await this.settings.get<unknown>(key);
-    return typeof raw === 'string' && raw.trim().length > 0 ? raw : undefined;
-  }
-
-  private renderHtml(
-    number: string,
-    order: {
-      id: string;
-      subtotal: number;
-      discount: number;
-      shipping: number;
-      tax: number;
-      cgst: number;
-      sgst: number;
-      igst: number;
-      grandTotal: number;
-      items: { title: string; sku: string; unitPrice: number; quantity: number; taxRatePct: number }[];
-    },
-    storeName: string,
-    gstin: string,
-  ): string {
-    const rupees = (p: number) => `₹${(p / 100).toFixed(2)}`;
-    const rows = order.items
-      .map(
-        (i) =>
-          `<tr><td>${i.title}</td><td>${i.sku}</td><td>${i.taxRatePct}%</td><td>${i.quantity}</td><td>${rupees(i.unitPrice)}</td><td>${rupees(i.unitPrice * i.quantity)}</td></tr>`,
-      )
-      .join('');
-    return `<!doctype html><html><head><meta charset="utf-8"><title>Invoice ${number}</title></head>
-<body>
-<h1>Tax Invoice</h1>
-<p><strong>${storeName}</strong> — GSTIN: ${gstin}</p>
-<p>Invoice No: ${number} · Order: ${order.id}</p>
-<table border="1" cellpadding="6" cellspacing="0">
-<thead><tr><th>Item</th><th>SKU</th><th>GST%</th><th>Qty</th><th>Unit</th><th>Amount</th></tr></thead>
-<tbody>${rows}</tbody>
-</table>
-<p>Subtotal: ${rupees(order.subtotal)}</p>
-<p>Discount: −${rupees(order.discount)}</p>
-<p>Shipping: ${rupees(order.shipping)}</p>
-<p>CGST: ${rupees(order.cgst)} · SGST: ${rupees(order.sgst)} · IGST: ${rupees(order.igst)} (Total tax ${rupees(order.tax)})</p>
-<h3>Grand Total: ${rupees(order.grandTotal)}</h3>
-</body></html>`;
+    return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : undefined;
   }
 }

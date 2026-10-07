@@ -7,6 +7,12 @@ export interface PutObjectInput {
   key: string; // e.g. products/<id>/<filename>
   body: Buffer;
   contentType: string;
+  /**
+   * Optional Cache-Control for the stored object. Defaults to the adapter's
+   * long-lived immutable policy; pass a short/no-cache value for objects that
+   * are overwritten in place (e.g. regenerated invoices).
+   */
+  cacheControl?: string;
 }
 
 /**
