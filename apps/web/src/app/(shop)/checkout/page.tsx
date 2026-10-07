@@ -44,7 +44,7 @@ const EMPTY_FORM = {
 /** Checkout (FR-4.4-4.9): 3-step flow — address, payment, review + place. */
 export default function CheckoutPage() {
   const router = useRouter();
-  const { accessToken, authFetch } = useAuth();
+  const { accessToken, authFetch, customer } = useAuth();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [addressId, setAddressId] = useState('');
   const [items, setItems] = useState<CartLine[]>([]);
@@ -57,6 +57,19 @@ export default function CheckoutPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [savingAddr, setSavingAddr] = useState(false);
+
+  // Pre-fill the new-address form with the name + mobile the customer gave at
+  // login/profile (only into empty fields, so typed values are never replaced).
+  const profileName =
+    customer?.name && customer.name.trim() !== 'Belzo Customer' ? customer.name.trim() : '';
+  const profilePhone = (customer?.phone ?? '').replace(/\D/g, '').slice(-10);
+  useEffect(() => {
+    setForm((f) => ({
+      ...f,
+      fullName: f.fullName || profileName,
+      phone: f.phone || profilePhone,
+    }));
+  }, [profileName, profilePhone, showForm]);
   const [addrError, setAddrError] = useState<string | null>(null);
 
   const loadAddresses = useCallback(async () => {
@@ -121,7 +134,7 @@ export default function CheckoutPage() {
         method: 'POST',
         body: { ...form, line2: form.line2 || undefined },
       });
-      setForm(EMPTY_FORM);
+      setForm({ ...EMPTY_FORM, fullName: profileName, phone: profilePhone });
       const list = await loadAddresses();
       setAddressId(created?.id ?? list[list.length - 1]?.id ?? '');
       setShowForm(false);
