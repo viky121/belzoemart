@@ -197,14 +197,115 @@ describe('buildInvoiceDocument — reconciliation', () => {
     expectReconciles(order, doc);
   });
 
-  it('allocates the stored tax pro-rata to line net with the remainder on the last line', () => {
+  it('allocates the stored tax by line net x line rate with the remainder on the last line', () => {
     const order = exclusiveOrder(true);
     const doc = buildInvoiceDocument(input(order));
-    const nets = doc.lines.map((l) => l.gross - l.discount);
-    const netSum = sum(nets);
+    const weights = doc.lines.map((l) => (l.gross - l.discount) * l.taxRatePct);
+    const wSum = sum(weights);
     doc.lines.slice(0, -1).forEach((l, i) => {
-      expect(l.cgst).toBe(Math.floor((order.cgst * nets[i]!) / netSum));
+      expect(l.cgst).toBe(Math.floor((order.cgst * weights[i]!) / wSum));
+      expect(l.sgst).toBe(Math.floor((order.sgst * weights[i]!) / wSum));
     });
+    // Each line's tax tracks its own printed rate (within the engine's blended-rate drift),
+    // not the cart's blended rate: the 18% line carries far more tax per rupee than the 5% lines.
+    const [rice, tea] = doc.lines;
+    expect((tea!.cgst + tea!.sgst) / tea!.taxable).toBeGreaterThan(((rice!.cgst + rice!.sgst) / rice!.taxable) * 3);
+    doc.lines.forEach((l) => {
+      const expected = (l.taxable * l.taxRatePct) / 100;
+      expect(Math.abs(l.cgst + l.sgst - expected)).toBeLessThanOrEqual(expected * 0.1 + 2);
+    });
+  });
+
+  it('gives a 0% line no tax when another line in the cart is taxed', () => {
+    const items = [
+      { variantId: 'v-1', title: 'Fresh Milk 1L', sku: 'MILK-1L', unitPrice: 6800, quantity: 2, taxRatePct: 0 },
+      { variantId: 'v-2', title: 'Green Tea 100g', sku: 'TEA-100', unitPrice: 29900, quantity: 1, taxRatePct: 18 },
+    ];
+    for (const sameState of [true, false]) {
+      const order = exclusiveOrder(sameState, items);
+      expect(order.tax).toBeGreaterThan(0);
+      const doc = buildInvoiceDocument(input(order, { address: sameState ? ADDRESS_KA : ADDRESS_MH }));
+      expectReconciles(order, doc);
+      const milk = doc.lines[0]!;
+      expect(milk.cgst + milk.sgst + milk.igst).toBe(0);
+      expect(milk.total).toBe(milk.taxable);
+      const zeroRow = doc.hsn.find((h) => h.taxRatePct === 0)!;
+      expect(zeroRow.totalTax).toBe(0);
+    }
+  });
+
+  it('falls back to net weights when tax was stored but every line rate is 0 (legacy snapshot)', () => {
+    const order = exclusiveOrder(true);
+    const legacy = { ...order, items: order.items.map((i) => ({ ...i, taxRatePct: 0 })) };
+    const doc = buildInvoiceDocument(input(legacy));
+    expectReconciles(legacy, doc);
+  });
+
+  it('zero-tax inter-state order: falls back to state comparison and shows IGST columns with 0 tax', () => {
+    const items = ITEMS.map((i) => ({ ...i, taxRatePct: 0 }));
+    const order = exclusiveOrder(false, items);
+    expect(order.tax).toBe(0);
+    const doc = buildInvoiceDocument(input(order, { address: ADDRESS_MH }));
+    expect(doc.showInter).toBe(true);
+    expect(doc.showIntra).toBe(false);
+    expectReconciles(order, doc);
+    doc.lines.forEach((l) => expect(l.igst).toBe(0));
+    const html = renderInvoiceHtml(doc);
+    expect(html).toContain('<th>IGST %</th>');
+    expect(html).not.toContain('CGST');
+  });
+
+  it('zero-tax intra-state order shows CGST + SGST columns', () => {
+    const items = ITEMS.map((i) => ({ ...i, taxRatePct: 0 }));
+    const doc = buildInvoiceDocument(input(exclusiveOrder(true, items)));
+    expect(doc.showIntra).toBe(true);
+    expect(doc.showInter).toBe(false);
+  });
+
+  it('zero-discount order: no discount row, every line discount is 0, reconciles exactly', () => {
+    const order = { ...exclusiveOrder(true), couponCode: null };
+    const b = computeTotals({
+      lines: ITEMS.map((i) => ({ unitPrice: paise(i.unitPrice), quantity: i.quantity, taxRatePct: i.taxRatePct })),
+      sameState: true,
+      shipping: paise(4900),
+      codFee: paise(0),
+    });
+    const noDiscount: InvoiceOrder = {
+      ...order,
+      subtotal: b.subtotal,
+      discount: b.discount,
+      shipping: b.shipping,
+      codFee: b.codFee,
+      tax: b.tax,
+      cgst: b.gst.cgst,
+      sgst: b.gst.sgst,
+      igst: b.gst.igst,
+      grandTotal: b.grandTotal,
+    };
+    expect(noDiscount.discount).toBe(0);
+    const doc = buildInvoiceDocument(input(noDiscount));
+    expectReconciles(noDiscount, doc);
+    doc.lines.forEach((l) => {
+      expect(l.discount).toBe(0);
+      expect(l.taxable).toBe(l.gross);
+    });
+    const html = renderInvoiceHtml(doc);
+    expect(html).not.toContain('Less: Discount');
+    expect(html).not.toContain('COD fee');
+  });
+
+  it('single-line order: the line carries the full stored discount, taxable and tax', () => {
+    const order = exclusiveOrder(true, [ITEMS[1]!]);
+    const doc = buildInvoiceDocument(input(order));
+    expectReconciles(order, doc);
+    const [l] = doc.lines;
+    expect(doc.lines).toHaveLength(1);
+    expect(l!.discount).toBe(order.discount);
+    expect(l!.cgst).toBe(order.cgst);
+    expect(l!.sgst).toBe(order.sgst);
+    expect(l!.taxable).toBe(order.subtotal - order.discount);
+    expect(l!.total + order.shipping + order.codFee).toBe(order.grandTotal);
+    expect(doc.hsn).toHaveLength(1);
   });
 
   it('groups lines with the same HSN + rate into one HSN summary row', () => {

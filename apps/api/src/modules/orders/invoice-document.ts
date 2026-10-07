@@ -294,16 +294,23 @@ export function buildInvoiceDocument(input: BuildInvoiceInput): InvoiceDocument 
   // GST-inclusive orders (grandTotal = net + shipping + codFee, tax extracted):
   // taxable = grandTotal - shipping - codFee - tax.
   const orderTaxable = Math.max(0, order.grandTotal - order.shipping - order.codFee - order.tax);
-  const alloc = (total: number) => (items.length === 0 ? [] : allocateProportional(total, net));
-  // Line taxable values and each stored tax head are allocated pro-rata to the
-  // line net (gross - discount share), remainder on the last line, so every
-  // column sums EXACTLY to the stored order value.
-  const cgst = alloc(order.cgst);
-  const sgst = alloc(order.sgst);
-  const igst = alloc(order.igst);
+  const alloc = (total: number, weights: number[]) =>
+    items.length === 0 ? [] : allocateProportional(total, weights);
+  // Each stored tax head is allocated by line net x line GST rate (plan D3), so
+  // a 0% line gets no tax and each line's amount tracks its printed rate; the
+  // remainder goes on the last weighted line so every column sums EXACTLY to the
+  // stored order value. Rates are scaled to integer basis points (2.5% -> 250)
+  // because the allocator needs integer weights. If every weight is 0 but tax
+  // was charged (e.g. legacy snapshot with rates missing), fall back to net.
+  const rateWeights = items.map((i, idx) => net[idx]! * Math.max(0, Math.round(i.taxRatePct * 100)));
+  const taxWeights = rateWeights.some((w) => w > 0) ? rateWeights : net;
+  const cgst = alloc(order.cgst, taxWeights);
+  const sgst = alloc(order.sgst, taxWeights);
+  const igst = alloc(order.igst, taxWeights);
   const netSum = sum(net);
   const pricesIncludeGst = order.tax > 0 && netSum === orderTaxable + order.tax;
-  let taxable = alloc(orderTaxable);
+  // Line taxable values: pro-rata to line net, summing exactly to orderTaxable.
+  let taxable = alloc(orderTaxable, net);
   if (pricesIncludeGst) {
     // Inclusive: line taxable = line net - line tax, so each line total is the
     // price as sold; Σ is still exactly orderTaxable (Σnet - tax). Falls back to

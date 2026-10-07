@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { join } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import { NestFactory } from '@nestjs/core';
 import { VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -66,10 +66,14 @@ async function bootstrap(): Promise<void> {
   // Invoices are overwritten in place on regenerate (no-cache) and carry a
   // single constant inline handler for the Print button; every interpolated
   // value in them is HTML-escaped. Only /invoices/ files get this policy.
-  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+  const uploadsRoot = resolve(process.cwd(), 'uploads');
+  // Matched against the path relative to the uploads root, so a deploy path
+  // that itself contains "/invoices/" doesn't relax headers on every upload.
+  const invoicesDir = join(uploadsRoot, 'invoices') + sep;
+  app.useStaticAssets(uploadsRoot, {
     prefix: '/api/uploads',
     setHeaders: (res, filePath) => {
-      if (!filePath.replace(/\\/g, '/').includes('/invoices/')) return;
+      if (!resolve(filePath).startsWith(invoicesDir)) return;
       res.setHeader('Cache-Control', 'no-cache, max-age=0, must-revalidate');
       res.setHeader(
         'Content-Security-Policy',

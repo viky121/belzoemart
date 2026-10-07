@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { isValidGstin } from '@belzo/shared';
 import { adminFetch } from '@/lib/admin-api';
 import { ContentEditor } from './content-editor';
 import { HomeSectionsEditor } from './home-sections-editor';
@@ -54,6 +55,7 @@ export default function AdminSettingsPage() {
   // Uncontrolled inputs take their defaultValue on first render, so the forms
   // render only after load() resolves (otherwise a blur could save '' over a stored value).
   const [loaded, setLoaded] = useState(false);
+  const [gstinError, setGstinError] = useState<string | null>(null);
 
   async function load() {
     setSettings(await adminFetch<Settings>('/admin/settings').catch(() => ({})));
@@ -124,11 +126,22 @@ export default function AdminSettingsPage() {
         {INVOICE_FIELDS.map((f) => {
           const current = settings[f.key];
           const initial = current === undefined || current === null ? '' : String(current);
+          const isGstin = f.key === 'store.gstin';
           const onBlur = (value: string) => {
             const next = value.trim();
+            // A mistyped GSTIN would print as-is on every invoice; blank = not registered.
+            if (isGstin) {
+              if (next && !isValidGstin(next)) {
+                setGstinError('Enter a valid 15-character GSTIN (e.g. 29ABCDE1234F1Z5), or leave blank. Not saved.');
+                return;
+              }
+              setGstinError(null);
+            }
             if (next !== initial.trim()) void save(f.key, next);
           };
           const id = `setting-input-${f.key}`;
+          const errorId = `${id}-error`;
+          const showError = isGstin && gstinError !== null;
           return (
             <div key={f.key} style={{ marginBottom: '0.75rem' }}>
               <label htmlFor={id}>{f.label}</label>
@@ -148,8 +161,15 @@ export default function AdminSettingsPage() {
                   defaultValue={initial}
                   placeholder={f.placeholder}
                   onBlur={(e) => onBlur(e.target.value)}
+                  aria-invalid={showError || undefined}
+                  aria-describedby={showError ? errorId : undefined}
                   data-testid={`setting-${f.key}`}
                 />
+              )}
+              {showError && (
+                <p id={errorId} role="alert" style={{ color: '#b91c1c', fontSize: '0.85rem', margin: '0.25rem 0 0' }}>
+                  {gstinError}
+                </p>
               )}
             </div>
           );

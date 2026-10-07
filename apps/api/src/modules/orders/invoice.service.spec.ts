@@ -24,6 +24,7 @@ describe('InvoiceService', () => {
     sgst: 9000,
     igst: 0,
     grandTotal: 122900,
+    status: 'confirmed',
     items: [{ variantId: 'v-1', title: 'Widget', sku: 'W-1', unitPrice: 50000, quantity: 2, taxRatePct: 18 }],
     payments: [],
   };
@@ -220,6 +221,28 @@ describe('InvoiceService', () => {
       expect(prisma.invoice.create).toHaveBeenCalledTimes(1);
       expect(puts[0]!.key).toBe('invoices/order-1.html');
       expect(res.number).toMatch(/00007$/);
+    });
+
+    it.each(['pending', 'cancelled'])(
+      'rejects first-time generation for a %s order without spending a number',
+      async (status) => {
+        const { svc, prisma, puts } = build({});
+        prisma.order.findUnique.mockResolvedValue({ ...ORDER, status } as never);
+        await expect(svc.regenerate('order-1')).rejects.toThrow(`No invoice can be issued for a ${status} order`);
+        await expect(svc.generate('order-1')).rejects.toThrow(`No invoice can be issued for a ${status} order`);
+        expect(prisma.invoiceCounter.upsert).not.toHaveBeenCalled();
+        expect(prisma.invoice.create).not.toHaveBeenCalled();
+        expect(puts).toHaveLength(0);
+      },
+    );
+
+    it('still re-renders an existing invoice for a cancelled order (same number)', async () => {
+      const existing = { orderId: 'order-1', number: 'BELZO/2025/00003', url: 'https://files/x', createdAt: new Date() };
+      const { svc, prisma } = build({}, existing);
+      prisma.order.findUnique.mockResolvedValue({ ...ORDER, status: 'cancelled' } as never);
+      const res = await svc.regenerate('order-1');
+      expect(res.number).toBe('BELZO/2025/00003');
+      expect(prisma.invoiceCounter.upsert).not.toHaveBeenCalled();
     });
   });
 });

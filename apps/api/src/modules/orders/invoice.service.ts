@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { formatInvoiceNumber, gstStateCode, panFromGstin } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { STORAGE_PROVIDER, type StorageProvider } from '../../integrations/storage/storage.provider';
@@ -13,6 +13,8 @@ import {
 export const INVOICE_KEY = (orderId: string) => `invoices/${orderId}.html`;
 /** Invoices are overwritten in place on regenerate, so they must not be cached as immutable. */
 export const INVOICE_CACHE_CONTROL = 'no-cache, max-age=0, must-revalidate';
+/** Order statuses for which a FIRST invoice is never issued (existing invoices can still be re-rendered). */
+const NON_INVOICEABLE_STATUSES: ReadonlySet<string> = new Set(['pending', 'cancelled']);
 
 /**
  * GST tax invoice generation (BR-4, BR-5, NFR-2.1).
@@ -53,8 +55,13 @@ export class InvoiceService {
     const existing = await this.prisma.invoice.findUnique({ where: { orderId } });
     if (existing) return { url: existing.url, number: existing.number };
 
-    // Check the order exists BEFORE allocating a number.
+    // Check the order exists and is placed BEFORE allocating a number, so
+    // sequential invoice numbers are never spent on unplaced/cancelled orders
+    // (also enforced for direct calls to the admin regenerate endpoint).
     const order = await this.loadOrder(orderId);
+    if (NON_INVOICEABLE_STATUSES.has(order.status)) {
+      throw new BadRequestException(`No invoice can be issued for a ${order.status} order`);
+    }
     const number = await this.nextNumber();
     const url = await this.render(order, number, new Date());
 
@@ -84,7 +91,9 @@ export class InvoiceService {
     return { url: versioned, number: existing.number };
   }
 
-  private async loadOrder(orderId: string): Promise<InvoiceOrder & { customerId: string; addressId: string }> {
+  private async loadOrder(
+    orderId: string,
+  ): Promise<InvoiceOrder & { customerId: string; addressId: string; status: string }> {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: { items: true, payments: true },
