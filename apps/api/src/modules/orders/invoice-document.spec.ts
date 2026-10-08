@@ -646,6 +646,20 @@ describe('renderInvoiceHtml — content and escaping', () => {
       buildInvoiceDocument(input(legacyExclusiveOrder(true), { seller: { ...SELLER, logoUrl: 'javascript:alert(1)' } })),
     );
     expect(bad).not.toContain('<img');
+    const embedded = renderInvoiceHtml(
+      buildInvoiceDocument(
+        input(legacyExclusiveOrder(true), {
+          seller: { ...SELLER, logoUrl: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' },
+        }),
+      ),
+    );
+    expect(embedded).toContain('<img src="data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="');
+    const nonImageData = renderInvoiceHtml(
+      buildInvoiceDocument(
+        input(legacyExclusiveOrder(true), { seller: { ...SELLER, logoUrl: 'data:text/html;base64,PGI+' } }),
+      ),
+    );
+    expect(nonImageData).not.toContain('<img');
     expect(bad).not.toContain('javascript:');
   });
 });

@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { formatInvoiceNumber, gstStateCode, panFromGstin } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { DEFAULT_INVOICE_LOGO_DATA_URI } from './default-logo';
 import { STORAGE_PROVIDER, type StorageProvider } from '../../integrations/storage/storage.provider';
 import { SettingsService } from '../admin/settings.service';
 import {
@@ -137,10 +138,35 @@ export class InvoiceService {
     return url;
   }
 
-  /** Absolute URL of the storefront logo (web serves /belzo-logo.svg), or null. */
-  static defaultLogoUrl(): string | null {
-    const base = (process.env.PUBLIC_BASE_URL ?? '').replace(/\/$/, '');
-    return /^https?:\/\//i.test(base) ? `${base}/belzo-logo.svg` : null;
+  /**
+   * Logo for the invoice, EMBEDDED as a data URI whenever possible. Invoices are
+   * served from HTTPS storage, where an http:// logo is blocked as mixed content
+   * (the broken-image bug), and embedding also keeps print/PDF self-contained.
+   * - store.logoUrl set → fetch it (≤ 500 KB, image/*, 5 s) and embed; if that
+   *   fails, keep it only if it's https (still loads), else use the default.
+   * - unset → the built-in Belzo logo.
+   */
+  private async resolveLogo(configured: string | undefined): Promise<string> {
+    const url = configured?.trim();
+    if (!url) return DEFAULT_INVOICE_LOGO_DATA_URI;
+    if (url.startsWith('data:image/')) return url;
+    const absolute = url.startsWith('/')
+      ? `${(process.env.PUBLIC_BASE_URL ?? '').replace(/\/$/, '')}${url}`
+      : url;
+    if (!/^https?:\/\//i.test(absolute)) return DEFAULT_INVOICE_LOGO_DATA_URI;
+    try {
+      const res = await fetch(absolute, { signal: AbortSignal.timeout(5000) });
+      const type = (res.headers.get('content-type') ?? '').split(';')[0]!.trim().toLowerCase();
+      if (res.ok && /^image\/(png|jpe?g|gif|webp|svg\+xml)$/.test(type)) {
+        const buf = Buffer.from(await res.arrayBuffer());
+        if (buf.length > 0 && buf.length <= 500 * 1024) {
+          return `data:${type};base64,${buf.toString('base64')}`;
+        }
+      }
+    } catch {
+      /* fall through */
+    }
+    return /^https:\/\//i.test(absolute) ? absolute : DEFAULT_INVOICE_LOGO_DATA_URI;
   }
 
   /** Store identity for the invoice header, from admin settings with env/default fallbacks. */
@@ -179,8 +205,7 @@ export class InvoiceService {
       phone: phone ?? null,
       email: email ?? null,
       website: website ?? null,
-      // Fall back to the storefront's own logo so invoices are always branded.
-      logoUrl: logoUrl ?? InvoiceService.defaultLogoUrl(),
+      logoUrl: await this.resolveLogo(logoUrl),
       terms: terms ?? null,
     };
   }

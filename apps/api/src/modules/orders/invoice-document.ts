@@ -600,9 +600,13 @@ export function renderInvoiceHtml(doc: InvoiceDocument): string {
   const sellerAddress = [s.address ? multiline(s.address) : null, sellerCityPin ? escapeHtml(sellerCityPin) : null]
     .filter(Boolean)
     .join('<br>');
+  // Accept http(s) URLs or an embedded base64 image data URI (used so the logo
+  // still shows when the invoice is served over HTTPS or saved/printed).
+  const logoSrc = s.logoUrl?.trim() ?? '';
   const logo =
-    s.logoUrl && /^https?:\/\//i.test(s.logoUrl.trim())
-      ? `<img src="${escapeHtml(s.logoUrl.trim())}" alt="${escapeHtml(s.name)} logo">`
+    /^https?:\/\//i.test(logoSrc) ||
+    /^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,[a-z0-9+/=]+$/i.test(logoSrc)
+      ? `<img src="${escapeHtml(logoSrc)}" alt="${escapeHtml(s.name)} logo">`
       : '';
   const tradeName = s.name && s.name !== s.legalName ? `<div>Trade name: ${escapeHtml(s.name)}</div>` : '';
 
