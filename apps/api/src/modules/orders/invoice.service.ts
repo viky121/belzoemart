@@ -137,6 +137,12 @@ export class InvoiceService {
     return url;
   }
 
+  /** Absolute URL of the storefront logo (web serves /belzo-logo.svg), or null. */
+  static defaultLogoUrl(): string | null {
+    const base = (process.env.PUBLIC_BASE_URL ?? '').replace(/\/$/, '');
+    return /^https?:\/\//i.test(base) ? `${base}/belzo-logo.svg` : null;
+  }
+
   /** Store identity for the invoice header, from admin settings with env/default fallbacks. */
   private async loadSeller(): Promise<InvoiceSeller> {
     const [name, legalName, gstinSetting, address, city, pincode, stateSetting, phone, email, website, logoUrl, terms] =
@@ -173,7 +179,8 @@ export class InvoiceService {
       phone: phone ?? null,
       email: email ?? null,
       website: website ?? null,
-      logoUrl: logoUrl ?? null,
+      // Fall back to the storefront's own logo so invoices are always branded.
+      logoUrl: logoUrl ?? InvoiceService.defaultLogoUrl(),
       terms: terms ?? null,
     };
   }
