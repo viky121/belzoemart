@@ -1,4 +1,13 @@
-import { computeGst, computeTotals, couponDiscount, paise, subtotalOf, weightedTaxRate } from '@belzo/shared';
+import {
+  computeGst,
+  computeTotals,
+  couponDiscount,
+  inclusiveLineTaxes,
+  isGstInclusiveSnapshot,
+  paise,
+  subtotalOf,
+  weightedTaxRate,
+} from '@belzo/shared';
 import {
   buildInvoiceDocument,
   escapeHtml,
@@ -452,6 +461,82 @@ describe('buildInvoiceDocument — orders priced by the GST-inclusive engine', (
       const milk = doc.lines[0]!;
       expect(milk.cgst + milk.sgst + milk.igst).toBe(0);
     }
+  });
+
+  /** Each invoice line carries exactly the GST checkout extracted for it. */
+  function expectLinesMatchEngine(order: InvoiceOrder, doc: ReturnType<typeof buildInvoiceDocument>) {
+    const engine = inclusiveLineTaxes(toLines(order.items as Item[]), paise(order.discount));
+    doc.lines.forEach((l, i) => {
+      expect(l.discount).toBe(engine[i]!.discount);
+      expect(l.cgst + l.sgst + l.igst).toBe(engine[i]!.tax);
+      expect(Math.abs(l.cgst - l.sgst)).toBeLessThanOrEqual(1);
+      if (order.igst > 0) expect(l.cgst + l.sgst).toBe(0);
+      else expect(l.igst).toBe(0);
+      // printed taxable x printed rate reproduces the printed GST (± rounding)
+      expect(Math.abs((l.taxable * l.taxRatePct) / 100 - (l.cgst + l.sgst + l.igst))).toBeLessThanOrEqual(1);
+    });
+  }
+
+  it('(e) per-line GST equals the engine per-line extraction on the mixed 5%/18% cart (intra + inter)', () => {
+    for (const sameState of [true, false]) {
+      const order = engineOrder(sameState);
+      const doc = buildInvoiceDocument(input(order, { address: sameState ? ADDRESS_KA : ADDRESS_MH }));
+      expectReconciles(order, doc);
+      expectLinesMatchEngine(order, doc);
+      // E4 pins: nets 97898 / 29331 / 44288 -> extracted GST 4662 / 4474 / 2109
+      expect(doc.lines.map((l) => l.cgst + l.sgst + l.igst)).toEqual([4662, 4474, 2109]);
+      expect(doc.lines.map((l) => l.taxable)).toEqual([93236, 24857, 42179]);
+      // HSN summary: 5% group = rice + chai, 18% group = tea
+      const byRate = (r: number) => doc.hsn.filter((h) => h.taxRatePct === r);
+      expect(sum(byRate(5).map((h) => h.totalTax))).toBe(4662 + 2109);
+      expect(sum(byRate(18).map((h) => h.totalTax))).toBe(4474);
+    }
+  });
+
+  it('(f) per-line GST equals the engine extraction for random mixed-rate engine orders', () => {
+    let seed = 12345;
+    const rnd = (n: number) => {
+      seed = (Math.imul(seed, 1103515245) + 12345) >>> 0;
+      return (seed >>> 8) % n;
+    };
+    const RATES = [0, 5, 12, 18, 28];
+    for (let k = 0; k < 300; k++) {
+      const items: Item[] = Array.from({ length: 1 + rnd(5) }, (_, j) => ({
+        variantId: `v-${j}`,
+        title: `Item ${j}`,
+        sku: `SKU-${j}`,
+        unitPrice: 1 + rnd(200000),
+        quantity: 1 + rnd(4),
+        taxRatePct: RATES[rnd(RATES.length)]!,
+      }));
+      const sameState = rnd(2) === 0;
+      const order = engineOrder(sameState, items, { shipping: rnd(2) * 4900, codFee: rnd(2) * 3900, flatCoupon: rnd(5000) });
+      const doc = buildInvoiceDocument(input(order, { address: sameState ? ADDRESS_KA : ADDRESS_MH }));
+      expectReconciles(order, doc);
+      expectLinesMatchEngine(order, doc);
+      // invoice and web (shared isGstInclusiveSnapshot) agree on the mode
+      expect(doc.totals.pricesIncludeGst).toBe(order.tax > 0 && isGstInclusiveSnapshot(order));
+    }
+  });
+
+  it('(h) an odd snapshot the shared rule calls inclusive but that does not reconcile as inclusive keeps the pro-rata split', () => {
+    const order = legacyExclusiveOrder(true);
+    const odd = { ...order, tax: order.tax - 40, cgst: order.cgst - 20, sgst: order.sgst - 20 };
+    expect(isGstInclusiveSnapshot(odd)).toBe(true);
+    const doc = buildInvoiceDocument(input(odd));
+    expect(doc.totals.pricesIncludeGst).toBe(false);
+    expect(sum(doc.lines.map((l) => l.total)) + odd.shipping + odd.codFee).toBe(odd.grandTotal);
+  });
+
+  it('(g) legacy GST-exclusive orders keep the net x rate split (unchanged)', () => {
+    const order = legacyExclusiveOrder(true);
+    const doc = buildInvoiceDocument(input(order));
+    expect(doc.totals.pricesIncludeGst).toBe(false);
+    const weights = doc.lines.map((l) => (l.gross - l.discount) * l.taxRatePct * 100);
+    const wSum = sum(weights);
+    doc.lines.slice(0, -1).forEach((l, i) => {
+      expect(l.cgst).toBe(Math.floor((order.cgst * weights[i]!) / wSum));
+    });
   });
 });
 

@@ -1,4 +1,11 @@
-import { allocateProportional, amountInWordsInr, formatMoney, gstStateCode, paise } from '@belzo/shared';
+import {
+  allocateProportional,
+  amountInWordsInr,
+  formatMoney,
+  gstStateCode,
+  isGstInclusiveSnapshot,
+  paise,
+} from '@belzo/shared';
 
 /**
  * Pure GST tax-invoice builder + HTML template (no Nest, no I/O).
@@ -9,9 +16,11 @@ import { allocateProportional, amountInWordsInr, formatMoney, gstStateCode, pais
  * source of truth: per-line discount, taxable value and CGST/SGST/IGST are
  * allocations of the stored totals that sum EXACTLY to them, and the grand
  * total printed is the stored grand total (any gap shows as an explicit
- * round-off row). Works for both GST-exclusive and GST-inclusive snapshots
- * without knowing the mode: taxable = grandTotal - shipping - codFee - tax.
- * Nothing here recomputes tax with different maths than checkout used.
+ * round-off row). Works for both GST-exclusive and GST-inclusive snapshots:
+ * taxable = grandTotal - shipping - codFee - tax, and the mode (shared
+ * isGstInclusiveSnapshot) only picks how the stored tax is shared across lines
+ * (inclusive: each line's extracted GST, net x r / (100 + r), as checkout did;
+ * legacy exclusive: net x rate). Nothing here recomputes order totals.
  */
 
 // ---------------------------------------------------------------------------
@@ -242,6 +251,39 @@ export interface BuildInvoiceInput {
 
 const sum = (xs: number[]) => xs.reduce((s, x) => s + x, 0);
 
+/**
+ * Split known per-line tax amounts into the stored CGST/SGST/IGST heads so each
+ * line keeps exactly its own tax and every column sums exactly to the stored
+ * head. Intra-state: each line splits in halves (odd paisa to SGST, as checkout
+ * does), then single paise move SGST -> CGST on odd lines until Σ CGST matches,
+ * so a line's CGST and SGST never differ by more than 1 paisa. Returns null if
+ * the stored heads can't be reproduced this way (caller falls back to pro-rata).
+ */
+function splitLineTaxes(
+  lineTax: number[],
+  cgstTotal: number,
+  sgstTotal: number,
+  igstTotal: number,
+): { cgst: number[]; sgst: number[]; igst: number[] } | null {
+  if (sum(lineTax) !== cgstTotal + sgstTotal + igstTotal) return null;
+  const zeros = lineTax.map(() => 0);
+  if (igstTotal > 0) {
+    return cgstTotal + sgstTotal === 0 ? { cgst: zeros, sgst: [...zeros], igst: [...lineTax] } : null;
+  }
+  const cgst = lineTax.map((t) => Math.floor(t / 2));
+  const sgst = lineTax.map((t, i) => t - cgst[i]!);
+  let delta = cgstTotal - sum(cgst);
+  if (delta < 0) return null;
+  for (let i = 0; i < lineTax.length && delta > 0; i++) {
+    if (sgst[i]! > cgst[i]!) {
+      cgst[i] = cgst[i]! + 1;
+      sgst[i] = sgst[i]! - 1;
+      delta -= 1;
+    }
+  }
+  return delta === 0 ? { cgst, sgst, igst: zeros } : null;
+}
+
 function paymentInfo(payments: InvoicePayment[] | undefined): { method: string; status: string } {
   if (!payments || payments.length === 0) return { method: '-', status: '-' };
   const byLatest = [...payments].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -296,19 +338,36 @@ export function buildInvoiceDocument(input: BuildInvoiceInput): InvoiceDocument 
   const orderTaxable = Math.max(0, order.grandTotal - order.shipping - order.codFee - order.tax);
   const alloc = (total: number, weights: number[]) =>
     items.length === 0 ? [] : allocateProportional(total, weights);
-  // Each stored tax head is allocated by line net x line GST rate (plan D3), so
-  // a 0% line gets no tax and each line's amount tracks its printed rate; the
-  // remainder goes on the last weighted line so every column sums EXACTLY to the
-  // stored order value. Rates are scaled to integer basis points (2.5% -> 250)
-  // because the allocator needs integer weights. If every weight is 0 but tax
-  // was charged (e.g. legacy snapshot with rates missing), fall back to net.
-  const rateWeights = items.map((i, idx) => net[idx]! * Math.max(0, Math.round(i.taxRatePct * 100)));
-  const taxWeights = rateWeights.some((w) => w > 0) ? rateWeights : net;
-  const cgst = alloc(order.cgst, taxWeights);
-  const sgst = alloc(order.sgst, taxWeights);
-  const igst = alloc(order.igst, taxWeights);
   const netSum = sum(net);
-  const pricesIncludeGst = order.tax > 0 && netSum === orderTaxable + order.tax;
+  // Inclusive only when the shared rule the web order pages use agrees (so the
+  // invoice never calls an order inclusive that the web shows as legacy) AND the
+  // snapshot positively reconciles as inclusive (Σ line net = grandTotal -
+  // shipping - codFee). Odd snapshots that are neither keep the mode-agnostic
+  // pro-rata split below, which still reconciles exactly to the stored values.
+  const pricesIncludeGst =
+    order.tax > 0 && isGstInclusiveSnapshot(order) && netSum === orderTaxable + order.tax;
+
+  // Legacy GST-exclusive weights: line net x line GST rate (plan D3), so a 0%
+  // line gets no tax and each line's amount tracks its printed rate. Rates are
+  // scaled to integer basis points (2.5% -> 250) because the allocator needs
+  // integer weights. If every weight is 0 but tax was charged (e.g. legacy
+  // snapshot with rates missing), fall back to net.
+  const rateWeights = items.map((i, idx) => net[idx]! * Math.max(0, Math.round(i.taxRatePct * 100)));
+  const fallbackWeights = rateWeights.some((w) => w > 0) ? rateWeights : net;
+  // GST-inclusive: the GST inside a line is net x r / (100 + r), the same
+  // per-line extraction checkout used (inclusiveLineTaxes), NOT proportional to
+  // net x r. Use those integer line taxes directly; 0% lines are 0.
+  const extractedTax = items.map((i, idx) =>
+    i.taxRatePct > 0 ? Math.round((net[idx]! * i.taxRatePct) / (100 + i.taxRatePct)) : 0,
+  );
+  const exact = pricesIncludeGst ? splitLineTaxes(extractedTax, order.cgst, order.sgst, order.igst) : null;
+  // If the stored heads don't match the per-line extraction exactly (odd
+  // snapshot), still weight by the extracted taxes; remainder on the last
+  // weighted line so every column sums EXACTLY to the stored order value.
+  const taxWeights = pricesIncludeGst && extractedTax.some((w) => w > 0) ? extractedTax : fallbackWeights;
+  const cgst = exact?.cgst ?? alloc(order.cgst, taxWeights);
+  const sgst = exact?.sgst ?? alloc(order.sgst, taxWeights);
+  const igst = exact?.igst ?? alloc(order.igst, taxWeights);
   // Line taxable values: pro-rata to line net, summing exactly to orderTaxable.
   let taxable = alloc(orderTaxable, net);
   if (pricesIncludeGst) {
