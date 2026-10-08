@@ -29,6 +29,8 @@ interface PreviewResult {
   breakup: PriceBreakup;
   coupon: { code: string; valid: boolean; reason?: string } | null;
   serviceable?: boolean;
+  /** Delivery charge waived by a free_shipping coupon (paise); display-only. */
+  shippingWaived?: number;
 }
 
 const EMPTY_FORM = {
@@ -202,8 +204,9 @@ export default function CheckoutPage() {
   const b = preview?.breakup;
   const totalMrp = items.reduce((s, i) => s + i.mrp * i.quantity, 0);
   const productDiscount = b ? Math.max(0, totalMrp - b.subtotal) : 0;
-  // MRP savings + coupon (delivery/COD fee are not "savings").
-  const totalSaved = b ? productDiscount + b.discount : 0;
+  // MRP savings + coupon discount + delivery waived by a free_shipping coupon
+  // (display-only; COD fee is never a saving).
+  const totalSaved = b ? productDiscount + b.discount + Math.max(0, preview?.shippingWaived ?? 0) : 0;
   const view = b ? breakupView(snapshotFromBreakup(b)) : null;
   const step = addressId ? 3 : 1;
 

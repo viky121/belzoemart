@@ -41,6 +41,11 @@ export interface CheckoutPreviewResult {
   serviceable: boolean;
   /** Whether Cash on Delivery is currently offered (admin-configurable). */
   codEnabled: boolean;
+  /**
+   * Delivery charge waived by a free_shipping coupon, in paise (0 otherwise).
+   * Display-only (the "You save" figure); never part of any stored total.
+   */
+  shippingWaived: number;
 }
 
 export interface PlaceOrderResult {
@@ -176,11 +181,18 @@ export class CheckoutService {
       coupon: spec,
       ...overrides,
     });
+    // Display-only: what delivery would have cost without the free_shipping coupon.
+    let shippingWaived = 0;
+    if (spec?.kind === 'free_shipping') {
+      const withoutCoupon = this.pricing.compute({ lines, buyerState: address.state, isCod, ...overrides });
+      shippingWaived = Math.max(0, withoutCoupon.shipping - breakup.shipping);
+    }
     return {
       breakup,
       coupon: couponResult,
       serviceable: await this.isServiceable(address.pincode),
       codEnabled,
+      shippingWaived,
       items: snapshot.map((s) => ({
         variantId: s.variantId,
         title: s.title,

@@ -127,6 +127,52 @@ describe('CheckoutService.place — idempotency', () => {
   });
 });
 
+describe('CheckoutService.preview — shippingWaived (display-only "You save")', () => {
+  function build(unitPrice: number, spec: unknown) {
+    const prisma = {
+      address: {
+        findUnique: async () => ({ id: 'addr1', customerId: 'cust1', state: 'Karnataka', pincode: '560001' }),
+      },
+    } as unknown as PrismaService;
+    const cart = {
+      getCart: async () => ({
+        cartId: 'c1',
+        items: [
+          { variantId: 'v1', title: 'X', sku: 'X-1', unitPrice, quantity: 1, taxRatePct: 5, savedForLater: false, inStock: true },
+        ],
+      }),
+    } as unknown as CartService;
+    const coupons = {
+      evaluate: async (code: string) => ({ code, valid: true, spec }),
+    } as unknown as CouponService;
+    return new CheckoutService(
+      prisma,
+      cart,
+      new PricingService(),
+      coupons,
+      {} as InventoryService,
+      { get: async () => undefined } as unknown as SettingsService,
+    );
+  }
+
+  it('reports the waived ₹49 delivery for a free_shipping coupon below the threshold; totals unchanged', async () => {
+    const res = await build(20000, { kind: 'free_shipping', value: 0 }).preview({ customerId: 'cust1' }, 'addr1', 'FREESHIP');
+    expect(res.breakup.shipping).toBe(0);
+    expect(res.shippingWaived).toBe(4900);
+    expect(res.breakup.grandTotal).toBe(20000); // GST-inclusive, delivery waived
+  });
+
+  it('is 0 when delivery is already free (above threshold) or the coupon is not free_shipping', async () => {
+    const above = await build(60000, { kind: 'free_shipping', value: 0 }).preview({ customerId: 'cust1' }, 'addr1', 'FREESHIP');
+    expect(above.shippingWaived).toBe(0);
+    const flat = await build(20000, { kind: 'flat', value: 1000 }).preview({ customerId: 'cust1' }, 'addr1', 'FLAT10');
+    expect(flat.breakup.shipping).toBe(4900);
+    expect(flat.shippingWaived).toBe(0);
+    const none = await build(20000, undefined).preview({ customerId: 'cust1' }, 'addr1');
+    expect(none.shippingWaived).toBe(0);
+  });
+});
+
 describe('CheckoutService — removed variants in the cart', () => {
   it('blocks preview when a cart line is for a removed (unavailable) variant', async () => {
     const prisma = {
