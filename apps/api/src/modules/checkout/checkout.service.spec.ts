@@ -2,7 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { CheckoutService } from './checkout.service';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { CartService } from '../cart/cart.service';
-import type { PricingService } from './pricing.service';
+import { PricingService } from './pricing.service';
 import type { CouponService } from './coupon.service';
 import type { InventoryService } from '../catalogue/inventory.service';
 import type { SettingsService } from '../admin/settings.service';
@@ -11,10 +11,14 @@ import type { SettingsService } from '../admin/settings.service';
  * Verifies checkout idempotency (BR-11): placing an order twice with the same
  * idempotency key returns the existing order and does NOT reserve stock again.
  */
+type CartLine = { unitPrice: number; quantity: number; taxRatePct: number };
+
 describe('CheckoutService.place — idempotency', () => {
-  function build(existingOrder: unknown) {
+  /** `opts` swaps in a real PricingService / cart line; defaults keep the original mock. */
+  function build(existingOrder: unknown, opts: { pricing?: PricingService; line?: CartLine } = {}) {
     const reserveCalls: string[] = [];
     const orders: Record<string, unknown> = {};
+    const created: Record<string, unknown>[] = [];
     const prisma = {
       order: {
         findUnique: async ({ where: { idempotencyKey } }: { where: { idempotencyKey: string } }) =>
@@ -27,6 +31,7 @@ describe('CheckoutService.place — idempotency', () => {
         fn({
           order: {
             create: async ({ data }: { data: { idempotencyKey: string } }) => {
+              created.push(data);
               const o = { id: 'new-order', grandTotal: 100000, payments: [{ provider: 'mock' }], ...data };
               orders[data.idempotencyKey] = o;
               return o;
@@ -39,17 +44,23 @@ describe('CheckoutService.place — idempotency', () => {
       getCart: async () => ({
         cartId: 'c1',
         items: [
-          { variantId: 'v1', title: 'X', sku: 'X-1', unitPrice: 50000, quantity: 2, taxRatePct: 18, savedForLater: false, inStock: true },
+          {
+            variantId: 'v1', title: 'X', sku: 'X-1',
+            ...(opts.line ?? { unitPrice: 50000, quantity: 2, taxRatePct: 18 }),
+            savedForLater: false, inStock: true,
+          },
         ],
       }),
     } as unknown as CartService;
 
-    const pricing = {
-      compute: () => ({
-        subtotal: 100000, discount: 0, shipping: 0, codFee: 0, tax: 18000,
-        gst: { cgst: 9000, sgst: 9000, igst: 0 }, grandTotal: 118000,
-      }),
-    } as unknown as PricingService;
+    const pricing =
+      opts.pricing ??
+      ({
+        compute: () => ({
+          subtotal: 100000, discount: 0, shipping: 0, codFee: 0, tax: 18000,
+          gst: { cgst: 9000, sgst: 9000, igst: 0 }, grandTotal: 118000,
+        }),
+      } as unknown as PricingService);
 
     const coupons = { evaluate: async () => ({ valid: true, spec: undefined }), redeem: async () => undefined } as unknown as CouponService;
     const inventory = {
@@ -63,6 +74,7 @@ describe('CheckoutService.place — idempotency', () => {
     return {
       svc: new CheckoutService(prisma, cart, pricing, coupons, inventory, settings),
       reserveCalls,
+      created,
     };
   }
 
@@ -91,6 +103,27 @@ describe('CheckoutService.place — idempotency', () => {
     await expect(
       svc.place({ guestToken: 'g1' }, { addressId: 'addr1', paymentMethod: 'upi' }, 'KEY-X'),
     ).rejects.toThrow(/Login required/);
+  });
+
+  it('GST-inclusive: snapshots and charges ₹9,588 for a ₹9,588 @5% cart (real PricingService)', async () => {
+    const { svc, created } = build(null, {
+      pricing: new PricingService(),
+      line: { unitPrice: 958800, quantity: 1, taxRatePct: 5 },
+    });
+    const result = await svc.place({ customerId: 'cust1' }, { addressId: 'addr1', paymentMethod: 'upi' }, 'KEY-GST');
+    expect(created).toHaveLength(1);
+    const data = created[0] as {
+      grandTotal: number; tax: number; cgst: number; sgst: number; igst: number;
+      payments: { create: { amount: number } };
+    };
+    expect(data.grandTotal).toBe(958800);
+    expect(data.tax).toBe(45657);
+    expect(data.cgst).toBe(22828);
+    expect(data.sgst).toBe(22829);
+    expect(data.igst).toBe(0);
+    expect(data.payments.create.amount).toBe(958800);
+    expect(result.payment.amount).toBe(958800);
+    expect(result.breakup.grandTotal).toBe(958800);
   });
 });
 

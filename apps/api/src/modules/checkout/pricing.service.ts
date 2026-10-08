@@ -13,6 +13,10 @@ import {
  * store rules: shipping threshold, COD fee, and seller-state determination for
  * the GST split. Seller state is configured (SETTINGS in U7); a sensible
  * default is used here.
+ *
+ * Prices are GST-inclusive (the engine extracts GST from the price; grandTotal
+ * = subtotal − discount + shipping + codFee). The free-shipping threshold
+ * compares the pre-discount subtotal, as before.
  */
 @Injectable()
 export class PricingService {

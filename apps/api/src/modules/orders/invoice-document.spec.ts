@@ -1,4 +1,4 @@
-import { computeTotals, paise } from '@belzo/shared';
+import { computeGst, computeTotals, couponDiscount, paise, subtotalOf, weightedTaxRate } from '@belzo/shared';
 import {
   buildInvoiceDocument,
   escapeHtml,
@@ -40,15 +40,27 @@ const ITEMS = [
   { variantId: 'v-3', title: 'Masala Chai 250g', sku: 'CHAI-250', unitPrice: 15050, quantity: 3, taxRatePct: 5 },
 ];
 
-/** GST-exclusive snapshot exactly as checkout's computeTotals stores it. */
-function exclusiveOrder(sameState: boolean, items = ITEMS): InvoiceOrder {
-  const b = computeTotals({
-    lines: items.map((i) => ({ unitPrice: paise(i.unitPrice), quantity: i.quantity, taxRatePct: i.taxRatePct })),
-    sameState,
-    shipping: paise(4900),
-    codFee: paise(3900),
-    coupon: { kind: 'flat', value: 3333 },
-  });
+type Item = (typeof ITEMS)[number];
+const toLines = (items: Item[]) =>
+  items.map((i) => ({ unitPrice: paise(i.unitPrice), quantity: i.quantity, taxRatePct: i.taxRatePct }));
+
+/**
+ * Money fields of a LEGACY GST-exclusive snapshot, as checkout stored it BEFORE
+ * the GST-inclusive switch: tax = blended rate × (subtotal − discount), added on top.
+ */
+function legacyExclusiveBreakup(items: Item[], sameState: boolean, shipping: number, codFee: number, flatCoupon: number) {
+  const lines = toLines(items);
+  const subtotal = subtotalOf(lines);
+  const discount = couponDiscount(flatCoupon > 0 ? { kind: 'flat', value: flatCoupon } : undefined, subtotal);
+  const taxable = subtotal - discount;
+  const gst = computeGst(paise(taxable), weightedTaxRate(lines), sameState);
+  const tax = gst.cgst + gst.sgst + gst.igst;
+  return { subtotal, discount, shipping, codFee, tax, gst, grandTotal: taxable + tax + shipping + codFee };
+}
+
+/** GST-exclusive snapshot as checkout stored it BEFORE the inclusive switch (historical orders). */
+function legacyExclusiveOrder(sameState: boolean, items = ITEMS): InvoiceOrder {
+  const b = legacyExclusiveBreakup(items, sameState, 4900, 3900, 3333);
   return {
     id: 'a1b2c3d4-0000-4000-8000-000000000001',
     createdAt: new Date('2025-03-14T10:00:00Z'),
@@ -91,6 +103,38 @@ function inclusiveOrder(sameState: boolean): InvoiceOrder {
     grandTotal: net,
     items: ITEMS,
     payments: [{ provider: 'razorpay', status: 'captured', method: 'upi', createdAt: new Date('2025-03-14T10:01:00Z') }],
+  };
+}
+
+/** Snapshot exactly as checkout now stores it: the NEW GST-inclusive computeTotals engine. */
+function engineOrder(
+  sameState: boolean,
+  items: Item[] = ITEMS,
+  opts: { shipping?: number; codFee?: number; flatCoupon?: number } = {},
+): InvoiceOrder {
+  const { shipping = 4900, codFee = 3900, flatCoupon = 3333 } = opts;
+  const b = computeTotals({
+    lines: toLines(items),
+    sameState,
+    shipping: paise(shipping),
+    codFee: paise(codFee),
+    coupon: flatCoupon > 0 ? { kind: 'flat', value: flatCoupon } : undefined,
+  });
+  return {
+    id: 'c1b2c3d4-0000-4000-8000-000000000003',
+    createdAt: new Date('2025-03-14T10:00:00Z'),
+    couponCode: flatCoupon > 0 ? 'SAVE33' : null,
+    subtotal: b.subtotal,
+    discount: b.discount,
+    shipping: b.shipping,
+    codFee: b.codFee,
+    tax: b.tax,
+    cgst: b.gst.cgst,
+    sgst: b.gst.sgst,
+    igst: b.gst.igst,
+    grandTotal: b.grandTotal,
+    items,
+    payments: [{ provider: 'cod', status: 'created', method: null, createdAt: new Date('2025-03-14T10:00:00Z') }],
   };
 }
 
@@ -144,7 +188,7 @@ function expectReconciles(order: InvoiceOrder, doc: ReturnType<typeof buildInvoi
 
 describe('buildInvoiceDocument — reconciliation', () => {
   it('intra-state GST-exclusive order: lines sum exactly to stored discount/CGST/SGST/grand total', () => {
-    const order = exclusiveOrder(true);
+    const order = legacyExclusiveOrder(true);
     expect(order.cgst).toBeGreaterThan(0);
     const doc = buildInvoiceDocument(input(order));
     expect(doc.showIntra).toBe(true);
@@ -162,7 +206,7 @@ describe('buildInvoiceDocument — reconciliation', () => {
   });
 
   it('inter-state GST-exclusive order: IGST columns only, lines sum to stored IGST', () => {
-    const order = exclusiveOrder(false);
+    const order = legacyExclusiveOrder(false);
     expect(order.igst).toBeGreaterThan(0);
     const doc = buildInvoiceDocument(input(order, { address: ADDRESS_MH }));
     expect(doc.showInter).toBe(true);
@@ -198,7 +242,7 @@ describe('buildInvoiceDocument — reconciliation', () => {
   });
 
   it('allocates the stored tax by line net x line rate with the remainder on the last line', () => {
-    const order = exclusiveOrder(true);
+    const order = legacyExclusiveOrder(true);
     const doc = buildInvoiceDocument(input(order));
     const weights = doc.lines.map((l) => (l.gross - l.discount) * l.taxRatePct);
     const wSum = sum(weights);
@@ -222,7 +266,7 @@ describe('buildInvoiceDocument — reconciliation', () => {
       { variantId: 'v-2', title: 'Green Tea 100g', sku: 'TEA-100', unitPrice: 29900, quantity: 1, taxRatePct: 18 },
     ];
     for (const sameState of [true, false]) {
-      const order = exclusiveOrder(sameState, items);
+      const order = legacyExclusiveOrder(sameState, items);
       expect(order.tax).toBeGreaterThan(0);
       const doc = buildInvoiceDocument(input(order, { address: sameState ? ADDRESS_KA : ADDRESS_MH }));
       expectReconciles(order, doc);
@@ -235,7 +279,7 @@ describe('buildInvoiceDocument — reconciliation', () => {
   });
 
   it('falls back to net weights when tax was stored but every line rate is 0 (legacy snapshot)', () => {
-    const order = exclusiveOrder(true);
+    const order = legacyExclusiveOrder(true);
     const legacy = { ...order, items: order.items.map((i) => ({ ...i, taxRatePct: 0 })) };
     const doc = buildInvoiceDocument(input(legacy));
     expectReconciles(legacy, doc);
@@ -243,7 +287,7 @@ describe('buildInvoiceDocument — reconciliation', () => {
 
   it('zero-tax inter-state order: falls back to state comparison and shows IGST columns with 0 tax', () => {
     const items = ITEMS.map((i) => ({ ...i, taxRatePct: 0 }));
-    const order = exclusiveOrder(false, items);
+    const order = legacyExclusiveOrder(false, items);
     expect(order.tax).toBe(0);
     const doc = buildInvoiceDocument(input(order, { address: ADDRESS_MH }));
     expect(doc.showInter).toBe(true);
@@ -257,19 +301,14 @@ describe('buildInvoiceDocument — reconciliation', () => {
 
   it('zero-tax intra-state order shows CGST + SGST columns', () => {
     const items = ITEMS.map((i) => ({ ...i, taxRatePct: 0 }));
-    const doc = buildInvoiceDocument(input(exclusiveOrder(true, items)));
+    const doc = buildInvoiceDocument(input(legacyExclusiveOrder(true, items)));
     expect(doc.showIntra).toBe(true);
     expect(doc.showInter).toBe(false);
   });
 
   it('zero-discount order: no discount row, every line discount is 0, reconciles exactly', () => {
-    const order = { ...exclusiveOrder(true), couponCode: null };
-    const b = computeTotals({
-      lines: ITEMS.map((i) => ({ unitPrice: paise(i.unitPrice), quantity: i.quantity, taxRatePct: i.taxRatePct })),
-      sameState: true,
-      shipping: paise(4900),
-      codFee: paise(0),
-    });
+    const order = { ...legacyExclusiveOrder(true), couponCode: null };
+    const b = legacyExclusiveBreakup(ITEMS, true, 4900, 0, 0);
     const noDiscount: InvoiceOrder = {
       ...order,
       subtotal: b.subtotal,
@@ -295,7 +334,7 @@ describe('buildInvoiceDocument — reconciliation', () => {
   });
 
   it('single-line order: the line carries the full stored discount, taxable and tax', () => {
-    const order = exclusiveOrder(true, [ITEMS[1]!]);
+    const order = legacyExclusiveOrder(true, [ITEMS[1]!]);
     const doc = buildInvoiceDocument(input(order));
     expectReconciles(order, doc);
     const [l] = doc.lines;
@@ -309,7 +348,7 @@ describe('buildInvoiceDocument — reconciliation', () => {
   });
 
   it('groups lines with the same HSN + rate into one HSN summary row', () => {
-    const doc = buildInvoiceDocument(input(exclusiveOrder(true)));
+    const doc = buildInvoiceDocument(input(legacyExclusiveOrder(true)));
     expect(doc.hsn.map((h) => `${h.hsn}|${h.taxRatePct}`)).toEqual(['1006|5', '0902|18']);
     const rice = doc.hsn[0]!;
     expect(rice.taxable).toBe(doc.lines[0]!.taxable + doc.lines[2]!.taxable);
@@ -317,15 +356,15 @@ describe('buildInvoiceDocument — reconciliation', () => {
   });
 
   it("shows '-' for a missing HSN code", () => {
-    const doc = buildInvoiceDocument(input(exclusiveOrder(true), { hsnByVariant: new Map() }));
+    const doc = buildInvoiceDocument(input(legacyExclusiveOrder(true), { hsnByVariant: new Map() }));
     expect(doc.lines.every((l) => l.hsn === '-')).toBe(true);
   });
 
   it('shows a round-off row only when the stored grand total differs from the computed sum', () => {
-    const consistent = renderInvoiceHtml(buildInvoiceDocument(input(exclusiveOrder(true))));
+    const consistent = renderInvoiceHtml(buildInvoiceDocument(input(legacyExclusiveOrder(true))));
     expect(consistent).not.toContain('Round-off');
 
-    const order = exclusiveOrder(true);
+    const order = legacyExclusiveOrder(true);
     // A snapshot whose grand total is not reconstructible from its parts (e.g. legacy data).
     const odd = { ...order, grandTotal: order.grandTotal, tax: order.tax - 40, cgst: order.cgst - 20, sgst: order.sgst - 20 };
     const doc = buildInvoiceDocument(input(odd));
@@ -342,7 +381,7 @@ describe('buildInvoiceDocument — reconciliation', () => {
   });
 
   it('prints the grand total and amount in words from the stored value', () => {
-    const order = { ...exclusiveOrder(true) };
+    const order = { ...legacyExclusiveOrder(true) };
     const doc = buildInvoiceDocument(input(order));
     const html = renderInvoiceHtml(doc);
     expect(doc.totals.amountInWords).toMatch(/^Rupees /);
@@ -351,9 +390,74 @@ describe('buildInvoiceDocument — reconciliation', () => {
   });
 });
 
+describe('buildInvoiceDocument — orders priced by the GST-inclusive engine', () => {
+  const lineTax = (doc: ReturnType<typeof buildInvoiceDocument>, key: 'cgst' | 'sgst' | 'igst') =>
+    sum(doc.lines.map((l) => l[key]));
+
+  it('(a) intra-state mixed 5%/18% cart with coupon, shipping and COD reconciles to the stored snapshot', () => {
+    const order = engineOrder(true);
+    expect(order.tax).toBe(11245);
+    expect(order.cgst).toBe(5622);
+    expect(order.sgst).toBe(5623);
+    expect(order.grandTotal).toBe(180317);
+    const doc = buildInvoiceDocument(input(order));
+    expectReconciles(order, doc);
+    expect(doc.totals.pricesIncludeGst).toBe(true);
+    expect(doc.totals.grandTotal).toBe(order.grandTotal);
+    expect(lineTax(doc, 'cgst')).toBe(order.cgst);
+    expect(lineTax(doc, 'sgst')).toBe(order.sgst);
+    expect(lineTax(doc, 'igst')).toBe(0);
+    expect(doc.totals.taxableTotal).toBe(160272);
+    doc.lines.forEach((l) => expect(l.total).toBe(l.gross - l.discount));
+    expect(renderInvoiceHtml(doc)).not.toContain('Round-off');
+  });
+
+  it('(b) inter-state engine order shows IGST only and reconciles', () => {
+    const order = engineOrder(false);
+    const doc = buildInvoiceDocument(input(order, { address: ADDRESS_MH }));
+    expect(doc.showInter).toBe(true);
+    expect(lineTax(doc, 'igst')).toBe(11245);
+    expectReconciles(order, doc);
+    expect(doc.totals.pricesIncludeGst).toBe(true);
+  });
+
+  it('(c) ₹9,588 @5% single line: invoice total ₹9,588 with ₹456.57 GST extracted', () => {
+    const rice = [{ ...ITEMS[0]!, unitPrice: 958800, quantity: 1 }];
+    const opts = { shipping: 0, codFee: 0, flatCoupon: 0 };
+    const intra = engineOrder(true, rice, opts);
+    const doc = buildInvoiceDocument(input(intra));
+    expectReconciles(intra, doc);
+    expect(doc.totals.taxableTotal).toBe(913143);
+    expect(doc.totals.grandTotal).toBe(958800);
+    expect(doc.lines[0]!.cgst).toBe(22828);
+    expect(doc.lines[0]!.sgst).toBe(22829);
+
+    const inter = engineOrder(false, rice, opts);
+    const idoc = buildInvoiceDocument(input(inter, { address: ADDRESS_MH }));
+    expectReconciles(inter, idoc);
+    expect(idoc.lines[0]!.igst).toBe(45657);
+    expect(idoc.totals.grandTotal).toBe(958800);
+  });
+
+  it('(d) a 0% line in an engine order carries no tax and the invoice reconciles', () => {
+    const items = [
+      { variantId: 'v-1', title: 'Fresh Milk 1L', sku: 'MILK-1L', unitPrice: 6800, quantity: 2, taxRatePct: 0 },
+      { variantId: 'v-2', title: 'Green Tea 100g', sku: 'TEA-100', unitPrice: 29900, quantity: 1, taxRatePct: 18 },
+    ];
+    for (const sameState of [true, false]) {
+      const order = engineOrder(sameState, items);
+      expect(order.tax).toBeGreaterThan(0);
+      const doc = buildInvoiceDocument(input(order, { address: sameState ? ADDRESS_KA : ADDRESS_MH }));
+      expectReconciles(order, doc);
+      const milk = doc.lines[0]!;
+      expect(milk.cgst + milk.sgst + milk.igst).toBe(0);
+    }
+  });
+});
+
 describe('renderInvoiceHtml — content and escaping', () => {
   it('escapes user-entered text everywhere', () => {
-    const order = exclusiveOrder(true, [{ ...ITEMS[0]!, title: '<script>alert(1)</script>' }]);
+    const order = legacyExclusiveOrder(true, [{ ...ITEMS[0]!, title: '<script>alert(1)</script>' }]);
     const html = renderInvoiceHtml(
       buildInvoiceDocument(
         input(order, {
@@ -379,7 +483,7 @@ describe('renderInvoiceHtml — content and escaping', () => {
 
   it("prints 'GSTIN: Not registered' and no PAN when the GSTIN is unset", () => {
     const html = renderInvoiceHtml(
-      buildInvoiceDocument(input(exclusiveOrder(true), { seller: { ...SELLER, gstin: null, pan: null } })),
+      buildInvoiceDocument(input(legacyExclusiveOrder(true), { seller: { ...SELLER, gstin: null, pan: null } })),
     );
     expect(html).toContain('GSTIN:</span> Not registered');
     expect(html).not.toContain('PAN:');
@@ -387,13 +491,13 @@ describe('renderInvoiceHtml — content and escaping', () => {
   });
 
   it('prints GSTIN and PAN when registered', () => {
-    const html = renderInvoiceHtml(buildInvoiceDocument(input(exclusiveOrder(true))));
+    const html = renderInvoiceHtml(buildInvoiceDocument(input(legacyExclusiveOrder(true))));
     expect(html).toContain('29ABCDE1234F1Z5');
     expect(html).toContain('PAN:</span> ABCDE1234F');
   });
 
   it('includes the required fixed texts, meta and parties', () => {
-    const order = exclusiveOrder(true);
+    const order = legacyExclusiveOrder(true);
     const html = renderInvoiceHtml(buildInvoiceDocument(input(order)));
     for (const s of [
       'TAX INVOICE',
@@ -440,7 +544,7 @@ describe('renderInvoiceHtml — content and escaping', () => {
   });
 
   it("renders '-' for a missing address and customer without throwing", () => {
-    const doc = buildInvoiceDocument(input(exclusiveOrder(true), { address: null, customer: null }));
+    const doc = buildInvoiceDocument(input(legacyExclusiveOrder(true), { address: null, customer: null }));
     expect(doc.placeOfSupply).toBe('-');
     expect(doc.billTo.name).toBeNull();
     const html = renderInvoiceHtml(doc);
@@ -450,11 +554,11 @@ describe('renderInvoiceHtml — content and escaping', () => {
 
   it('only embeds an http(s) logo URL', () => {
     const ok = renderInvoiceHtml(
-      buildInvoiceDocument(input(exclusiveOrder(true), { seller: { ...SELLER, logoUrl: 'https://cdn.x/logo.png' } })),
+      buildInvoiceDocument(input(legacyExclusiveOrder(true), { seller: { ...SELLER, logoUrl: 'https://cdn.x/logo.png' } })),
     );
     expect(ok).toContain('<img src="https://cdn.x/logo.png"');
     const bad = renderInvoiceHtml(
-      buildInvoiceDocument(input(exclusiveOrder(true), { seller: { ...SELLER, logoUrl: 'javascript:alert(1)' } })),
+      buildInvoiceDocument(input(legacyExclusiveOrder(true), { seller: { ...SELLER, logoUrl: 'javascript:alert(1)' } })),
     );
     expect(bad).not.toContain('<img');
     expect(bad).not.toContain('javascript:');

@@ -25,6 +25,33 @@ describe('PricingService — settings overrides flow through compute()', () => {
     const b = svc.compute({ lines, buyerState: 'Karnataka', isCod: true });
     expect(b.shipping).toBe(4900); // ₹49 flat (below ₹500 threshold)
     expect(b.codFee).toBe(3900); // ₹39 default COD fee
+    // GST-inclusive: 10000 × 18/118 = 1525.42 → 1525 is inside the price.
+    expect(b.tax).toBe(1525);
+    expect(b.gst).toEqual({ cgst: 762, sgst: 763, igst: 0 });
+    expect(b.grandTotal).toBe(10000 + 4900 + 3900); // 18800
+  });
+
+  it('GST-inclusive: ₹9,588 @5% is charged ₹9,588 (intra / inter / COD)', () => {
+    const rice: PriceLine[] = [{ unitPrice: paise(958800), quantity: 1, taxRatePct: 5 }];
+    const intra = svc.compute({ lines: rice, buyerState: 'Karnataka', isCod: false });
+    expect(intra.shipping).toBe(0); // above the ₹500 threshold
+    expect(intra.tax).toBe(45657);
+    expect(intra.gst).toEqual({ cgst: 22828, sgst: 22829, igst: 0 });
+    expect(intra.grandTotal).toBe(958800);
+
+    const inter = svc.compute({ lines: rice, buyerState: 'Maharashtra', isCod: false });
+    expect(inter.gst).toEqual({ cgst: 0, sgst: 0, igst: 45657 });
+    expect(inter.grandTotal).toBe(958800);
+
+    const cod = svc.compute({ lines: rice, buyerState: 'Karnataka', isCod: true });
+    expect(cod.grandTotal).toBe(958800 + 3900);
+  });
+
+  it('GST-inclusive: grandTotal = subtotal − discount + shipping + codFee with a coupon', () => {
+    const b = svc.compute({ lines, buyerState: 'Karnataka', isCod: true, coupon: { kind: 'percent', value: 10 } });
+    expect(b.discount).toBe(1000);
+    expect(b.grandTotal).toBe(b.subtotal - b.discount + b.shipping + b.codFee);
+    expect(b.tax).toBe(1373); // 9000 × 18/118 = 1372.88
   });
 
   it('(a) free-shipping threshold override zeroes shipping above the cutoff', () => {
@@ -71,6 +98,7 @@ describe('PricingService — settings overrides flow through compute()', () => {
     expect(b.gst.cgst).toBe(0);
     expect(b.gst.sgst).toBe(0);
     expect(b.gst.igst).toBe(b.tax);
+    expect(b.gst.igst).toBe(1525);
   });
 
   it('(b) sellerState override flips an otherwise inter-state order to intra-state', () => {
