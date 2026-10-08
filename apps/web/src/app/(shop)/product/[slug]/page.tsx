@@ -81,17 +81,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
             </div>
           )}
 
-          <div className="pdp-price" data-testid="pdp-price">
-            {product.discountPct > 0 && (
-              <span className="pdp-price__off">↓{product.discountPct}%</span>
-            )}
-            {product.discountPct > 0 && (
-              <span className="pdp-price__mrp">{formatInr(product.mrp)}</span>
-            )}
-            <span className="pdp-price__now">{formatInr(product.sellingPrice)}</span>
-          </div>
-          <p className="pdp__tax">Inclusive of all taxes (GST {product.taxRatePct}%)</p>
-
+          <ProductVariants variants={product.variants} taxRatePct={product.taxRatePct}>
           {/* Delivery details — PIN-aware serviceability check */}
           <DeliveryCheck deliveryDate={deliveryDate} />
 
@@ -122,7 +112,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
             </div>
           </div>
 
-          <ProductVariants variants={product.variants} />
+          </ProductVariants>
         </div>
       </div>
 
