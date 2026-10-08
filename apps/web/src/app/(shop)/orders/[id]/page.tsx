@@ -5,6 +5,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { loginHref } from '@/lib/auth-redirect';
 import { formatInr } from '@/lib/catalogue-api';
+import { breakupView, type BreakupRow } from '@/lib/price-breakup';
+
+/** Order-detail wording for the shared breakup rows (others use the helper's label). */
+const ROW_LABEL: Partial<Record<BreakupRow['key'], string>> = { discount: 'Discount', shipping: 'Shipping' };
 
 interface OrderDetail {
   id: string;
@@ -13,7 +17,11 @@ interface OrderDetail {
   subtotal: number;
   discount: number;
   shipping: number;
+  codFee: number;
   tax: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
   invoiceUrl: string | null;
   items: { id: string; title: string; sku: string; quantity: number; unitPrice: number }[];
   shipments: { id: string; awb: string | null; courier: string | null; status: string; events: { status: string; description: string; occurredAt: string }[] }[];
@@ -64,6 +72,8 @@ export default function OrderDetailPage() {
 
   if (!order) return <p style={{ padding: '2rem 0' }}>Loading…</p>;
 
+  const view = breakupView(order);
+
   return (
     <section style={{ padding: '1.5rem 0' }} data-testid="order-detail">
       <h1>Order #{order.id.slice(0, 8)}</h1>
@@ -78,11 +88,23 @@ export default function OrderDetailPage() {
       </ul>
 
       <div className="price-breakup">
-        <p>Subtotal: {formatInr(order.subtotal)}</p>
-        {order.discount > 0 && <p>Discount: −{formatInr(order.discount)}</p>}
-        <p>Shipping: {order.shipping === 0 ? 'FREE' : formatInr(order.shipping)}</p>
-        <p>Tax: {formatInr(order.tax)}</p>
-        <p><strong>Total: {formatInr(order.grandTotal)}</strong></p>
+        {/* New orders: GST included in the price (note only). Legacy orders: GST added row. */}
+        {view.rows.map((r) => (
+          <p key={r.key}>
+            {ROW_LABEL[r.key] ?? r.label}:{' '}
+            {r.key === 'discount'
+              ? `−${formatInr(-r.amount)}`
+              : r.key === 'shipping' && r.amount === 0
+                ? 'FREE'
+                : formatInr(r.amount)}
+          </p>
+        ))}
+        <p><strong>Total: {formatInr(view.grandTotal)}</strong></p>
+        {view.gstNote && (
+          <p className="price-breakup__note" data-testid="order-gst-included">
+            {view.gstNote.label}: {formatInr(view.gstNote.amount)}
+          </p>
+        )}
       </div>
 
       {order.shipments.length > 0 && (

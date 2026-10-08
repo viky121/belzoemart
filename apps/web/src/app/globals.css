@@ -1207,6 +1207,11 @@ nav.main a:hover {
   margin: 0.3rem 0;
 }
 
+.price-breakup__note {
+  color: var(--muted-2);
+  font-size: 0.85em;
+}
+
 .checkout-page select,
 .checkout-page input {
   padding: 0.55rem;
@@ -2573,6 +2578,13 @@ nav.main a:hover {
 .co-row--save {
   color: var(--fk-green);
   font-weight: 600;
+}
+
+/* Informational "Includes GST" line: not part of the total. */
+.co-row--note {
+  color: var(--muted-2);
+  font-size: 0.85em;
+  padding-top: 0;
 }
 
 .co-row--total {

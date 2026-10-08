@@ -7,6 +7,7 @@ import type { PriceBreakup } from '@belzo/shared';
 import { useAuth } from '@/lib/auth-context';
 import { loginHref } from '@/lib/auth-redirect';
 import { formatInr } from '@/lib/catalogue-api';
+import { breakupView, snapshotFromBreakup } from '@/lib/price-breakup';
 import { cartApi, type CartLine } from '@/lib/cart-api';
 import { placeholderImage, isUsableImageUrl } from '@/lib/category-theme';
 import { safeUuid } from '@/lib/uuid';
@@ -201,7 +202,9 @@ export default function CheckoutPage() {
   const b = preview?.breakup;
   const totalMrp = items.reduce((s, i) => s + i.mrp * i.quantity, 0);
   const productDiscount = b ? Math.max(0, totalMrp - b.subtotal) : 0;
-  const totalSaved = b ? Math.max(0, totalMrp - b.grandTotal) : 0;
+  // MRP savings + coupon (delivery/COD fee are not "savings").
+  const totalSaved = b ? productDiscount + b.discount : 0;
+  const view = b ? breakupView(snapshotFromBreakup(b)) : null;
   const step = addressId ? 3 : 1;
 
   return (
@@ -390,19 +393,30 @@ export default function CheckoutPage() {
                 {productDiscount > 0 && (
                   <div className="co-row co-row--save"><span>Discount</span><span>−{formatInr(productDiscount)}</span></div>
                 )}
-                {b.discount > 0 && (
-                  <div className="co-row co-row--save"><span>Coupon discount</span><span>−{formatInr(b.discount)}</span></div>
-                )}
-                <div className="co-row"><span>Subtotal</span><span>{formatInr(b.subtotal)}</span></div>
-                <div className="co-row"><span>GST {b.gst.igst > 0 ? '(IGST)' : '(CGST+SGST)'}</span><span>{formatInr(b.tax)}</span></div>
-                <div className="co-row"><span>Delivery Charges</span><span>{b.shipping === 0 ? 'FREE' : formatInr(b.shipping)}</span></div>
-                {b.codFee > 0 && <div className="co-row"><span>COD fee</span><span>{formatInr(b.codFee)}</span></div>}
+                {/* Subtotal − Coupon + Delivery + COD fee = Total (prices include GST). */}
+                {view!.rows.map((r) => (
+                  <div key={r.key} className={r.key === 'discount' ? 'co-row co-row--save' : 'co-row'}>
+                    <span>{r.label}</span>
+                    <span>
+                      {r.key === 'discount'
+                        ? `−${formatInr(-r.amount)}`
+                        : r.key === 'shipping' && r.amount === 0
+                          ? 'FREE'
+                          : formatInr(r.amount)}
+                    </span>
+                  </div>
+                ))}
                 {totalSaved > 0 && (
                   <div className="cox__saved">🎉 You save {formatInr(totalSaved)} on this order!</div>
                 )}
                 <div className="co-row co-row--total" data-testid="checkout-grand-total">
                   <span>Total Amount</span><span>{formatInr(b.grandTotal)}</span>
                 </div>
+                {view!.gstNote && (
+                  <div className="co-row co-row--note" data-testid="checkout-gst-included">
+                    <span>{view!.gstNote.label}</span><span>{formatInr(view!.gstNote.amount)}</span>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="co-hint">Select a delivery address to see the total.</p>
