@@ -7,3 +7,4 @@ export * from './orders';
 export * from './wallet';
 export * from './reporting';
 export * from './gst';
+export * from './bulk-sheet';
