@@ -1,65 +1,55 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import type { CategoryNodeDto } from '@belzo/shared';
-import { adminFetch, adminUpload } from '@/lib/admin-api';
+import type { SheetGroup, SheetImportResult, SheetIssue, SheetRowInput } from '@belzo/shared';
+import { AdminUploadError, adminFetch, adminUpload } from '@/lib/admin-api';
 import { ApiClientError } from '@/lib/api-client';
-import { parseCsv } from '@/lib/csv';
-import { PRODUCT_CSV_COLUMNS } from '@/lib/product-csv';
-import { ExportProductsButton } from '../export-button';
+import {
+  applyResolvedImages,
+  assignSkuFiles,
+  chunkFailureMessage,
+  chunkGroups,
+  imageRefs,
+  isUrlRef,
+  mergeIssues,
+  readProductCsv,
+  withThrottleRetry,
+  type ImageResolution,
+  type ParsedSheet,
+} from '@/lib/product-sheet';
+import { readProductWorkbook } from '@/lib/product-xlsx';
+import { groupSheetRows } from '@/lib/shared-bulk-sheet';
+import { ExcelDownloadButton } from '../excel-download-button';
 
-interface Row {
-  sku: string;
-  title: string;
-  categorySlug: string;
-  mrp: number;
-  sellingPrice: number;
-  description?: string;
-  brand?: string;
-  hsnCode?: string;
-  taxRatePct?: number;
-  stock?: number;
-  status?: 'draft' | 'published';
-  imageUrls?: string[];
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const SESSION_EXPIRED = 'Your admin session has expired. Please log in again and retry.';
+const PREVIEW_ROWS = 15;
+const IMAGE_KEYS = ['image1', 'image2', 'image3', 'image4', 'image5'] as const;
+
+const sleep = (seconds: number): Promise<void> => new Promise((res) => setTimeout(res, seconds * 1000));
+const lowerSku = (r: SheetRowInput): string => (r.sku ?? '').trim().toLowerCase();
+
+interface ImportResult {
+  productsCreated: number;
+  productsUpdated: number;
+  variantsSaved: number;
+  issues: SheetIssue[];
 }
 
-// Used only if the category tree can't be loaded. Must be a real leaf slug.
-const FALLBACK_SLUG = 'green-tea';
+/** Rows of a group in sheet order. */
+const groupRows = (g: SheetGroup): SheetRowInput[] =>
+  [...(g.parent ? [g.parent] : []), ...g.children].sort((a, b) => a.row - b.row);
 
-function buildTemplate(leafSlug: string): string {
-  return (
-    `${PRODUCT_CSV_COLUMNS.join(',')}\n` +
-    `RICE-5KG,Basmati Rice 5kg,${leafSlug},899,799,Premium aged basmati rice,Belzo,1006,5,100,published,rice-front.jpg|rice-back.jpg\n`
-  );
-}
-
-/** An imageUrl entry that is already a usable link (vs. a local file name). */
-const isUrlRef = (s: string): boolean => /^https?:\/\//i.test(s) || s.startsWith('/');
-
-/** Flatten the nested category tree to leaf nodes (those without children). */
-function leafCategories(nodes: CategoryNodeDto[]): { name: string; slug: string }[] {
-  const out: { name: string; slug: string }[] = [];
-  const walk = (list: CategoryNodeDto[]): void => {
-    for (const n of list) {
-      if (n.children && n.children.length > 0) walk(n.children);
-      else out.push({ name: n.name, slug: n.slug });
-    }
-  };
-  walk(nodes);
-  return out;
-}
-
-/** Bulk product upload via CSV (FR-8.3). Prices in the CSV are in rupees. */
+/** Bulk product upload from the one Excel template (.xlsx, or CSV UTF-8 with the same headers). */
 export default function BulkUploadPage() {
-  const [rows, setRows] = useState<Row[]>([]);
+  const [parsed, setParsed] = useState<ParsedSheet | null>(null);
   const [fileName, setFileName] = useState('');
   const [parseErr, setParseErr] = useState<string | null>(null);
-  const [result, setResult] = useState<{ ok: number; errors: { row: number; message: string }[] } | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
   const [busy, setBusy] = useState(false);
-  const [leaves, setLeaves] = useState<{ name: string; slug: string }[]>([]);
-  // Image files picked on this page, keyed by lower-cased file name. CSV rows
-  // reference them by name in `imageUrl` (or by SKU-based file names).
+  // Image files picked on this page, keyed by lower-cased file name. Sheet rows
+  // reference them by name in image 1–5 (or by SKU-based file names).
   const [imageFiles, setImageFiles] = useState<Map<string, File>>(new Map());
   const [progress, setProgress] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -74,22 +64,10 @@ export default function BulkUploadPage() {
     });
   }
 
-  /** Files named after the SKU: RICE-5KG.jpg, RICE-5KG-2.jpg, RICE-5KG_back.png… */
-  function skuFiles(sku: string): string[] {
-    const s = sku.trim().toLowerCase();
-    if (!s) return [];
-    return [...imageFiles.keys()]
-      .filter((name) => {
-        const base = name.replace(/\.[^.]+$/, '');
-        return base === s || base.startsWith(`${s}-`) || base.startsWith(`${s}_`);
-      })
-      .sort();
-  }
-
   /**
-   * Find the selected file for an imageUrl entry. Exact (case-insensitive) name
+   * Find the selected file for an image cell. Exact (case-insensitive) name
    * first; otherwise match on the name WITHOUT its extension when exactly one
-   * selected file has it — so "photo.png" in the CSV still finds "photo.jpg".
+   * selected file has it — so "photo.png" in the sheet still finds "photo.jpg".
    */
   function fileKeyFor(ref: string): string | undefined {
     const key = ref.trim().toLowerCase();
@@ -99,10 +77,33 @@ export default function BulkUploadPage() {
     return hits.length === 1 ? hits[0] : undefined;
   }
 
-  /** Image references for a row: its imageUrl entries, else SKU-named files. */
-  function imageRefs(r: Row): string[] {
-    return r.imageUrls && r.imageUrls.length > 0 ? r.imageUrls : skuFiles(r.sku);
-  }
+  // Rows with all five image cells blank take the files named after their SKU.
+  const rows = useMemo<SheetRowInput[]>(() => {
+    if (!parsed) return [];
+    const assigned = assignSkuFiles(
+      [...imageFiles.keys()],
+      parsed.rows.map((r) => r.sku ?? ''),
+    );
+    return parsed.rows.map((r) => {
+      if (imageRefs(r).length > 0) return r;
+      const files = assigned.get(lowerSku(r));
+      if (!files || files.length === 0) return r;
+      const next: SheetRowInput = { ...r };
+      files.slice(0, IMAGE_KEYS.length).forEach((f, i) => (next[IMAGE_KEYS[i]!] = f));
+      return next;
+    });
+  }, [parsed, imageFiles]);
+
+  const grouping = useMemo(() => groupSheetRows(rows), [rows]);
+
+  const counts = useMemo(() => {
+    let variants = 0;
+    for (const g of grouping.groups) {
+      if (g.children.length > 0) variants += g.children.length;
+      else if (g.parent && (g.parent.mrp || g.parent.sellingPrice)) variants += 1;
+    }
+    return { products: grouping.groups.length, variants };
+  }, [grouping]);
 
   const missingFiles = useMemo(() => {
     const out = new Set<string>();
@@ -115,69 +116,53 @@ export default function BulkUploadPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, imageFiles]);
 
-  // Load the category tree so the template uses a REAL leaf slug and admins can
-  // see/copy valid slugs (the key usability fix — the old 'grocery' slug did
-  // not exist, so every row failed with "unknown category").
-  useEffect(() => {
-    void adminFetch<CategoryNodeDto[]>('/admin/categories')
-      .then((tree) => setLeaves(leafCategories(tree)))
-      .catch(() => setLeaves([]));
-  }, []);
-
-  const template = useMemo(() => buildTemplate(leaves[0]?.slug ?? FALLBACK_SLUG), [leaves]);
-
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
     setFileName(file.name);
     setResult(null);
     setParseErr(null);
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = parseCsv(String(reader.result));
-        const mapped: Row[] = parsed.map((r) => {
-          const status = r.status?.trim().toLowerCase();
-          const imageUrls = (r.imageUrl ?? '')
-            .split('|')
-            .map((u) => u.trim())
-            .filter(Boolean);
-          return {
-            sku: r.sku,
-            title: r.title,
-            categorySlug: r.categorySlug,
-            mrp: Math.round(parseFloat(r.mrp || '0') * 100),
-            sellingPrice: Math.round(parseFloat(r.sellingPrice || '0') * 100),
-            description: r.description || undefined,
-            brand: r.brand || undefined,
-            hsnCode: r.hsnCode || undefined,
-            taxRatePct: r.taxRatePct ? Number(r.taxRatePct) : undefined,
-            stock: r.stock ? Math.trunc(Number(r.stock)) : undefined,
-            status: status === 'draft' || status === 'published' ? status : undefined,
-            imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
-          };
-        });
-        const valid = mapped.filter((r) => r.sku && r.title && r.categorySlug);
-        if (valid.length === 0) setParseErr('No valid rows found. Check the column headers.');
-        setRows(valid);
-      } catch {
-        setParseErr('Could not parse this CSV file.');
+    setParsed(null);
+    const name = file.name.toLowerCase();
+    if (file.size > MAX_FILE_BYTES) {
+      setParseErr('File is too large (max 10 MB).');
+      return;
+    }
+    if (name.endsWith('.xls')) {
+      setParseErr("Old .xls files aren't supported. In Excel choose File → Save As → Excel Workbook (.xlsx).");
+      return;
+    }
+    try {
+      const sheet = name.endsWith('.csv')
+        ? readProductCsv(await file.text())
+        : await readProductWorkbook(await file.arrayBuffer());
+      if (sheet.fatal) {
+        setParseErr(sheet.fatal);
+        return;
       }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
+      setParsed(sheet);
+    } catch {
+      setParseErr('Could not read this file. Save it as .xlsx and try again.');
+    }
   }
 
   async function importRows() {
+    if (!parsed) return;
     setBusy(true);
     setResult(null);
+    const clientIssues: SheetIssue[] = [...parsed.issues, ...grouping.issues];
+    const totals = { productsCreated: 0, productsUpdated: 0, variantsSaved: 0 };
+    let serverIssues: SheetIssue[] = [];
     try {
-      // 1) Upload every image file referenced by the rows (each file once).
+      // 1) Upload every image file referenced by rows that will be sent (each file once).
       const needed = new Set<string>();
-      for (const r of rows) {
-        for (const ref of imageRefs(r)) {
-          const key = isUrlRef(ref) ? undefined : fileKeyFor(ref);
-          if (key) needed.add(key);
+      for (const g of grouping.groups) {
+        for (const r of groupRows(g)) {
+          for (const ref of imageRefs(r)) {
+            const key = isUrlRef(ref) ? undefined : fileKeyFor(ref);
+            if (key) needed.add(key);
+          }
         }
       }
       const urlByName = new Map<string, string>();
@@ -187,148 +172,144 @@ export default function BulkUploadPage() {
         n += 1;
         setProgress(`Uploading images… ${n}/${needed.size}`);
         try {
-          const { url } = await adminUpload(imageFiles.get(key)!, 'products');
+          const { url } = await withThrottleRetry(
+            () => adminUpload(imageFiles.get(key)!, 'products'),
+            (err) => err instanceof AdminUploadError && err.status === 429,
+            sleep,
+            (s) => setProgress(`Server busy — waiting ${s} s…`),
+          );
           urlByName.set(key, url);
         } catch (err) {
           failed.set(key, err instanceof Error ? err.message : 'upload failed');
         }
       }
-      setProgress(needed.size > 0 ? 'Importing…' : null);
 
-      // 2) Swap file names for uploaded URLs; rows with a missing/failed image
-      //    are reported here and not sent (so no product gets a broken image).
-      const clientErrors: { row: number; message: string }[] = [];
-      const payload: Row[] = [];
-      const originalIndex: number[] = [];
-      rows.forEach((r, i) => {
-        const urls: string[] = [];
-        let problem: string | null = null;
-        for (const ref of imageRefs(r)) {
-          if (isUrlRef(ref)) {
-            urls.push(ref);
+      // 2) Swap file names for uploaded URLs. A row with a missing/failed image
+      //    is reported and not sent; a failed Parent row skips its whole group.
+      const resolve = (ref: string): ImageResolution => {
+        const key = fileKeyFor(ref) ?? ref.trim().toLowerCase();
+        const url = urlByName.get(key);
+        if (url) return url;
+        if (failed.has(key)) return { error: `image upload failed for "${ref}": ${failed.get(key)}` };
+        return undefined;
+      };
+      const issue = (r: SheetRowInput, message: string): void => {
+        clientIssues.push({ row: r.row, sku: (r.sku ?? '').trim(), level: 'error', message });
+      };
+      const ready: SheetGroup[] = [];
+      for (const g of grouping.groups) {
+        let parent: SheetRowInput | undefined;
+        if (g.parent) {
+          const res = applyResolvedImages(g.parent, resolve);
+          if ('error' in res) {
+            issue(g.parent, res.error);
+            for (const c of g.children) {
+              issue(c, `Not imported: its Parent row ${g.parent.row} could not be imported.`);
+            }
             continue;
           }
-          const key = fileKeyFor(ref) ?? ref.trim().toLowerCase();
-          const u = urlByName.get(key);
-          if (u) urls.push(u);
-          else if (failed.has(key)) problem = `image upload failed for "${ref}": ${failed.get(key)}`;
-          else problem = `image file "${ref}" was not selected in step 2`;
-          if (problem) break;
+          parent = res.row;
         }
-        if (problem) {
-          clientErrors.push({ row: i + 1, message: problem });
-          return;
+        const children: SheetRowInput[] = [];
+        for (const c of g.children) {
+          const res = applyResolvedImages(c, resolve);
+          if ('error' in res) issue(c, res.error);
+          else children.push(res.row);
         }
-        payload.push({ ...r, imageUrls: urls.length > 0 ? urls : undefined });
-        originalIndex.push(i);
-      });
+        if (parent || children.length > 0) ready.push({ key: g.key, parent, children });
+      }
 
-      // 3) Import the remaining rows; map server row numbers back to the CSV.
-      let ok = 0;
-      let serverErrors: { row: number; message: string }[] = [];
-      if (payload.length > 0) {
-        const res = await adminFetch<{ ok: number; errors: { row: number; message: string }[] }>(
-          '/admin/products/bulk',
-          { method: 'POST', body: { rows: payload } },
-        );
-        ok = res.ok;
-        serverErrors = res.errors.map((e) => ({
-          ...e,
-          row: e.row >= 1 ? (originalIndex[e.row - 1] ?? e.row - 1) + 1 : e.row,
-        }));
+      // 3) Pack whole groups into size-bounded chunks and send them one by one.
+      const { chunks, issues: sizeIssues } = chunkGroups(ready);
+      clientIssues.push(...sizeIssues);
+      for (let i = 0; i < chunks.length; i += 1) {
+        const chunk = chunks[i]!;
+        setProgress(chunks.length > 1 ? `Importing… ${i + 1}/${chunks.length}` : 'Importing…');
+        try {
+          const res = await withThrottleRetry(
+            () =>
+              adminFetch<SheetImportResult>('/admin/products/bulk-v2', {
+                method: 'POST',
+                body: { rows: chunk, weightUnit: parsed.weightUnitHint ?? undefined },
+              }),
+            (err) => err instanceof ApiClientError && err.payload.statusCode === 429,
+            sleep,
+            (s) => setProgress(`Server busy — waiting ${s} s…`),
+          );
+          totals.productsCreated += res.productsCreated;
+          totals.productsUpdated += res.productsUpdated;
+          totals.variantsSaved += res.variantsCreated + res.variantsUpdated;
+          serverIssues = serverIssues.concat(res.issues);
+        } catch (err) {
+          if (err instanceof ApiClientError && err.payload.statusCode === 401) {
+            clientIssues.push({ row: 0, sku: '', level: 'error', message: SESSION_EXPIRED });
+            break;
+          }
+          const status = err instanceof ApiClientError ? err.payload.statusCode : undefined;
+          const message = chunkFailureMessage(err instanceof Error ? err.message : 'unknown error', status);
+          for (const r of chunk) {
+            clientIssues.push({ row: r.row, sku: (r.sku ?? '').trim(), level: 'error', message });
+          }
+        }
       }
-      setResult({ ok, errors: [...clientErrors, ...serverErrors].sort((a, b) => a.row - b.row) });
-    } catch (e) {
-      // Surface the real reason (e.g. expired session, validation error).
-      let message = 'Import request failed.';
-      if (e instanceof ApiClientError) {
-        message =
-          e.payload.statusCode === 401
-            ? 'Your admin session has expired. Please log in again and retry.'
-            : `Import request failed: ${e.payload.message}`;
-      } else if (e instanceof Error && e.message) {
-        message = `Import request failed: ${e.message}`;
-      }
-      setResult({ ok: 0, errors: [{ row: 0, message }] });
+    } catch (err) {
+      clientIssues.push({
+        row: 0,
+        sku: '',
+        level: 'error',
+        message: `Import request failed: ${err instanceof Error ? err.message : 'unknown error'}`,
+      });
     } finally {
+      setResult({ ...totals, issues: mergeIssues(clientIssues, serverIssues) });
       setProgress(null);
       setBusy(false);
     }
   }
 
-  const templateHref = `data:text/csv;charset=utf-8,${encodeURIComponent(template)}`;
+  const errors = result?.issues.filter((i) => i.level === 'error') ?? [];
+  const warnings = result?.issues.filter((i) => i.level === 'warning') ?? [];
 
   return (
     <div data-testid="admin-bulk">
       <div className="pm-head">
         <div>
           <h1>Bulk Product Upload</h1>
-          <p className="admin-subtitle" style={{ margin: 0 }}>Import many products at once from a CSV file.</p>
+          <p className="admin-subtitle" style={{ margin: 0 }}>Create and update many products at once from one Excel file.</p>
         </div>
         <Link href="/admin/catalogue" className="admin-inline-btn" style={{ padding: '9px 16px' }}>← Back to Catalogue</Link>
       </div>
 
       <section className="admin-card">
         <div className="admin-card__head">
-          <h2>1. Prepare your CSV</h2>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <ExportProductsButton />
-            <a className="btn" href={templateHref} download="belzo-products-template.csv">⬇ Download template</a>
+          <h2>1. Download the Excel template</h2>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <ExcelDownloadButton />
           </div>
         </div>
-        <p className="admin-muted" style={{ marginTop: 0 }}>
-          <strong>To edit existing products:</strong> Export products → edit in Excel → save as{' '}
-          <strong>CSV UTF-8</strong> → upload here. Existing SKUs get title, category, MRP, selling
-          price, description, brand, HSN, GST, stock and status updated; <strong>blank optional
-          cells leave the current value unchanged</strong>. Re-uploading the SKU of a removed
-          variant kept for order history restores it with the row&apos;s values. A non-empty <code>imageUrl</code>{' '}
-          <strong>replaces</strong> the product&apos;s images with exactly those images in that order
-          (first = main); a blank <code>imageUrl</code> keeps the current images. Variants of the
-          same product share product-level fields (title, category, description, brand, HSN, GST,
-          status, images) — if their rows disagree, the last row wins. Products without variants
-          are not exported. In Excel, format the <code>sku</code> and <code>hsnCode</code> columns
-          as <strong>Text</strong> so leading zeros are kept.
-        </p>
         <p className="admin-muted" style={{ margin: 0 }}>
-          Columns: <code>{PRODUCT_CSV_COLUMNS.join(', ')}</code>. Prices are in <strong>rupees</strong>.
-          Required: <code>sku</code>, <code>title</code>, <code>categorySlug</code>, <code>mrp</code>,{' '}
-          <code>sellingPrice</code>. Everything else is optional.
-          <code> categorySlug</code> must match an existing leaf category (see the list below).
-          <code> status</code> accepts <code>draft</code> or <code>published</code>; new SKUs
-          default to <strong>published</strong> so they appear on the storefront.
-          <strong>Images:</strong> select the image files in step 2 and write their file names in{' '}
-          <code>imageUrl</code> separated by <code>|</code> (e.g. <code>rice-front.jpg|rice-back.jpg</code>)
-          — or leave <code>imageUrl</code> empty and name the files after the SKU
-          (<code>RICE-5KG.jpg</code>, <code>RICE-5KG-2.jpg</code>). Full links (<code>https://…</code>) also work.
-          The first image becomes the main image.
+          One file for everything. It contains all your products (a Parent row per product, a Child
+          row per variant). Edit it in Excel and upload it below, or add new Parent/Child rows for new
+          products. Every rule is on the Instructions sheet. <strong>⚠ Quantity/Stock in the file
+          replaces live stock.</strong> Clear those cells unless you have just counted stock.
         </p>
-        {leaves.length > 0 && (
-          <>
-            <p className="admin-muted" style={{ marginBottom: 4, marginTop: 12 }}>
-              <strong>Valid category slugs</strong> (copy one into the <code>categorySlug</code> column):
-            </p>
-            <datalist id="bulk-category-slugs">
-              {leaves.map((c) => (
-                <option key={c.slug} value={c.slug}>{c.name}</option>
-              ))}
-            </datalist>
-            <div
-              className="admin-muted"
-              style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 160, overflowY: 'auto' }}
-            >
-              {leaves.map((c) => (
-                <code key={c.slug} title={c.name} style={{ padding: '2px 6px' }}>{c.slug}</code>
-              ))}
-            </div>
-          </>
-        )}
       </section>
 
       <section className="admin-card">
-        <div className="admin-card__head"><h2>2. Upload &amp; preview</h2></div>
-        <input type="file" accept=".csv,text/csv" onChange={handleFile} data-testid="bulk-file" />
-        {fileName && <span className="admin-muted"> {fileName} — {rows.length} rows</span>}
-        {parseErr && <p className="prod-form__msg">{parseErr}</p>}
+        <div className="admin-card__head"><h2>2. Upload the filled Excel</h2></div>
+        <input
+          type="file"
+          accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+          onChange={(e) => void handleFile(e)}
+          disabled={busy}
+          data-testid="bulk-file"
+        />
+        <span className="admin-muted"> .xlsx, or CSV UTF-8 (Comma delimited) with the same headers</span>
+        {fileName && parsed && (
+          <p className="admin-muted" style={{ marginBottom: 0 }}>
+            {fileName} — {counts.products} products · {counts.variants} variants in {rows.length} rows
+          </p>
+        )}
+        {parseErr && <p className="prod-form__msg" role="status">{parseErr}</p>}
 
         <div style={{ marginTop: 14 }}>
           <label className="auth-label">Product images (optional)</label>
@@ -363,7 +344,7 @@ export default function BulkUploadPage() {
               {dragOver ? 'Drop images here' : 'Click or drag product images here'}
             </span>
             <span className="wiz__drop-sub">
-              Select all images used in the CSV at once · matched by file name (or by SKU)
+              Select every image named in the image 1–5 cells · matched by file name (or by SKU)
             </span>
           </label>
           {imageFiles.size > 0 && (
@@ -391,24 +372,48 @@ export default function BulkUploadPage() {
         {rows.length > 0 && (
           <>
             <table className="admin-table" style={{ marginTop: 12 }}>
-              <thead><tr><th>SKU</th><th>Title</th><th>Category</th><th>MRP</th><th>Price</th><th>GST%</th><th>Stock</th><th>Images</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Row</th><th>Type</th><th>Parent SKU</th><th>SKU</th><th>Title or Size / Colour</th>
+                  <th>MRP</th><th>Selling</th><th>Stock</th><th>Images</th>
+                </tr>
+              </thead>
               <tbody>
-                {rows.slice(0, 12).map((r, i) => (
-                  <tr key={i}>
-                    <td>{r.sku}</td><td>{r.title}</td><td>{r.categorySlug}</td>
-                    <td>₹{(r.mrp / 100).toFixed(2)}</td><td>₹{(r.sellingPrice / 100).toFixed(2)}</td><td>{r.taxRatePct ?? '—'}</td>
-                    <td>{r.stock ?? '—'}</td>
-                    <td>
-                      {imageRefs(r).length}
-                      {imageRefs(r).some((ref) => !isUrlRef(ref) && !fileKeyFor(ref)) && ' ⚠'}
-                    </td>
-                  </tr>
-                ))}
+                {rows.slice(0, PREVIEW_ROWS).map((r) => {
+                  const isChild = r.indicator
+                    ? /^(c|child|variant)$/i.test(r.indicator.trim())
+                    : !!r.parentSku && r.parentSku.trim() !== (r.sku ?? '').trim();
+                  const refs = imageRefs(r);
+                  return (
+                    <tr key={r.row}>
+                      <td>{r.row}</td>
+                      <td>{isChild ? 'Child' : 'Parent'}</td>
+                      <td>{r.parentSku ?? ''}</td>
+                      <td>{r.sku ?? ''}</td>
+                      <td>{isChild ? [r.size, r.colour].filter(Boolean).join(' / ') : (r.title ?? '')}</td>
+                      <td>{r.mrp ? `₹${r.mrp}` : '—'}</td>
+                      <td>{r.sellingPrice ? `₹${r.sellingPrice}` : '—'}</td>
+                      <td>{r.stock ?? '—'}</td>
+                      <td>
+                        {refs.length}
+                        {refs.some((ref) => !isUrlRef(ref) && !fileKeyFor(ref)) && ' ⚠'}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
-            {rows.length > 12 && <p className="admin-muted">…and {rows.length - 12} more rows.</p>}
-            <button className="btn" onClick={importRows} disabled={busy} data-testid="bulk-import" style={{ marginTop: 12 }}>
-              {busy ? (progress ?? 'Importing…') : `Import ${rows.length} products`}
+            {rows.length > PREVIEW_ROWS && (
+              <p className="admin-muted">…and {rows.length - PREVIEW_ROWS} more rows.</p>
+            )}
+            <button
+              className="btn"
+              onClick={() => void importRows()}
+              disabled={busy}
+              data-testid="bulk-import"
+              style={{ marginTop: 12 }}
+            >
+              {busy ? (progress ?? 'Importing…') : `Import ${counts.products} products`}
             </button>
           </>
         )}
@@ -417,18 +422,35 @@ export default function BulkUploadPage() {
       {result && (
         <section className="admin-card" data-testid="bulk-result">
           <div className="admin-card__head"><h2>3. Result</h2></div>
-          <p><span className="admin-status admin-status--ok">{result.ok} imported</span>{' '}
-            {result.errors.length > 0 && <span className="admin-status admin-status--bad">{result.errors.length} failed</span>}</p>
-          <p className="admin-muted" style={{ marginTop: 0 }}>
-            New SKUs are published by default and appear on the storefront immediately. Existing
-            SKUs were updated in place (blank cells left unchanged).
+          <p>
+            <span className="admin-status admin-status--ok">
+              {result.productsCreated} products created · {result.productsUpdated} updated · {result.variantsSaved} variants saved
+            </span>{' '}
+            {errors.length > 0 && (
+              <span className="admin-status admin-status--bad">{errors.length} errors</span>
+            )}{' '}
+            {warnings.length > 0 && (
+              <span className="admin-status admin-status--warn">{warnings.length} warnings</span>
+            )}
           </p>
-          {result.errors.length > 0 && (
+          {errors.length > 0 && (
             <table className="admin-table">
-              <thead><tr><th>Row</th><th>Error</th></tr></thead>
+              <caption style={{ textAlign: 'left' }}>Errors</caption>
+              <thead><tr><th>Row</th><th>SKU</th><th>Message</th></tr></thead>
               <tbody>
-                {result.errors.map((e, i) => (
-                  <tr key={i}><td>{e.row}</td><td>{e.message}</td></tr>
+                {errors.map((e, i) => (
+                  <tr key={i}><td>{e.row || '—'}</td><td>{e.sku}</td><td>{e.message}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {warnings.length > 0 && (
+            <table className="admin-table" data-testid="bulk-warnings" style={{ marginTop: 12 }}>
+              <caption style={{ textAlign: 'left' }}>Warnings</caption>
+              <thead><tr><th>Row</th><th>SKU</th><th>Message</th></tr></thead>
+              <tbody>
+                {warnings.map((w, i) => (
+                  <tr key={i}><td>{w.row}</td><td>{w.sku}</td><td>{w.message}</td></tr>
                 ))}
               </tbody>
             </table>

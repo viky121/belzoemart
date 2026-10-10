@@ -8,9 +8,20 @@
  * IMPORTANT: this module must have NO module-scope side effects so it
  * tree-shakes out of storefront bundles (it is re-exported from index.ts).
  * The top level holds only literal consts, types, functions and one lazy
- * `let` cache.
+ * `let` cache. webpack's side-effect analysis treats array/object literal
+ * initialisers as impure, so those consts are built by `/*#__PURE__*\/`
+ * annotated arrow IIFEs (same values, no other effect). Keep that pattern
+ * for any new array/object const. It also imports NOTHING: webpack treats a module as having
+ * side effects when any module it imports does (money.ts computes
+ * ZERO_MONEY at load), which would keep this file in every chunk that
+ * holds the index. Rupee -> paise therefore uses the local `toPaise`, the
+ * same arithmetic as money.ts rupeesToMoney (a spec pins them together).
  */
-import { rupeesToMoney } from './money';
+
+/** rupeesToMoney's arithmetic for a finite input: normalise to 6 decimals, round half-up. */
+function toPaise(rupees: number): number {
+  return Math.round(Number((rupees * 100).toFixed(6)));
+}
 
 export type SheetKey =
   | 'indicator'
@@ -55,7 +66,7 @@ export interface SheetColumn {
 export const SHEET_NAME = 'Products';
 
 /** The 29 template columns, in order. Header text is byte-for-byte FR-1. */
-export const SHEET_COLUMNS: readonly SheetColumn[] = [
+export const SHEET_COLUMNS: readonly SheetColumn[] = /*#__PURE__*/ ((): readonly SheetColumn[] => [
   { key: 'indicator', header: 'Parent/Child Indicator', width: 14, kind: 'list' },
   { key: 'parentSku', header: 'Parent SKU', width: 16, kind: 'sku' },
   { key: 'sku', header: 'SKU', width: 18, kind: 'sku' },
@@ -85,10 +96,12 @@ export const SHEET_COLUMNS: readonly SheetColumn[] = [
   { key: 'image4', header: 'image 4', width: 30, kind: 'image' },
   { key: 'image5', header: 'image 5', width: 30, kind: 'image' },
   { key: 'dimensions', header: 'dimention (LWH)', width: 16, kind: 'text' },
-];
+])();
 
 /** Max characters per cell, shared by the client pre-check, groupSheetRows and the API DTO. */
-export const SHEET_FIELD_MAX: Readonly<Record<SheetKey, number>> = {
+export const SHEET_FIELD_MAX: Readonly<Record<SheetKey, number>> = /*#__PURE__*/ ((): Readonly<
+  Record<SheetKey, number>
+> => ({
   indicator: 20,
   gstRate: 20,
   hsnCode: 20,
@@ -118,16 +131,18 @@ export const SHEET_FIELD_MAX: Readonly<Record<SheetKey, number>> = {
   image4: 2048,
   image5: 2048,
   description: 5000,
-};
+}))();
 
-export const GST_RATES = [0, 5, 12, 18, 28] as const;
-export const TIER_MIN_QTY = { tier2: 5, tier3: 9, tier4: 13, tier5: 21 } as const;
+export const GST_RATES = /*#__PURE__*/ (() => [0, 5, 12, 18, 28] as const)();
+export const TIER_MIN_QTY = /*#__PURE__*/ (() => ({ tier2: 5, tier3: 9, tier4: 13, tier5: 21 }) as const)();
 export const EXAMPLE_SKU_PREFIX = 'EXAMPLE-';
 /** Postgres INTEGER max. */
 export const INT_MAX = 2_147_483_647;
 export const PACK_OF_MAX = 10_000;
 /** normHeader() values written only by the removed 12-column CSV format. */
-export const OLD_FORMAT_HEADERS = ['categoryslug', 'taxratepct', 'imageurl', 'status'] as const;
+export const OLD_FORMAT_HEADERS = /*#__PURE__*/ (
+  () => ['categoryslug', 'taxratepct', 'imageurl', 'status'] as const
+)();
 export const OLD_FORMAT_MESSAGE =
   'This is the old CSV format. Click "⬇ Download Excel", copy your rows into that file and upload it.';
 
@@ -213,7 +228,9 @@ export function stableStringify(v: unknown): string {
 // ---------------------------------------------------------------------------
 
 /** Alias table: normHeader() value -> key. Turned into a Map lazily (no module-scope side effects). */
-const HEADER_ALIASES: Readonly<Record<SheetKey, readonly string[]>> = {
+const HEADER_ALIASES: Readonly<Record<SheetKey, readonly string[]>> = /*#__PURE__*/ ((): Readonly<
+  Record<SheetKey, readonly string[]>
+> => ({
   indicator: ['parentchildindicator', 'indicator', 'parentchild', 'type'],
   parentSku: ['parentsku'],
   sku: ['sku'],
@@ -243,7 +260,7 @@ const HEADER_ALIASES: Readonly<Record<SheetKey, readonly string[]>> = {
   image4: ['image4', 'image4mainimage'],
   image5: ['image5', 'image5mainimage'],
   dimensions: ['dimention', 'dimension', 'dimensions', 'dimentionlwh', 'dimensionslwh'],
-};
+}))();
 
 let aliasMap: Map<string, SheetKey> | null = null;
 
@@ -367,9 +384,9 @@ export function parseRupeesToPaise(s: string | null | undefined, column: string)
     return { ok: false, error: `${column} must be a number in rupees, e.g. 799 or 799.50` };
   }
   const n = Number(v);
-  // Guard before rupeesToMoney so huge inputs (even Infinity) are "too large", never a throw.
+  // Guard before converting so huge inputs (even Infinity) are "too large", never a throw.
   if (!Number.isFinite(n) || n > INT_MAX / 100 + 1) return { ok: false, error: `${column} is too large` };
-  const amount = rupeesToMoney(n) as number;
+  const amount = toPaise(n);
   if (amount > INT_MAX) return { ok: false, error: `${column} is too large` };
   return { ok: true, value: amount };
 }
@@ -613,7 +630,7 @@ export function groupSheetRows(rows: SheetRowInput[]): { groups: SheetGroup[]; i
 // Tier math, tax conversion
 // ---------------------------------------------------------------------------
 
-const TIER_KEYS = ['tier2', 'tier3', 'tier4', 'tier5'] as const;
+const TIER_KEYS = /*#__PURE__*/ (() => ['tier2', 'tier3', 'tier4', 'tier5'] as const)();
 
 export type SheetTierKey = (typeof TIER_KEYS)[number];
 export type SheetTierPercents = Record<SheetTierKey, number | null>;

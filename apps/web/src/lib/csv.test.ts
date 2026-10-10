@@ -1,10 +1,4 @@
-import { CSV_BOM, parseCsv, toCsv } from '@/lib/csv';
-import {
-  PRODUCT_CSV_COLUMNS,
-  buildProductsCsv,
-  productsCsvFilename,
-  type ProductExportRow,
-} from '@/lib/product-csv';
+import { CSV_BOM, parseCsv, parseCsvTable, toCsv } from '@/lib/csv';
 
 describe('csv — toCsv', () => {
   it('quotes comma/quote/newline fields, doubles inner quotes, leaves plain fields bare', () => {
@@ -32,56 +26,29 @@ describe('csv — parseCsv', () => {
       { a: 'only', b: '', c: '' },
     ]);
   });
+
+  it('round-trips toCsv output (quotes, multi-line, ₹ and Hindi)', () => {
+    const row = { sku: 'RICE-5KG', title: 'Basmati, 5kg "Premium"', description: 'Line ₹ 899\r\nदूसरी, "q"' };
+    const parsed = parseCsv(`${CSV_BOM}${toCsv(['sku', 'title', 'description'], [row])}`);
+    expect(parsed).toEqual([row]);
+  });
 });
 
-describe('product-csv', () => {
-  const row: ProductExportRow = {
-    sku: 'RICE-5KG',
-    title: 'Basmati Rice, 5kg "Premium"',
-    categorySlug: 'rice',
-    mrp: 899,
-    sellingPrice: 799.5,
-    description: 'Line one ₹ 899\r\nदूसरी पंक्ति, "quoted"',
-    brand: 'Belzo',
-    hsnCode: '1006',
-    taxRatePct: 5,
-    stock: 100,
-    status: 'published',
-    imageUrl: 'https://a/x.jpg|/uploads/y.png',
-  };
-
-  it('keeps the bulk upload column order', () => {
-    expect([...PRODUCT_CSV_COLUMNS]).toEqual([
-      'sku',
-      'title',
-      'categorySlug',
-      'mrp',
-      'sellingPrice',
-      'description',
-      'brand',
-      'hsnCode',
-      'taxRatePct',
-      'stock',
-      'status',
-      'imageUrl',
+describe('csv — parseCsvTable', () => {
+  it('keeps blank records so index + 1 is the row number, strips the BOM and trims cells', () => {
+    expect(parseCsvTable(`${CSV_BOM}sku,title\r\n A1 ,Tea\r\n\r\n,\r\nB2,"x,y"\r\n`)).toEqual([
+      ['sku', 'title'],
+      ['A1', 'Tea'],
+      [''],
+      ['', ''],
+      ['B2', 'x,y'],
     ]);
   });
 
-  it('round-trips through parseCsv (BOM, quotes, multi-line, ₹ and Hindi, images)', () => {
-    const csv = buildProductsCsv([row]);
-    expect(csv.startsWith(CSV_BOM)).toBe(true);
-    const parsed = parseCsv(csv);
-    expect(parsed).toHaveLength(1);
-    expect(parsed[0]).toEqual({
-      ...row,
-      mrp: '899',
-      sellingPrice: '799.5',
-      taxRatePct: '5',
-      stock: '100',
-    });
-  });
-
-  it('names the file belzo-products-YYYY-MM-DD.csv', () => {
-    expect(productsCsvFilename(new Date(2026, 0, 5))).toBe('belzo-products-2026-01-05.csv');
+  it('keeps a quoted multi-line cell inside one record', () => {
+    expect(parseCsvTable('a,b\n"l1\nl2",z')).toEqual([
+      ['a', 'b'],
+      ['l1\nl2', 'z'],
+    ]);
   });
 });

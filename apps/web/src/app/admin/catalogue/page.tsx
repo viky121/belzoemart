@@ -6,7 +6,7 @@ import { formatInr } from '@/lib/catalogue-api';
 import { ProductWizard, type CatNode } from './product-wizard';
 import { ProductEditor } from './product-editor';
 import { VariantSlabsEditor } from './variant-slabs';
-import { ExportProductsButton } from './export-button';
+import { ExcelDownloadButton } from './excel-download-button';
 
 interface ProdRow {
   id: string;
@@ -103,7 +103,7 @@ export default function AdminCataloguePage() {
             <a href="/admin/catalogue/bulk" className="admin-inline-btn" style={{ padding: '10px 16px' }} data-testid="pm-bulk">
               ⬆ Bulk upload
             </a>
-            <ExportProductsButton className="admin-inline-btn" style={{ padding: '10px 16px' }} />
+            <ExcelDownloadButton className="admin-inline-btn" style={{ padding: '10px 16px' }} />
             <button className="pm-add" onClick={() => setAdding(true)} data-testid="pm-add-product">
               + Add Product
             </button>

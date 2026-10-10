@@ -95,6 +95,17 @@ const UPLOAD_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:40
 // closes an over-limit upload mid-stream.
 const SERVER_MAX_BYTES = 15 * 1024 * 1024;
 
+/** Upload failure; `status` is the HTTP status when the server answered (e.g. 429). */
+export class AdminUploadError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
+    super(message);
+    this.name = 'AdminUploadError';
+  }
+}
+
 /**
  * Upload an image file to the admin media endpoint (stored via S3 in prod).
  * Large photos are downscaled in the browser first so uploads stay small and
@@ -139,7 +150,7 @@ export async function adminUpload(
       .json()
       .then((d) => d.message as string)
       .catch(() => 'Upload failed');
-    throw new Error(msg || 'Upload failed');
+    throw new AdminUploadError(msg || 'Upload failed', res.status);
   }
   return res.json();
 }

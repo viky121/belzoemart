@@ -28,6 +28,7 @@ import {
   tier1Percent,
   tierPercentsFromSlabs,
 } from './bulk-sheet';
+import { rupeesToMoney } from './money';
 
 const FR1_HEADERS = [
   'Parent/Child Indicator',
@@ -286,6 +287,20 @@ describe('parsers', () => {
     expect(parseRupeesToPaise('9'.repeat(400), 'MRP')).toEqual({ ok: false, error: 'MRP is too large' });
     expect(parseRupeesToPaise('21474836.47', 'MRP')).toEqual({ ok: true, value: 2147483647 });
     expect(parseRupeesToPaise('21474836.48', 'MRP')).toEqual({ ok: false, error: 'MRP is too large' });
+  });
+
+  it('parseRupeesToPaise converts exactly like money.ts rupeesToMoney (local copy, no import)', () => {
+    for (const s of ['1.005', '0.125', '799.995', '19.99', '0.01', '1099.5']) {
+      expect(parseRupeesToPaise(s, 'MRP')).toEqual({ ok: true, value: rupeesToMoney(Number(s)) });
+    }
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 21_474_836 }), fc.integer({ min: 0, max: 999 }), (r, frac) => {
+        const s = `${r}.${String(frac).padStart(3, '0')}`;
+        const res = parseRupeesToPaise(s, 'MRP');
+        const expected = rupeesToMoney(Number(s)) as number;
+        return expected > 2_147_483_647 ? !res.ok : res.ok && res.value === expected;
+      }),
+    );
   });
 
   it('parseNonNegInt', () => {

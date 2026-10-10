@@ -7,11 +7,12 @@
 export const CSV_BOM = '\uFEFF';
 
 /**
- * Parse CSV text into header-keyed records. Handles quoted fields containing
- * commas, CR/LF newlines and doubled quotes; accepts \r\n or \n record ends.
- * Every cell is trimmed, all-blank records are skipped, missing cells -> ''.
+ * Parse CSV text into raw records (every cell trimmed). Handles quoted fields
+ * containing commas, CR/LF newlines and doubled quotes; accepts \r\n or \n
+ * record ends. A leading BOM is stripped. Blank records are KEPT, so
+ * `index + 1` is the record (row) number.
  */
-export function parseCsv(text: string): Record<string, string>[] {
+export function parseCsvTable(text: string): string[][] {
   const src = text.startsWith(CSV_BOM) ? text.slice(1) : text;
   const records: string[][] = [];
   let record: string[] = [];
@@ -57,9 +58,15 @@ export function parseCsv(text: string): Record<string, string>[] {
   // Final record without a trailing newline.
   if (field !== '' || record.length > 0) endRecord();
 
-  const rows = records
-    .map((r) => r.map((cell) => cell.trim()))
-    .filter((r) => r.some((cell) => cell !== ''));
+  return records.map((r) => r.map((cell) => cell.trim()));
+}
+
+/**
+ * Parse CSV text into header-keyed records (see parseCsvTable for the syntax).
+ * Every cell is trimmed, all-blank records are skipped, missing cells -> ''.
+ */
+export function parseCsv(text: string): Record<string, string>[] {
+  const rows = parseCsvTable(text).filter((r) => r.some((cell) => cell !== ''));
   if (rows.length < 2) return [];
   const [headers, ...body] = rows as [string[], ...string[][]];
   return body.map((cells) => {
