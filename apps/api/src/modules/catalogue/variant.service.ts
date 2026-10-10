@@ -98,6 +98,8 @@ export class VariantService {
     weightGrams?: number;
     imageUrl?: string;
     priceSlabs?: { minQty: number; unitPrice: number }[];
+    /** Purchase price, paise. ADMIN-ONLY. undefined = leave unchanged on update. */
+    costPrice?: number | null;
   }) {
     this.assertPrices(input.mrp, input.sellingPrice);
     const priceSlabsJson = this.normaliseSlabs(input.priceSlabs, input.sellingPrice);
@@ -114,6 +116,16 @@ export class VariantService {
       }
       throw new ConflictException(`SKU "${input.sku}" is already used by another variant`);
     }
+    // A variant SKU may not equal another product's Parent SKU (the bulk sheet keys on both).
+    const owner = await this.prisma.product.findUnique({
+      where: { sku: input.sku },
+      select: { id: true, title: true },
+    });
+    if (owner && owner.id !== input.productId) {
+      throw new ConflictException(
+        `SKU "${input.sku}" is the Parent SKU of "${owner.title}" — use a different SKU`,
+      );
+    }
     if (input.id) {
       return this.prisma.variant.update({
         where: { id: input.id },
@@ -125,6 +137,7 @@ export class VariantService {
           priceSlabsJson,
           weightGrams: input.weightGrams,
           imageUrl: input.imageUrl,
+          ...(input.costPrice !== undefined ? { costPrice: input.costPrice } : {}),
         },
       });
     }
@@ -137,6 +150,7 @@ export class VariantService {
         attributesJson: input.attributes ?? {},
         priceSlabsJson,
         weightGrams: input.weightGrams ?? 0,
+        costPrice: input.costPrice ?? null,
       },
     });
     await this.prisma.inventory.create({ data: { variantId: variant.id, available: 0 } });

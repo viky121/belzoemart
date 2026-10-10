@@ -332,6 +332,7 @@ export function ProductEditor({
                   <th scope="col">SKU</th>
                   <th scope="col">MRP (₹)</th>
                   <th scope="col">Selling (₹)</th>
+                  <th scope="col">Purchase (₹)</th>
                   <th scope="col">Stock</th>
                   <th scope="col">Actions</th>
                 </tr>
@@ -379,6 +380,19 @@ export function ProductEditor({
                         <input
                           className="auth-input"
                           type="number"
+                          step={0.01}
+                          min={0}
+                          placeholder="optional"
+                          value={e.cost}
+                          aria-label={`Purchase price in rupees for ${v.sku}`}
+                          onChange={(ev) => updEdit(v.id, { cost: ev.target.value })}
+                          data-testid={`editor-v-cost-${i}`}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="auth-input"
+                          type="number"
                           step={1}
                           min={0}
                           value={e.stock}
@@ -407,7 +421,8 @@ export function ProductEditor({
             <p className="prod-imghint">
               Bulk tiers, size/colour, weight and variant image are kept — edit them under
               &apos;Variants &amp; pricing&apos;. Removing a variant that was ordered before hides
-              it and keeps it for order history.
+              it and keeps it for order history. Purchase price is for your records only — customers
+              never see it.
             </p>
           </>
         )}

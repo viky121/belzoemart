@@ -65,6 +65,8 @@ const variantUpsertSchema = z.object({
     .array(z.object({ minQty: z.number().int().min(2), unitPrice: z.number().int().min(0) }))
     .max(10)
     .optional(),
+  /** Purchase price, paise. Admin-only; null clears it, omitted leaves it unchanged. */
+  costPrice: z.number().int().min(0).max(2_147_483_647).nullable().optional(),
 });
 class VariantUpsertDto extends createZodDto(variantUpsertSchema) {}
 

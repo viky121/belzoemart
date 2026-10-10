@@ -672,3 +672,81 @@ describe('ProductService.list — ids branch', () => {
     expect(args.include.variants).toEqual({ where: { isActive: true } });
   });
 });
+
+/**
+ * costPrice confidentiality (design §9, AC-12): storefront DTOs are built from
+ * explicit fields, so a raw variant row carrying the admin-only purchase price
+ * must never leak it into detail() or list() output.
+ */
+describe('ProductService storefront DTOs — costPrice confidentiality', () => {
+  function variant() {
+    return {
+      id: 'v1',
+      productId: 'p1',
+      sku: 'TSHIRT-001-S',
+      mrp: 99900,
+      sellingPrice: 79900,
+      costPrice: 12345,
+      attributesJson: { Size: 'S', Color: 'Blue' },
+      priceSlabsJson: [{ minQty: 5, unitPrice: 77900 }],
+      imageUrl: null,
+      weightGrams: 200,
+      isActive: true,
+      inventory: { variantId: 'v1', available: 50 },
+    };
+  }
+
+  function product() {
+    return {
+      id: 'p1',
+      title: "Men's Cotton Slim Fit T-Shirt",
+      slug: 'mens-cotton-slim-fit-t-shirt',
+      description: 'High quality 100% cotton casual t-shirt for men.',
+      categoryId: 'c1',
+      hsnCode: '61091000',
+      taxRatePct: 12,
+      status: 'published',
+      sku: 'TSHIRT-001',
+      ratingAvg: 0,
+      ratingCount: 0,
+      videoUrl: null,
+      shgName: null,
+      story: null,
+      attributesJson: {},
+      seoTitle: null,
+      seoKeywords: null,
+      seoDescription: null,
+      isReturnable: true,
+      brand: { id: 'b1', name: 'Zara' },
+      images: [{ url: '/uploads/t.jpg', alt: '' }],
+      variants: [variant()],
+    };
+  }
+
+  const prisma = {
+    product: {
+      findFirst: async () => product(),
+      findMany: async () => [product()],
+      count: async () => 1,
+    },
+  } as unknown as PrismaService;
+  const svc = new ProductService(prisma, {} as CategoryService);
+
+  it('detail() never includes costPrice', async () => {
+    const json = JSON.stringify(await svc.detail('mens-cotton-slim-fit-t-shirt'));
+    expect(json).not.toContain('costPrice');
+    expect(json).not.toContain('12345');
+  });
+
+  it('list() (paginated and ids branch) never includes costPrice', async () => {
+    for (const query of [
+      { sort: 'relevance', page: 1, pageSize: 20 },
+      { ids: 'p1', sort: 'relevance', page: 1, pageSize: 20 },
+    ]) {
+      const json = JSON.stringify(await svc.list(query as never));
+      expect(json).toContain('p1');
+      expect(json).not.toContain('costPrice');
+      expect(json).not.toContain('12345');
+    }
+  });
+});

@@ -14,6 +14,8 @@ export interface AdminVariantRow {
   priceSlabsJson: { minQty: number; unitPrice: number }[] | null;
   weightGrams: number;
   imageUrl: string | null;
+  /** Purchase price, paise. Admin-only; null when not recorded. */
+  costPrice: number | null;
   inventory: { available: number } | null;
 }
 
@@ -22,6 +24,8 @@ export interface VariantEdit {
   sku: string;
   mrp: string;
   price: string;
+  /** Purchase price in rupees; blank = not recorded. */
+  cost: string;
   stock: string;
 }
 
@@ -36,6 +40,7 @@ export interface VariantUpsertBody {
   weightGrams: number;
   imageUrl: string | undefined;
   priceSlabs: { minQty: number; unitPrice: number }[];
+  costPrice: number | null;
 }
 
 export function toRupees(paise: number): string {
@@ -51,6 +56,7 @@ export function initialEdit(v: AdminVariantRow): VariantEdit {
     sku: v.sku,
     mrp: toRupees(v.mrp),
     price: toRupees(v.sellingPrice),
+    cost: v.costPrice == null ? '' : toRupees(v.costPrice),
     stock: String(v.inventory?.available ?? 0),
   };
 }
@@ -77,6 +83,9 @@ export function validateEdits(
     if (!isMoney(e.mrp)) return `${sku}: enter a valid MRP (0 or more).`;
     if (!isMoney(e.price)) return `${sku}: enter a valid selling price (0 or more).`;
     if (toPaise(e.price) > toPaise(e.mrp)) return `${sku}: selling price cannot exceed MRP`;
+    if (e.cost.trim() !== '' && !isMoney(e.cost)) {
+      return `${sku}: enter a valid purchase price (0 or more), or leave it blank.`;
+    }
     if (!/^\d+$/.test(e.stock.trim())) return `${sku}: stock must be a whole number (0 or more).`;
     if (seen.has(sku)) return `SKU "${sku}" is used twice`;
     seen.add(sku);
@@ -85,15 +94,23 @@ export function validateEdits(
 }
 
 /**
- * POST /admin/variants body for a changed SKU/MRP/price, or null when nothing
- * changed. The variant's existing bulk tiers, attributes, weight and image
- * are always sent back because the endpoint overwrites them.
+ * POST /admin/variants body for a changed SKU/MRP/price/purchase price, or null
+ * when nothing changed. The variant's existing bulk tiers, attributes, weight
+ * and image are always sent back because the endpoint overwrites them.
  */
 export function variantUpsertBody(v: AdminVariantRow, e: VariantEdit): VariantUpsertBody | null {
   const sku = e.sku.trim();
   const mrp = toPaise(e.mrp);
   const sellingPrice = toPaise(e.price);
-  if (sku === v.sku && mrp === v.mrp && sellingPrice === v.sellingPrice) return null;
+  const costPrice = e.cost.trim() === '' ? null : toPaise(e.cost);
+  if (
+    sku === v.sku &&
+    mrp === v.mrp &&
+    sellingPrice === v.sellingPrice &&
+    costPrice === (v.costPrice ?? null)
+  ) {
+    return null;
+  }
   return {
     id: v.id,
     productId: v.productId,
@@ -104,7 +121,37 @@ export function variantUpsertBody(v: AdminVariantRow, e: VariantEdit): VariantUp
     weightGrams: v.weightGrams,
     imageUrl: v.imageUrl ?? undefined,
     priceSlabs: v.priceSlabsJson ?? [],
+    costPrice,
   };
+}
+
+/** Trimmed value of the first attribute whose key (case-insensitive) is one of `keys`, else ''. */
+export function pickAttr(
+  attrs: Record<string, string> | null | undefined,
+  ...keys: string[]
+): string {
+  const found = Object.entries(attrs ?? {}).find(([k]) => keys.includes(k.toLowerCase()));
+  return found?.[1]?.trim() ?? '';
+}
+
+/**
+ * Variant attributes after editing Size/Color: every other key (e.g. "Pack Of")
+ * is kept, any Size/Color/Colour key (case-insensitive) is replaced by the
+ * trimmed non-blank values given.
+ */
+export function mergeVariantAttrs(
+  existing: Record<string, string> | null | undefined,
+  size: string,
+  color: string,
+): Record<string, string> {
+  const replaced = new Set(['size', 'color', 'colour']);
+  const out: Record<string, string> = {};
+  for (const [k, val] of Object.entries(existing ?? {})) {
+    if (!replaced.has(k.toLowerCase())) out[k] = val;
+  }
+  if (size.trim()) out.Size = size.trim();
+  if (color.trim()) out.Color = color.trim();
+  return out;
 }
 
 /** Result of DELETE /admin/variants/:id: hard delete, or hidden + kept for order history. */
@@ -115,11 +162,7 @@ export function variantLabel(
   attrs: Record<string, string> | null | undefined,
   sku: string,
 ): string {
-  const pick = (key: string): string => {
-    const found = Object.entries(attrs ?? {}).find(([k]) => k.toLowerCase() === key);
-    return found?.[1]?.trim() ?? '';
-  };
-  const parts = [pick('size'), pick('color') || pick('colour')].filter(Boolean);
+  const parts = [pickAttr(attrs, 'size'), pickAttr(attrs, 'color', 'colour')].filter(Boolean);
   return parts.length ? `${parts.join(' / ')} (${sku})` : sku;
 }
 

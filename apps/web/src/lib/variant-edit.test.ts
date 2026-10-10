@@ -1,5 +1,7 @@
 import {
   initialEdit,
+  mergeVariantAttrs,
+  pickAttr,
   removeVariantConfirmText,
   removeVariantSuccessMessage,
   stockDelta,
@@ -23,6 +25,7 @@ function row(over: Partial<AdminVariantRow> = {}): AdminVariantRow {
     priceSlabsJson: [{ minQty: 5, unitPrice: 75000 }],
     weightGrams: 1000,
     imageUrl: '/uploads/tea.jpg',
+    costPrice: null,
     inventory: { available: 10 },
     ...over,
   };
@@ -42,7 +45,17 @@ describe('variant-edit — money conversion', () => {
 
 describe('variant-edit — initialEdit', () => {
   it('formats rupees and stock', () => {
-    expect(initialEdit(row())).toEqual({ sku: 'TEA-1KG', mrp: '899.00', price: '799.50', stock: '10' });
+    expect(initialEdit(row())).toEqual({
+      sku: 'TEA-1KG',
+      mrp: '899.00',
+      price: '799.50',
+      cost: '',
+      stock: '10',
+    });
+  });
+
+  it('formats a recorded purchase price in rupees', () => {
+    expect(initialEdit(row({ costPrice: 79000 })).cost).toBe('790.00');
   });
 
   it('treats missing inventory as 0 stock', () => {
@@ -74,7 +87,33 @@ describe('variant-edit — variantUpsertBody', () => {
       weightGrams: 1000,
       imageUrl: '/uploads/tea.jpg',
       priceSlabs: [{ minQty: 5, unitPrice: 75000 }],
+      costPrice: null,
     });
+  });
+
+  it('returns null for an untouched edit with a recorded purchase price', () => {
+    const v = row({ costPrice: 79000 });
+    expect(variantUpsertBody(v, initialEdit(v))).toBeNull();
+  });
+
+  it('treats a purchase-price-only change as a change and converts it to paise', () => {
+    const v = row();
+    const body = variantUpsertBody(v, { ...initialEdit(v), cost: '790.50' });
+    expect(body).not.toBeNull();
+    expect(body?.costPrice).toBe(79050);
+    expect(body?.priceSlabs).toEqual([{ minQty: 5, unitPrice: 75000 }]);
+    expect(body?.attributes).toEqual({ Size: '1 kg' });
+  });
+
+  it('sends costPrice null when the purchase price is cleared', () => {
+    const v = row({ costPrice: 79000 });
+    const body = variantUpsertBody(v, { ...initialEdit(v), cost: '  ' });
+    expect(body?.costPrice).toBeNull();
+  });
+
+  it('always carries the current costPrice when another field changes', () => {
+    const v = row({ costPrice: 79000 });
+    expect(variantUpsertBody(v, { ...initialEdit(v), price: '780' })?.costPrice).toBe(79000);
   });
 
   it('sends a trimmed SKU change', () => {
@@ -146,6 +185,60 @@ describe('variant-edit — validateEdits', () => {
     const edits = base();
     edits.v2.sku = ' TEA-1KG ';
     expect(validateEdits([v1, v2], edits)).toBe('SKU "TEA-1KG" is used twice');
+  });
+
+  it('allows a blank purchase price and blocks an invalid one', () => {
+    const edits = base();
+    edits.v1.cost = '   ';
+    expect(validateEdits([v1, v2], edits)).toBeNull();
+    edits.v1.cost = '-5';
+    expect(validateEdits([v1, v2], edits)).toBe(
+      'TEA-1KG: enter a valid purchase price (0 or more), or leave it blank.',
+    );
+    edits.v1.cost = 'abc';
+    expect(validateEdits([v1, v2], edits)).toMatch(/valid purchase price/);
+    edits.v1.cost = '950'; // a purchase price may exceed MRP
+    expect(validateEdits([v1, v2], edits)).toBeNull();
+  });
+});
+
+describe('variant-edit — pickAttr', () => {
+  it('returns the trimmed value of the first matching key, case-insensitively', () => {
+    expect(pickAttr({ size: 'M ' }, 'size')).toBe('M');
+    expect(pickAttr({ Colour: 'Red' }, 'color', 'colour')).toBe('Red');
+  });
+
+  it('returns an empty string when nothing matches', () => {
+    expect(pickAttr({ Fabric: 'Cotton' }, 'size')).toBe('');
+    expect(pickAttr(null, 'size')).toBe('');
+    expect(pickAttr(undefined, 'color', 'colour')).toBe('');
+  });
+});
+
+describe('variant-edit — mergeVariantAttrs', () => {
+  it('keeps every other attribute such as Pack Of', () => {
+    expect(mergeVariantAttrs({ Size: 'S', Color: 'Blue', 'Pack Of': '2' }, 'M', 'Black')).toEqual({
+      Size: 'M',
+      Color: 'Black',
+      'Pack Of': '2',
+    });
+  });
+
+  it('replaces Size/Color/Colour keys case-insensitively and drops blank values', () => {
+    expect(mergeVariantAttrs({ size: 'S', Colour: 'Red', Fabric: 'Cotton' }, ' L ', '  ')).toEqual({
+      Size: 'L',
+      Fabric: 'Cotton',
+    });
+  });
+
+  it('round-trips a legacy lower-case size read via pickAttr', () => {
+    expect(
+      mergeVariantAttrs({ size: 'M', 'Pack Of': '2' }, pickAttr({ size: 'M' }, 'size'), ''),
+    ).toEqual({ Size: 'M', 'Pack Of': '2' });
+  });
+
+  it('handles null existing attributes', () => {
+    expect(mergeVariantAttrs(null, 'S', '')).toEqual({ Size: 'S' });
   });
 });
 

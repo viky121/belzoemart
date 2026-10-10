@@ -10,7 +10,9 @@ import type { PrismaService } from '../../common/prisma/prisma.service';
 describe('VariantService.upsert', () => {
   interface FakeVariant { id: string; sku: string; productId: string }
 
-  function build(existing: FakeVariant[] = []) {
+  interface FakeProduct { id: string; title: string; sku: string | null }
+
+  function build(existing: FakeVariant[] = [], products: FakeProduct[] = []) {
     const variants: FakeVariant[] = [...existing];
     const updates: { where: { id: string }; data: Record<string, unknown> }[] = [];
     const creates: Record<string, unknown>[] = [];
@@ -18,6 +20,12 @@ describe('VariantService.upsert', () => {
     let seq = variants.length;
 
     const prisma = {
+      product: {
+        findUnique: async ({ where: { sku } }: { where: { sku: string } }) => {
+          const p = products.find((x) => x.sku === sku);
+          return p ? { id: p.id, title: p.title } : null;
+        },
+      },
       variant: {
         findUnique: async ({ where: { sku } }: { where: { sku: string } }) => {
           const v = variants.find((x) => x.sku === sku);
@@ -130,6 +138,79 @@ describe('VariantService.upsert', () => {
     const v = await service.upsert({ productId: 'p1', sku: 'TEA-250G', mrp: 300, sellingPrice: 250 });
     expect(creates).toHaveLength(1);
     expect(inventory).toEqual([{ variantId: v.id, available: 0 }]);
+  });
+
+  describe('costPrice (admin-only purchase price)', () => {
+    const base = { id: 'v1', productId: 'p1', sku: 'TEA-1KG', mrp: 1200, sellingPrice: 1000 };
+
+    it('leaves costPrice unchanged on update when it is not sent', async () => {
+      const { service, updates } = build(seeded);
+      await service.upsert(base);
+      expect(updates).toHaveLength(1);
+      expect('costPrice' in updates[0].data).toBe(false);
+    });
+
+    it('clears costPrice on update when null is sent', async () => {
+      const { service, updates } = build(seeded);
+      await service.upsert({ ...base, costPrice: null });
+      expect(updates[0].data).toHaveProperty('costPrice', null);
+    });
+
+    it('sets costPrice on update (it may exceed MRP)', async () => {
+      const { service, updates } = build(seeded);
+      await service.upsert({ ...base, costPrice: 1500 });
+      expect(updates[0].data).toHaveProperty('costPrice', 1500);
+    });
+
+    it('defaults costPrice to null on create', async () => {
+      const { service, creates } = build(seeded);
+      await service.upsert({ productId: 'p1', sku: 'TEA-250G', mrp: 300, sellingPrice: 250 });
+      expect(creates[0]).toHaveProperty('costPrice', null);
+    });
+
+    it('stores costPrice on create', async () => {
+      const { service, creates } = build(seeded);
+      await service.upsert({
+        productId: 'p1',
+        sku: 'TEA-250G',
+        mrp: 300,
+        sellingPrice: 250,
+        costPrice: 200,
+      });
+      expect(creates[0]).toHaveProperty('costPrice', 200);
+    });
+  });
+
+  describe('Parent SKU clash (NIT 2)', () => {
+    const products: FakeProduct[] = [
+      { id: 'p1', title: 'Herbal Tea', sku: 'TEA' },
+      { id: 'p2', title: 'Cotton T-Shirt', sku: 'TSHIRT-001' },
+    ];
+
+    it("409s when the variant SKU is another product's Parent SKU (create and update)", async () => {
+      const { service, creates, updates } = build(seeded, products);
+      const created = await service
+        .upsert({ productId: 'p1', sku: 'TSHIRT-001', mrp: 300, sellingPrice: 250 })
+        .catch((e: unknown) => e);
+      expect(created).toBeInstanceOf(ConflictException);
+      expect((created as Error).message).toBe(
+        'SKU "TSHIRT-001" is the Parent SKU of "Cotton T-Shirt" — use a different SKU',
+      );
+      const updated = await service
+        .upsert({ id: 'v1', productId: 'p1', sku: 'TSHIRT-001', mrp: 300, sellingPrice: 250 })
+        .catch((e: unknown) => e);
+      expect(updated).toBeInstanceOf(ConflictException);
+      expect(creates).toHaveLength(0);
+      expect(updates).toHaveLength(0);
+    });
+
+    it("allows a variant SKU equal to its own product's Parent SKU", async () => {
+      const { service, creates } = build(seeded, products);
+      await expect(
+        service.upsert({ productId: 'p1', sku: 'TEA', mrp: 300, sellingPrice: 250 }),
+      ).resolves.toBeDefined();
+      expect(creates).toHaveLength(1);
+    });
   });
 });
 

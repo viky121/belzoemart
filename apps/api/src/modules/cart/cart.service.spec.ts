@@ -103,4 +103,15 @@ describe('CartService — removed variants', () => {
     // 1 active unit only → the 3+ tier is NOT unlocked by the removed pack.
     expect(ok).toMatchObject({ unavailable: false, inStock: true, tierQty: 1, unitPrice: 800 });
   });
+
+  it('never exposes the admin-only costPrice on a cart line', async () => {
+    const { svc } = build(
+      [variant('v200', true, { costPrice: 12345 })],
+      [{ id: 'i1', cartId: 'c1', variantId: 'v200', quantity: 1, savedForLater: false }],
+    );
+    const cart = await svc.getCart({ customerId: 'u1' });
+    expect(cart.items).toHaveLength(1);
+    expect(cart.items[0]).not.toHaveProperty('costPrice');
+    expect(JSON.stringify(cart)).not.toContain('12345');
+  });
 });

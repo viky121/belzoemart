@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { adminFetch, adminUpload } from '@/lib/admin-api';
 import {
+  mergeVariantAttrs,
+  pickAttr,
   removeVariantConfirmText,
   removeVariantSuccessMessage,
   variantLabel,
@@ -81,8 +83,8 @@ export function VariantSlabsEditor({
       }));
       const attrs = v.attributesJson ?? {};
       m[v.id] = {
-        size: attrs.Size ?? '',
-        color: attrs.Color ?? '',
+        size: pickAttr(attrs, 'size'),
+        color: pickAttr(attrs, 'color', 'colour'),
         weight: v.weightGrams ? String(v.weightGrams) : '',
         imageUrl: v.imageUrl ?? '',
       };
@@ -174,7 +176,8 @@ export function VariantSlabsEditor({
           sku: v.sku,
           mrp: v.mrp,
           sellingPrice: v.sellingPrice,
-          attributes: buildAttrs(vm.size, vm.color),
+          // Keep other attributes (e.g. "Pack Of" from the bulk sheet); only Size/Color change.
+          attributes: mergeVariantAttrs(v.attributesJson, vm.size, vm.color),
           weightGrams: parseInt(vm.weight || '0', 10) || 0,
           imageUrl: vm.imageUrl || undefined,
           priceSlabs,
