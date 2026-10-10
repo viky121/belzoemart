@@ -9,69 +9,13 @@ import {
 } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CategoryService } from './category.service';
+import { normCategoryKey } from './category-match';
 
 interface Paginated<T> {
   items: T[];
   total: number;
   page: number;
   pageSize: number;
-}
-
-/** One CSV export row per variant, in the bulk-upload column shape (prices in rupees). */
-export interface ProductExportRow {
-  sku: string;
-  title: string;
-  categorySlug: string;
-  mrp: number;
-  sellingPrice: number;
-  description: string;
-  brand: string;
-  hsnCode: string;
-  taxRatePct: number;
-  stock: number;
-  status: 'draft' | 'published';
-  imageUrl: string;
-}
-
-/**
- * Map a product (with category, brand, images and variants+inventory) to one
- * export row per variant. Paise -> rupees; images joined with '|' by position.
- * A product without variants yields no rows.
- */
-export function toExportRows(p: {
-  title: string;
-  description: string;
-  hsnCode: string;
-  taxRatePct: number;
-  status: 'draft' | 'published';
-  category: { slug: string };
-  brand: { name: string } | null;
-  images: { url: string; position: number }[];
-  variants: {
-    sku: string;
-    mrp: number;
-    sellingPrice: number;
-    inventory: { available: number } | null;
-  }[];
-}): ProductExportRow[] {
-  const imageUrl = [...p.images]
-    .sort((a, b) => a.position - b.position)
-    .map((i) => i.url)
-    .join('|');
-  return p.variants.map((v) => ({
-    sku: v.sku,
-    title: p.title,
-    categorySlug: p.category.slug,
-    mrp: v.mrp / 100,
-    sellingPrice: v.sellingPrice / 100,
-    description: p.description,
-    brand: p.brand?.name ?? '',
-    hsnCode: p.hsnCode,
-    taxRatePct: p.taxRatePct,
-    stock: v.inventory?.available ?? 0,
-    status: p.status,
-    imageUrl,
-  }));
 }
 
 /**
@@ -276,7 +220,7 @@ export class ProductService {
     };
   }
 
-  private async uniqueSlug(title: string, excludeId?: string): Promise<string> {
+  async uniqueSlug(title: string, excludeId?: string): Promise<string> {
     const base = slugify(title) || 'product';
     let slug = base;
     let n = 1;
@@ -303,7 +247,7 @@ export class ProductService {
    * Find a brand by name (case-insensitive) or create one with a unique slug.
    * Used by the bulk importer so a CSV can carry a brand NAME, not an id.
    */
-  private async findOrCreateBrandByName(name: string): Promise<{ id: string }> {
+  async findOrCreateBrandByName(name: string): Promise<{ id: string }> {
     const trimmed = name.trim();
     const existing = await this.prisma.brand.findFirst({
       where: { name: { equals: trimmed, mode: 'insensitive' } },
@@ -501,33 +445,6 @@ export class ProductService {
     });
   }
 
-  /**
-   * CSV export for the admin catalogue: one row per variant of every draft or
-   * published product (archived excluded), in the bulk-upload column shape so
-   * an edited export can be re-uploaded through bulkUpsert.
-   */
-  async exportRows(): Promise<{ rows: ProductExportRow[] }> {
-    const products = await this.prisma.product.findMany({
-      where: { status: { in: ['draft', 'published'] } },
-      include: {
-        category: { select: { slug: true } },
-        brand: { select: { name: true } },
-        images: { orderBy: { position: 'asc' } },
-        variants: {
-          where: { isActive: true },
-          orderBy: { createdAt: 'asc' },
-          include: { inventory: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    return {
-      rows: products.flatMap((p) =>
-        toExportRows({ ...p, status: p.status as 'draft' | 'published' }),
-      ),
-    };
-  }
-
   /** Full product detail (any status) for the admin editor. */
   async adminDetail(id: string) {
     const p = await this.prisma.product.findUnique({
@@ -581,6 +498,8 @@ export class ProductService {
    * of one product share product-level fields, so when several rows of the
    * same product disagree the last row wins. A SKU that belongs to a removed
    * (deactivated) variant is reactivated and updated like any existing SKU.
+   *
+   * @deprecated use POST /admin/products/bulk-v2 (Excel sheet)
    */
   async bulkUpsert(
     rows: Array<{
@@ -606,12 +525,7 @@ export class ProductService {
     // "tea-coffee", "Tea & Coffee" and "tea-and-coffee" all resolve to the same
     // category. Names that exist in more than one branch (e.g. "Ghee") are
     // reported as ambiguous with the exact slugs to choose from.
-    const normKey = (s: string): string =>
-      s
-        .toLowerCase()
-        .replace(/&/g, ' and ')
-        .replace(/\band\b/g, ' ')
-        .replace(/[^a-z0-9]+/g, '');
+    const normKey = normCategoryKey;
     let allCats: { id: string; name: string; slug: string }[] | null = null;
     const resolveCategory = async (input: string): Promise<{ id: string }> => {
       const raw = input.trim();

@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
+import { SHEET_FIELD_MAX } from '@belzo/shared';
 import { Roles } from '../../common/auth/roles.decorator';
 import { createZodDto } from '../identity/zod-dto';
 import { CategoryService } from './category.service';
@@ -8,6 +9,7 @@ import { ProductService } from './product.service';
 import { VariantService } from './variant.service';
 import { BrandService } from './brand.service';
 import { InventoryService } from './inventory.service';
+import { BulkSheetService } from './bulk-sheet.service';
 
 // -- DTOs -------------------------------------------------------------------
 const categoryUpsertSchema = z.object({
@@ -119,6 +121,48 @@ const csvRowSchema = z.object({
 const bulkSchema = z.object({ rows: z.array(csvRowSchema).max(5000) });
 class BulkDto extends createZodDto(bulkSchema) {}
 
+// Excel sheet rows (design §5). Cell limits are shared with the client pre-check
+// and groupSheetRows; content problems become per-row issues, not 400s.
+const s = (max: number) => z.string().max(max).optional();
+const sheetRowSchema = z.object({
+  row: z.number().int().min(2).max(1_000_000),
+  indicator: s(SHEET_FIELD_MAX.indicator),
+  parentSku: s(SHEET_FIELD_MAX.parentSku),
+  sku: s(SHEET_FIELD_MAX.sku),
+  finalDetail: s(SHEET_FIELD_MAX.finalDetail),
+  brand: s(SHEET_FIELD_MAX.brand),
+  title: s(SHEET_FIELD_MAX.title),
+  description: s(SHEET_FIELD_MAX.description),
+  colour: s(SHEET_FIELD_MAX.colour),
+  size: s(SHEET_FIELD_MAX.size),
+  weightKg: s(SHEET_FIELD_MAX.weightKg),
+  hsnCode: s(SHEET_FIELD_MAX.hsnCode),
+  taxType: s(SHEET_FIELD_MAX.taxType),
+  gstRate: s(SHEET_FIELD_MAX.gstRate),
+  mrp: s(SHEET_FIELD_MAX.mrp),
+  sellingPrice: s(SHEET_FIELD_MAX.sellingPrice),
+  purchasePrice: s(SHEET_FIELD_MAX.purchasePrice),
+  stock: s(SHEET_FIELD_MAX.stock),
+  packOf: s(SHEET_FIELD_MAX.packOf),
+  tier1: s(SHEET_FIELD_MAX.tier1),
+  tier2: s(SHEET_FIELD_MAX.tier2),
+  tier3: s(SHEET_FIELD_MAX.tier3),
+  tier4: s(SHEET_FIELD_MAX.tier4),
+  tier5: s(SHEET_FIELD_MAX.tier5),
+  image1: s(SHEET_FIELD_MAX.image1),
+  image2: s(SHEET_FIELD_MAX.image2),
+  image3: s(SHEET_FIELD_MAX.image3),
+  image4: s(SHEET_FIELD_MAX.image4),
+  image5: s(SHEET_FIELD_MAX.image5),
+  dimensions: s(SHEET_FIELD_MAX.dimensions),
+});
+const bulkSheetSchema = z.object({
+  rows: z.array(sheetRowSchema).min(1).max(1000),
+  /** Unit named by the uploaded Weight header ('Weight (g)' -> 'g'), NIT 5. */
+  weightUnit: z.enum(['g', 'kg']).optional(),
+});
+class BulkSheetDto extends createZodDto(bulkSheetSchema) {}
+
 const adjustSchema = z.object({ delta: z.number().int(), ref: z.string().max(80).optional() });
 class AdjustDto extends createZodDto(adjustSchema) {}
 
@@ -137,6 +181,7 @@ export class AdminCatalogueController {
     private readonly variants: VariantService,
     private readonly brands: BrandService,
     private readonly inventory: InventoryService,
+    private readonly sheet: BulkSheetService,
   ) {}
 
   @Get('categories')
@@ -159,9 +204,10 @@ export class AdminCatalogueController {
     return this.products.adminList();
   }
 
-  @Get('products/export')
-  exportProducts() {
-    return this.products.exportRows();
+  /** Every draft/published product as Excel sheet rows (the browser builds the .xlsx). */
+  @Get('products/sheet')
+  bulkSheetExport() {
+    return this.sheet.exportSheet();
   }
 
   @Get('products/:id/detail')
@@ -194,9 +240,16 @@ export class AdminCatalogueController {
     return this.products.remove(id);
   }
 
+  /** @deprecated use POST /admin/products/bulk-v2 (Excel sheet) */
   @Post('products/bulk')
   bulk(@Body() dto: BulkDto) {
     return this.products.bulkUpsert(dto.rows);
+  }
+
+  /** Import Excel sheet rows (one chunk of whole product groups). */
+  @Post('products/bulk-v2')
+  bulkSheetImport(@Body() dto: BulkSheetDto) {
+    return this.sheet.importRows(dto.rows, { weightUnit: dto.weightUnit });
   }
 
   @Get('products/:productId/variants')
