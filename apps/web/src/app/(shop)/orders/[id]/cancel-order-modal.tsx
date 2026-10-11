@@ -21,6 +21,9 @@ interface CancelOrderModalProps {
   onDone: (message: string) => void;
 }
 
+/** The hint explaining why Continue is disabled (linked via aria-describedby). */
+const HINT_ID = 'cancel-reason-hint';
+
 /** Two-step cancel: pick a standard reason (+ comments), then confirm. */
 export function CancelOrderModal({ order, onClose, onDone }: CancelOrderModalProps) {
   const { authFetch } = useAuth();
@@ -62,6 +65,7 @@ export function CancelOrderModal({ order, onClose, onDone }: CancelOrderModalPro
           type="button"
           className="btn btn--blue"
           disabled={validation !== null}
+          aria-describedby={validation ? HINT_ID : undefined}
           onClick={() => setStep('confirm')}
           data-testid="cancel-continue"
         >
@@ -135,7 +139,12 @@ export function CancelOrderModal({ order, onClose, onDone }: CancelOrderModalPro
           </div>
 
           <p className="od-callout">{note}.</p>
-          {code && validation && <p className="od-modal__hint">{validation}</p>}
+          {/* Before a reason is picked the hint is for screen readers only (no visual change). */}
+          {validation && (
+            <p id={HINT_ID} className={code ? 'od-modal__hint' : 'od-sr'}>
+              {validation}
+            </p>
+          )}
         </>
       ) : (
         <div className="od-confirm">

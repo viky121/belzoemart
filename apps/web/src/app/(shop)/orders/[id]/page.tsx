@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { loginHref } from '@/lib/auth-redirect';
 import {
   cancelEligibility,
+  cancelUnavailableReason,
   isLiveStatus,
   returnEligibility,
   type OrderDetail,
@@ -148,6 +149,7 @@ export default function OrderDetailPage() {
 
   const ret = returnEligibility(order);
   const canCancel = cancelEligibility(order);
+  const noCancelReason = cancelUnavailableReason(order);
   const showReturnReason = !ret.eligible && (order.status === 'delivered' || order.status === 'returned');
 
   return (
@@ -223,6 +225,11 @@ export default function OrderDetailPage() {
               >
                 Cancel order
               </button>
+            )}
+            {noCancelReason && (
+              <p className="od-muted od-actions__note" data-testid="order-cancel-unavailable">
+                {noCancelReason}
+              </p>
             )}
             {actionError && (
               <p className="od-error" role="alert">

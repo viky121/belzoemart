@@ -27,6 +27,8 @@ interface ReturnRequestModalProps {
 }
 
 const STEP_TITLES = ['Select items', 'Reason', 'Resolution', 'Photos & details', 'Review'];
+/** The hint explaining why Next / Submit is disabled (linked via aria-describedby). */
+const HINT_ID = 'return-step-hint';
 
 /** Five-step Return / Replace request: items → reason → resolution → photos → review. */
 export function ReturnRequestModal({ order, onClose, onDone }: ReturnRequestModalProps) {
@@ -138,6 +140,7 @@ export function ReturnRequestModal({ order, onClose, onDone }: ReturnRequestModa
           className="btn btn--blue"
           onClick={() => setStep((s) => s + 1)}
           disabled={stepError !== null || busy}
+          aria-describedby={stepError ? HINT_ID : undefined}
           data-testid="return-next"
         >
           Next
@@ -149,6 +152,7 @@ export function ReturnRequestModal({ order, onClose, onDone }: ReturnRequestModa
           onClick={submit}
           disabled={stepError !== null || busy}
           aria-busy={submitting}
+          aria-describedby={stepError ? HINT_ID : undefined}
           data-testid="return-submit"
         >
           {submitting ? 'Submitting…' : 'Submit return request'}
@@ -425,7 +429,11 @@ export function ReturnRequestModal({ order, onClose, onDone }: ReturnRequestModa
         </div>
       )}
 
-      {stepError && <p className="od-modal__hint">{stepError}</p>}
+      {stepError && (
+        <p id={HINT_ID} className="od-modal__hint">
+          {stepError}
+        </p>
+      )}
     </OrderDialog>
   );
 }
