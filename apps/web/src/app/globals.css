@@ -5081,7 +5081,6 @@ nav.main a:hover {
 
 .acct-orders__status {
   margin-left: auto;
-  text-transform: capitalize;
   color: var(--fk-green, #16a34a);
   font-weight: 700;
 }
