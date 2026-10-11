@@ -59,10 +59,11 @@ describe('reconcileTracking', () => {
     const s = res.shipments[0]!;
     expect(s.status).toBe('delivered');
     expect(s.providerStatus).toBe('packed');
+    // No status history: updatedAt also moves on unrelated writes (invoice), so no time.
     expect(s.events[0]).toMatchObject({
       status: 'delivered',
       derived: true,
-      occurredAt: '2025-01-02T09:00:00.000Z',
+      occurredAt: null,
     });
     // Real events follow, newest first.
     expect(s.events.slice(1).map((e) => e.status)).toEqual(['out_for_delivery', 'shipped', 'packed']);

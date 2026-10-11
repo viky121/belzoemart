@@ -171,12 +171,13 @@ export function buildStepper(order: OrderDetail): Step[] {
   const steps: Step[] = [];
   if (order.status === 'cancelled') {
     steps.push({ key: 'pending', label: statusLabel('pending'), state: 'done', at: order.createdAt ?? null });
-    steps.push({ key: 'cancelled', label: statusLabel('cancelled'), state: 'terminal', at: order.updatedAt ?? null });
+    // No status history: order.updatedAt also moves on unrelated writes (invoice), so no time.
+    steps.push({ key: 'cancelled', label: statusLabel('cancelled'), state: 'terminal', at: null });
   } else if (order.status === 'returned') {
     for (const s of ORDER_PROGRESS_STEPS) {
       steps.push({ key: s, label: statusLabel(s), state: 'done', at: stepTime(order, s) });
     }
-    steps.push({ key: 'returned', label: statusLabel('returned'), state: 'terminal', at: order.updatedAt ?? null });
+    steps.push({ key: 'returned', label: statusLabel('returned'), state: 'terminal', at: null });
   } else {
     const rank = progressRank(order.status);
     ORDER_PROGRESS_STEPS.forEach((s, i) => {
@@ -286,6 +287,12 @@ export function refundNote(order: OrderDetail): string {
 
 export function cancelEligibility(order: OrderDetail): boolean {
   return canCustomerCancel(order.status);
+}
+
+/** Why Cancel is not offered for an order that is still on its way, else null. */
+export function cancelUnavailableReason(order: OrderDetail): string | null {
+  if (canCustomerCancel(order.status) || !isLiveStatus(order.status)) return null;
+  return "Orders can't be cancelled once they are packed";
 }
 
 /** Max comment length so that "<label>: <comments>" stays within REASON_MAX_CHARS. */

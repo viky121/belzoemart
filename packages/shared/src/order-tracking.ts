@@ -206,29 +206,21 @@ function reconcileShipment(order: ReconcileInput['order'], s: ReconcileShipmentI
 
   // (c) Derive the steps the courier has not reported but the order status implies.
   let eventMaxRank = progressRank(s.status);
-  let newestReal: number | null = null;
-  for (const r of real) {
-    eventMaxRank = Math.max(eventMaxRank, r.rank);
-    if (r.time !== null && (newestReal === null || r.time > newestReal)) newestReal = r.time;
-  }
+  for (const r of real) eventMaxRank = Math.max(eventMaxRank, r.rank);
   const derivationRank =
     order.status === 'returned'
       ? progressRank('delivered')
       : order.status === 'cancelled'
         ? -1
         : progressRank(order.status);
-  const updatedAt = toTime(order.updatedAt);
-
   const derived: TimelineEvent[] = [];
   for (const step of SHIPPING_STEPS) {
     const rank = progressRank(step);
     if (!(eventMaxRank < rank && rank <= derivationRank)) continue;
-    let occurredAt: string | null = null;
-    if (step === 'packed') {
-      occurredAt = toIso(s.createdAt);
-    } else if (step === order.status && updatedAt !== null && (newestReal === null || updatedAt >= newestReal)) {
-      occurredAt = new Date(updatedAt).toISOString();
-    }
+    // Only "packed" has a real time (the shipment is created at packing). The
+    // order has no status history and `updatedAt` moves on unrelated writes
+    // (e.g. invoice regeneration), so other derived steps get no time.
+    const occurredAt: string | null = step === 'packed' ? toIso(s.createdAt) : null;
     derived.push({
       status: step,
       label: statusLabel(step),

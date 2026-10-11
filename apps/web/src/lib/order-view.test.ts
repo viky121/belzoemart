@@ -4,6 +4,7 @@ import {
   buildStepper,
   cancelReasonError,
   cancelReasonText,
+  cancelUnavailableReason,
   isLiveStatus,
   paymentSummary,
   photosRequired,
@@ -128,7 +129,8 @@ describe('buildStepper', () => {
     const steps = buildStepper(makeOrder({ status: 'delivered' }, [laggingShipment]));
     expect(steps.map((s) => s.key)).toEqual(['pending', 'confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered']);
     expect(steps.slice(0, 5).every((s) => s.state === 'done')).toBe(true);
-    expect(steps[5]).toMatchObject({ key: 'delivered', state: 'current', at: '2025-06-04T12:00:00.000Z' });
+    // Delivered was derived from the order status: no real time is known.
+    expect(steps[5]).toMatchObject({ key: 'delivered', state: 'current', at: null });
     expect(steps.find((s) => s.key === 'shipped')?.at).toBe('2025-06-02T15:00:00.000Z');
   });
 
@@ -154,7 +156,7 @@ describe('buildStepper', () => {
     const steps = buildStepper(makeOrder({ status: 'cancelled', payments: [cod] }));
     expect(steps).toEqual([
       { key: 'pending', label: 'Order placed', state: 'done', at: '2025-06-01T10:00:00.000Z' },
-      { key: 'cancelled', label: 'Cancelled', state: 'terminal', at: '2025-06-04T12:00:00.000Z' },
+      { key: 'cancelled', label: 'Cancelled', state: 'terminal', at: null },
     ]);
   });
 
@@ -176,7 +178,7 @@ describe('buildStepper', () => {
       'pending', 'confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'returned', 'refunded',
     ]);
     expect(steps.slice(0, 6).every((s) => s.state === 'done')).toBe(true);
-    expect(steps[6]).toMatchObject({ state: 'terminal', at: '2025-06-04T12:00:00.000Z' });
+    expect(steps[6]).toMatchObject({ state: 'terminal', at: null });
     expect(steps[7]).toMatchObject({ state: 'terminal', at: '2025-06-09T10:00:00.000Z' });
   });
 });
@@ -203,6 +205,17 @@ describe('payment summary and refund note', () => {
     const o = makeOrder({ status: 'pending', payments: [{ ...prepaid, status: 'created', method: null }] });
     expect(paymentSummary(o)).toMatchObject({ methodLabel: 'Online payment', statusLabel: 'Awaiting payment', isPrepaid: false });
     expect(refundNote(o)).toBe('No payment was taken for this order');
+  });
+});
+
+describe('cancelUnavailableReason', () => {
+  it('explains a missing Cancel only while the order is on its way', () => {
+    for (const s of ['packed', 'shipped', 'out_for_delivery'] as OrderStatus[]) {
+      expect(cancelUnavailableReason(makeOrder({ status: s }))).toBe("Orders can't be cancelled once they are packed");
+    }
+    for (const s of ['pending', 'confirmed', 'delivered', 'cancelled', 'returned'] as OrderStatus[]) {
+      expect(cancelUnavailableReason(makeOrder({ status: s }))).toBeNull();
+    }
   });
 });
 
