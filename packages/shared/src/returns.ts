@@ -70,17 +70,43 @@ export const MAX_RETURN_IMAGES = 6;
 export const REASON_MAX_CHARS = 300;
 export const OTHER_REASON_MIN_CHARS = 10;
 
+/** Lowercase, `_` → space, collapse whitespace, and normalise spacing around '/'. */
+function normalizeReasonKey(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[_\s]+/g, ' ')
+    .replace(/\s*\/\s*/g, ' / ')
+    .trim();
+}
+
 /**
- * Find a return reason by exact code, else by a case-insensitive match of the
- * label against the text before the first ':' (composeReason output).
+ * Find a return reason by code, else by the text before the first ':'
+ * (composeReason output) matched against the label or the code. Matching is
+ * case-insensitive and tolerant of spacing ("Damaged/broken product",
+ * "Wrong item", "DAMAGED").
  */
 export function findReturnReason(codeOrText: string | null | undefined): ReturnReason | undefined {
   if (!codeOrText) return undefined;
   const byCode = RETURN_REASONS.find((r) => r.code === codeOrText);
   if (byCode) return byCode;
-  const head = (codeOrText.split(':')[0] ?? '').trim().toLowerCase();
+  const head = normalizeReasonKey(codeOrText.split(':')[0] ?? '');
   if (!head) return undefined;
-  return RETURN_REASONS.find((r) => r.label.toLowerCase() === head);
+  return RETURN_REASONS.find((r) => normalizeReasonKey(r.label) === head || normalizeReasonKey(r.code) === head);
+}
+
+/**
+ * The customer's own comments inside a composed reason: the text after the
+ * reason label (and its ':'), or the whole text when it does not start with it.
+ */
+export function reasonComments(reason: ReturnReason, text: string | null | undefined): string {
+  const t = (text ?? '').trim();
+  const colon = t.indexOf(':');
+  const head = colon >= 0 ? t.slice(0, colon) : t;
+  const key = normalizeReasonKey(head);
+  if (key === normalizeReasonKey(reason.label) || key === normalizeReasonKey(reason.code)) {
+    return colon >= 0 ? t.slice(colon + 1).trim() : '';
+  }
+  return t;
 }
 
 /** Photos are required when either the code or the reason text says so (stricter wins). */

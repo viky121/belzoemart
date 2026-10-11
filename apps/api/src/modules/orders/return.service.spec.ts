@@ -63,7 +63,13 @@ describe('ReturnService.request — validation', () => {
   const ITEM_B = '22222222-2222-4222-8222-222222222222';
   const PHOTO = 'https://cdn.belzo.test/returns/0f8fad5b-d9cb-469f-a165-70867728950e.jpg';
 
-  function build(previous: { status: string; items: { orderItemId: string; quantity: number }[] }[] = []) {
+  const COD = [{ provider: 'cod', method: null, status: 'pending' }];
+  const PREPAID = [{ provider: 'razorpay', method: 'upi', status: 'captured' }];
+
+  function build(
+    previous: { status: string; items: { orderItemId: string; quantity: number }[] }[] = [],
+    opts: { payments?: { provider: string; method: string | null; status: string }[]; returnable?: boolean } = {},
+  ) {
     const createdData: Record<string, unknown>[] = [];
     const prisma = {
       order: {
@@ -75,10 +81,11 @@ describe('ReturnService.request — validation', () => {
             { id: ITEM_A, variantId: 'v1', title: 'Herbal Tea', quantity: 2 },
             { id: ITEM_B, variantId: 'v2', title: 'Honey', quantity: 1 },
           ],
+          payments: opts.payments ?? COD,
         }),
       },
       variant: {
-        findMany: async () => [{ product: { title: 'Herbal Tea', isReturnable: true } }],
+        findMany: async () => [{ product: { title: 'Herbal Tea', isReturnable: opts.returnable ?? true } }],
       },
       returnRequest: {
         // Mirrors the `status: { not: 'rejected' }` filter.
@@ -161,5 +168,68 @@ describe('ReturnService.request — validation', () => {
     await expect(
       svc.request('c1', { orderId: 'o1', reason: 'No longer needed', items: [{ orderItemId: ITEM_A, quantity: 1 }] }),
     ).resolves.toBeDefined();
+  });
+
+  it('rejects the same order item listed twice', async () => {
+    const { svc } = build();
+    await expect(
+      svc.request('c1', {
+        orderId: 'o1',
+        reason: 'No longer needed',
+        items: [
+          { orderItemId: ITEM_A, quantity: 1 },
+          { orderItemId: ITEM_A, quantity: 1 },
+        ],
+      }),
+    ).rejects.toThrow('Each item can be listed only once');
+  });
+
+  it('rejects a non-returnable item', async () => {
+    const { svc, createdData } = build([], { returnable: false });
+    await expect(svc.request('c1', { ...base, reason: 'No longer needed' })).rejects.toThrow(
+      '"Herbal Tea" is non-returnable and cannot be returned',
+    );
+    expect(createdData).toHaveLength(0);
+  });
+
+  it('requires photos for code-less free-text defect reasons', async () => {
+    const { svc } = build();
+    for (const reason of ['Damaged', 'Damaged/broken product', 'Wrong item', 'DEFECTIVE: not working']) {
+      await expect(svc.request('c1', { ...base, reason })).rejects.toThrow(/photo/);
+    }
+  });
+
+  it('allows a replacement only for reasons that offer one', async () => {
+    const { svc, createdData } = build();
+    await expect(
+      svc.request('c1', { ...base, reasonCode: 'not_needed', reason: 'No longer needed', resolution: 'replace' }),
+    ).rejects.toThrow('Replacement is not available for this return reason');
+    await svc.request('c1', { ...base, reasonCode: 'size_fit', reason: 'Size / fit issue', resolution: 'replace' });
+    expect(createdData[0]).toMatchObject({ resolution: 'replace' });
+  });
+
+  it('allows a refund to the original payment method only for prepaid orders', async () => {
+    const cod = build([], { payments: COD });
+    await expect(
+      cod.svc.request('c1', { ...base, reasonCode: 'not_needed', reason: 'No longer needed', resolution: 'refund_source' }),
+    ).rejects.toThrow(/only for prepaid orders/);
+    const prepaid = build([], { payments: PREPAID });
+    await prepaid.svc.request('c1', {
+      ...base,
+      reasonCode: 'not_needed',
+      reason: 'No longer needed',
+      resolution: 'refund_source',
+    });
+    expect(prepaid.createdData[0]).toMatchObject({ resolution: 'refund_source' });
+  });
+
+  it('requires at least 10 characters of comments for Other', async () => {
+    const { svc, createdData } = build();
+    const req = (reason: string) =>
+      svc.request('c1', { ...base, reasonCode: 'other', reason, resolution: 'refund_wallet' });
+    await expect(req('Other')).rejects.toThrow(/at least 10 characters/);
+    await expect(req('Other: smells very odd')).resolves.toBeDefined();
+    await expect(req('Other: short')).rejects.toThrow(/at least 10 characters/);
+    expect(createdData).toHaveLength(1);
   });
 });

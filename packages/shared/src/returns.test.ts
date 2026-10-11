@@ -3,6 +3,7 @@ import {
   RETURN_REASONS,
   composeReason,
   findReturnReason,
+  reasonComments,
   returnReasonRequiresPhotos,
 } from './returns';
 
@@ -12,6 +13,24 @@ describe('return reasons', () => {
     expect(findReturnReason('damaged / BROKEN product: lid cracked')?.code).toBe('damaged');
     expect(findReturnReason('Changed my mind')).toBeUndefined();
     expect(findReturnReason(undefined)).toBeUndefined();
+  });
+
+  it('matches free text case-insensitively, by code words and with loose "/" spacing', () => {
+    expect(findReturnReason('Damaged')?.code).toBe('damaged');
+    expect(findReturnReason('DAMAGED')?.code).toBe('damaged');
+    expect(findReturnReason('Damaged/broken product')?.code).toBe('damaged');
+    expect(findReturnReason('Wrong item')?.code).toBe('wrong_item');
+    expect(findReturnReason('wrong_item: got 1L')?.code).toBe('wrong_item');
+    expect(returnReasonRequiresPhotos({ reason: 'Damaged' })).toBe(true);
+    expect(returnReasonRequiresPhotos({ reason: 'Wrong item' })).toBe(true);
+    expect(returnReasonRequiresPhotos({ reasonCode: 'DEFECTIVE' })).toBe(true);
+  });
+
+  it('extracts the comments from a composed reason', () => {
+    const other = RETURN_REASONS.find((r) => r.code === 'other')!;
+    expect(reasonComments(other, 'Other: smells odd today')).toBe('smells odd today');
+    expect(reasonComments(other, 'Other')).toBe('');
+    expect(reasonComments(other, 'The seal was open')).toBe('The seal was open');
   });
 
   it('requires photos by code', () => {

@@ -1,5 +1,11 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { clampRefund, findReturnReason, returnReasonRequiresPhotos } from '@belzo/shared';
+import {
+  OTHER_REASON_MIN_CHARS,
+  clampRefund,
+  findReturnReason,
+  reasonComments,
+  returnReasonRequiresPhotos,
+} from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { STORAGE_PROVIDER, type StorageProvider } from '../../integrations/storage/storage.provider';
 import { InventoryService } from '../catalogue/inventory.service';
@@ -8,6 +14,9 @@ import { WalletService } from '../engagement/wallet.service';
 import { RETURN_MEDIA_FOLDER, isOwnReturnImageUrl } from './return-images';
 
 type ReturnResolution = 'refund_source' | 'refund_wallet' | 'replace';
+
+/** Payment states that mean money was taken online (mirrors the storefront's "prepaid"). */
+const SETTLED_PAYMENT_STATUSES = ['captured', 'refunded', 'partially_refunded'];
 
 /**
  * Returns & refunds (BR-9, BR-10, BR-11, FR-5.5, FR-5.6). A return can be
@@ -43,11 +52,28 @@ export class ReturnService {
   ) {
     const order = await this.prisma.order.findUnique({
       where: { id: input.orderId },
-      include: { items: true },
+      include: { items: true, payments: true },
     });
     if (!order) throw new NotFoundException('Order not found');
     if (order.customerId !== customerId) throw new ForbiddenException('Not your order');
     if (order.status !== 'delivered') throw new BadRequestException('Only delivered orders can be returned');
+
+    // Same reason/resolution rules as the storefront return form.
+    const reasonDef = findReturnReason(input.reasonCode) ?? findReturnReason(input.reason);
+    if (input.resolution === 'replace' && !reasonDef?.allowReplace) {
+      throw new BadRequestException('Replacement is not available for this return reason');
+    }
+    if (input.resolution === 'refund_source') {
+      const prepaid = order.payments.some(
+        (p) => p.provider !== 'cod' && p.method !== 'cod' && SETTLED_PAYMENT_STATUSES.includes(p.status),
+      );
+      if (!prepaid) {
+        throw new BadRequestException('Refund to the original payment method is available only for prepaid orders');
+      }
+    }
+    if (reasonDef?.commentRequired && reasonComments(reasonDef, input.reason).length < OTHER_REASON_MIN_CHARS) {
+      throw new BadRequestException(`Please describe the issue (at least ${OTHER_REASON_MIN_CHARS} characters)`);
+    }
 
     if (input.items) {
       const ids = new Set<string>();
