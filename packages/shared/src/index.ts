@@ -4,6 +4,8 @@ export * from './schemas';
 export * from './catalogue';
 export * from './pricing';
 export * from './orders';
+export * from './order-tracking';
+export * from './returns';
 export * from './wallet';
 export * from './reporting';
 export * from './gst';
