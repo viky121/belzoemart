@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { adminFetch, adminUpload } from '@/lib/admin-api';
 import { MediaPicker } from '@/components/media-picker';
+import { CategoryPicker, type CategoryTreeNode } from '@/components/category-picker';
 import {
   initialEdit,
   removeVariantConfirmText,
@@ -60,7 +61,8 @@ export function ProductEditor({
   onSaved,
 }: {
   productId: string;
-  categories: Opt[];
+  /** Nested category tree (Category → Sub-category → Final detail). */
+  categories: CategoryTreeNode[];
   brands: Opt[];
   onSaved: () => void;
 }) {
@@ -252,13 +254,12 @@ export function ProductEditor({
           <label className="auth-label">Title</label>
           <input className="auth-input" value={d.title} onChange={(e) => upd({ title: e.target.value })} />
         </div>
-        <div>
-          <label className="auth-label">Category</label>
-          <select className="auth-input" value={d.categoryId} onChange={(e) => upd({ categoryId: e.target.value })}>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+        <div className="prod-grid__full">
+          <CategoryPicker
+            tree={categories}
+            value={d.categoryId}
+            onChange={(categoryId) => upd({ categoryId })}
+          />
         </div>
         <div>
           <label className="auth-label">Brand</label>

@@ -26,13 +26,7 @@ interface Brand {
   name: string;
 }
 
-function flatten(nodes: CatNode[], out: { id: string; name: string }[] = []) {
-  for (const n of nodes) {
-    out.push({ id: n.id, name: n.name });
-    if (n.children?.length) flatten(n.children, out);
-  }
-  return out;
-}
+
 
 /** Admin Product & Inventory management: dashboard + wizard + edit/stock. */
 export default function AdminCataloguePage() {
@@ -83,7 +77,6 @@ export default function AdminCataloguePage() {
     }
   }
 
-  const catOpts = flatten(categories);
   const total = products.length;
   const inStock = products.filter((p) => p.stock > 0).length;
   const outOfStock = total - inStock;
@@ -240,7 +233,7 @@ export default function AdminCataloguePage() {
                   {editId === p.id && (
                     <tr>
                       <td colSpan={7}>
-                        <ProductEditor productId={p.id} categories={catOpts} brands={brands} onSaved={() => load()} />
+                        <ProductEditor productId={p.id} categories={categories} brands={brands} onSaved={() => load()} />
                       </td>
                     </tr>
                   )}

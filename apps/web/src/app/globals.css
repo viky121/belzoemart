@@ -1015,6 +1015,22 @@ nav.main a:hover {
   margin-top: 12px;
 }
 
+/* The info column is much taller than the gallery; without this the gallery
+   cell stretches and leaves a large white gap. Keep the gallery at its own
+   height and let it follow the scroll (standard PDP layout). */
+.pdp__gallery {
+  align-self: start;
+  position: sticky;
+  top: 132px; /* below the sticky header + category bar */
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .pdp__gallery {
+    position: static;
+  }
+}
+
 .pdp__hero {
   position: relative;
   border: 1px solid var(--border-2);

@@ -1818,3 +1818,43 @@
 }
 .svc-chip button:hover { background: #fecaca; color: #b91c1c; }
 .svc-actions { display: flex; align-items: center; gap: 12px; }
+
+/* --- Cascading category picker (product editor) --- */
+.catpick__row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.catpick__col {
+  display: flex;
+  flex-direction: column;
+}
+.catpick__col .auth-input {
+  width: 100%;
+  margin-bottom: 0;
+}
+.catpick__col .auth-input:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+}
+.catpick__path {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: #0f172a;
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+.catpick__lbl {
+  color: #64748b;
+  font-weight: 600;
+  margin-right: 4px;
+}
+.catpick__warn {
+  color: #b45309;
+}
+@media (max-width: 720px) {
+  .catpick__row {
+    grid-template-columns: 1fr;
+  }
+}
