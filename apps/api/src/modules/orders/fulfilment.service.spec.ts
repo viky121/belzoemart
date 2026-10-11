@@ -103,3 +103,112 @@ describe('FulfilmentService.createShipment — weight resolution', () => {
     expect(getWeight()).toBe(800 + 500 * 2); // 1800
   });
 });
+
+/**
+ * syncTracking stores only new events, moves the shipment status forward and
+ * advances the order through legal transitions only.
+ */
+describe('FulfilmentService.syncTracking', () => {
+  const createdAt = new Date('2025-01-01T09:00:00.000Z');
+  const ev = (status: string, description: string, location?: string) => ({
+    status,
+    description,
+    location,
+    occurredAt: '2025-01-01T10:00:00.000Z',
+  });
+
+  function build(opts: {
+    orderStatus: string;
+    shipmentStatus?: string;
+    updates: ReturnType<typeof ev>[];
+    stored?: { status: string; description: string; location: string | null }[];
+  }) {
+    const created: Record<string, unknown>[] = [];
+    const shipmentUpdates: Record<string, unknown>[] = [];
+    const orderUpdates: Record<string, unknown>[] = [];
+    const ctxs: unknown[] = [];
+    const prisma = {
+      shipment: {
+        findUnique: async () => ({
+          id: 'ship-1',
+          orderId: 'order-1',
+          awb: 'AWB1',
+          status: opts.shipmentStatus ?? 'packed',
+          createdAt,
+        }),
+        update: async ({ data }: { data: Record<string, unknown> }) => {
+          shipmentUpdates.push(data);
+          return {};
+        },
+      },
+      order: {
+        findUnique: async () => ({ id: 'order-1', status: opts.orderStatus }),
+        update: async ({ data }: { data: Record<string, unknown> }) => {
+          orderUpdates.push(data);
+          return {};
+        },
+      },
+      trackingEvent: {
+        findMany: async () => opts.stored ?? [],
+        create: async ({ data }: { data: Record<string, unknown> }) => {
+          created.push(data);
+          return data;
+        },
+      },
+    } as unknown as PrismaService;
+    const shipping = {
+      kind: 'mock' as const,
+      getTracking: async (_awb: string, ctx: unknown) => {
+        ctxs.push(ctx);
+        return opts.updates;
+      },
+    } as unknown as ShippingProvider;
+    const svc = new FulfilmentService(prisma, shipping, {} as SettingsService);
+    return { svc, created, shipmentUpdates, orderUpdates, ctxs };
+  }
+
+  it('passes the order status and shipment creation time to the provider', async () => {
+    const { svc, ctxs } = build({ orderStatus: 'packed', updates: [] });
+    await svc.syncTracking('ship-1');
+    expect(ctxs).toEqual([{ orderStatus: 'packed', since: createdAt.toISOString() }]);
+  });
+
+  it('skips events that are already stored', async () => {
+    const { svc, created } = build({
+      orderStatus: 'packed',
+      updates: [ev('packed', 'Shipment packed', 'Warehouse'), ev('shipped', 'Handed to courier', 'Bengaluru')],
+      stored: [{ status: 'packed', description: 'Shipment packed', location: 'Warehouse' }],
+    });
+    await svc.syncTracking('ship-1');
+    expect(created.map((c) => c.status)).toEqual(['shipped']);
+  });
+
+  it('advances a packed order to out_for_delivery via shipped and updates the shipment', async () => {
+    const { svc, shipmentUpdates, orderUpdates } = build({
+      orderStatus: 'packed',
+      updates: [ev('packed', 'Shipment packed'), ev('shipped', 'Handed to courier'), ev('out_for_delivery', 'Out for delivery')],
+    });
+    await svc.syncTracking('ship-1');
+    expect(shipmentUpdates).toEqual([{ status: 'out_for_delivery' }]);
+    expect(orderUpdates).toEqual([{ status: 'out_for_delivery' }]);
+  });
+
+  it('does not move a cancelled order', async () => {
+    const { svc, orderUpdates } = build({
+      orderStatus: 'cancelled',
+      updates: [ev('packed', 'Shipment packed'), ev('shipped', 'Handed to courier')],
+    });
+    await svc.syncTracking('ship-1');
+    expect(orderUpdates).toEqual([]);
+  });
+
+  it('does not move the shipment backwards', async () => {
+    const { svc, shipmentUpdates } = build({
+      orderStatus: 'delivered',
+      shipmentStatus: 'delivered',
+      updates: [ev('packed', 'Shipment packed')],
+    });
+    await svc.syncTracking('ship-1');
+    expect(shipmentUpdates).toEqual([]);
+  });
+});

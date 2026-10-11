@@ -1,9 +1,19 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { canCustomerCancel, canTransition, type OrderStatus } from '@belzo/shared';
+import { canCustomerCancel, canTransition, reconcileTracking, type OrderStatus } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { InventoryService } from '../catalogue/inventory.service';
 import { PaymentService } from '../checkout/payment.service';
 import { CartService } from '../cart/cart.service';
+
+/** Variant attributes JSON → plain string map ({} when not an object). */
+function toAttributes(json: unknown): Record<string, string> {
+  if (!json || typeof json !== 'object' || Array.isArray(json)) return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(json as Record<string, unknown>)) {
+    if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') out[k] = String(v);
+  }
+  return out;
+}
 
 /**
  * Order lifecycle (BR-1..BR-3, FR-5). Enforces the shared state machine on
@@ -19,10 +29,13 @@ export class OrderService {
     private readonly cart: CartService,
   ) {}
 
-  /** Resolve a display image + product slug for a set of variant ids. */
-  private async productMetaForVariants(
-    variantIds: string[],
-  ): Promise<Map<string, { imageUrl: string | null; slug: string | null }>> {
+  /** Resolve display image, slug, returnability and variant attributes for a set of variant ids. */
+  private async productMetaForVariants(variantIds: string[]): Promise<
+    Map<
+      string,
+      { imageUrl: string | null; slug: string | null; isReturnable: boolean; attributes: Record<string, string> }
+    >
+  > {
     const ids = [...new Set(variantIds)];
     if (ids.length === 0) return new Map();
     const variants = await this.prisma.variant.findMany({
@@ -32,26 +45,80 @@ export class OrderService {
     return new Map(
       variants.map((v) => [
         v.id,
-        { imageUrl: v.product.images[0]?.url ?? v.imageUrl ?? null, slug: v.product.slug ?? null },
+        {
+          imageUrl: v.product.images[0]?.url ?? v.imageUrl ?? null,
+          slug: v.product.slug ?? null,
+          isReturnable: v.product.isReturnable ?? true,
+          attributes: toAttributes(v.attributesJson),
+        },
       ]),
     );
   }
 
+  /**
+   * Customer order detail: items (with image, slug, returnability, variant
+   * attributes), the delivery address, return requests and tracking reconciled
+   * with the order status (the order status is the source of truth).
+   */
   async getForCustomer(customerId: string, orderId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      include: { items: true, payments: true, shipments: { include: { events: true } }, invoice: true },
+      include: {
+        items: true,
+        payments: true,
+        shipments: { include: { events: true } },
+        invoice: true,
+        returns: { include: { items: true }, orderBy: { createdAt: 'desc' } },
+      },
     });
     if (!order) throw new NotFoundException('Order not found');
     if (order.customerId !== customerId) throw new ForbiddenException('Not your order'); // IDOR (SECURITY-08)
-    const meta = await this.productMetaForVariants(order.items.map((i) => i.variantId));
+    const [meta, addr] = await Promise.all([
+      this.productMetaForVariants(order.items.map((i) => i.variantId)),
+      this.prisma.address.findUnique({ where: { id: order.addressId } }),
+    ]);
+    const address =
+      addr && addr.customerId === customerId
+        ? {
+            fullName: addr.fullName,
+            phone: addr.phone,
+            line1: addr.line1,
+            line2: addr.line2,
+            city: addr.city,
+            state: addr.state,
+            pincode: addr.pincode,
+          }
+        : null;
+    const tracking = reconcileTracking({ order, shipments: order.shipments });
+    const shipmentStatus = new Map(tracking.shipments.map((s) => [s.id, s.status]));
     return {
       ...order,
-      items: order.items.map((i) => ({
-        ...i,
-        imageUrl: meta.get(i.variantId)?.imageUrl ?? null,
-        slug: meta.get(i.variantId)?.slug ?? null,
+      address,
+      items: order.items.map((i) => {
+        const m = meta.get(i.variantId);
+        return {
+          ...i,
+          imageUrl: m?.imageUrl ?? null,
+          slug: m?.slug ?? null,
+          // A removed variant is skipped by ReturnService's non-returnable check.
+          isReturnable: m?.isReturnable ?? true,
+          attributes: m?.attributes ?? {},
+        };
+      }),
+      returns: order.returns.map((r) => ({
+        id: r.id,
+        status: r.status,
+        reason: r.reason,
+        resolution: r.resolution,
+        images: Array.isArray(r.imagesJson)
+          ? r.imagesJson.filter((u): u is string => typeof u === 'string')
+          : [],
+        items: r.items.map((it) => ({ orderItemId: it.orderItemId, quantity: it.quantity })),
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
       })),
+      shipments: order.shipments.map((s) => ({ ...s, status: shipmentStatus.get(s.id) ?? s.status })),
+      tracking,
     };
   }
 

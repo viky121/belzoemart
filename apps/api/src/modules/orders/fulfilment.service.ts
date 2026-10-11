@@ -1,5 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { canTransition, type OrderStatus } from '@belzo/shared';
+import { ORDER_PROGRESS_STEPS, canTransition, progressRank, type OrderStatus } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { SettingsService } from '../admin/settings.service';
 import {
@@ -11,6 +11,11 @@ import {
 /** Admin-configurable fallback item weight (grams) when a variant has none set. */
 const DEFAULT_ITEM_WEIGHT_KEY = 'shipping.defaultItemWeightGrams';
 const DEFAULT_ITEM_WEIGHT_GRAMS = 500;
+
+/** ShipmentStatus values a tracking pull may move a shipment to. */
+const SHIPMENT_PROGRESS_STATUSES: readonly OrderStatus[] = ['packed', 'shipped', 'out_for_delivery', 'delivered'];
+/** Courier statuses that advance the order (as before: shipped and beyond). */
+const ORDER_MOVING_STATUSES: readonly OrderStatus[] = ['shipped', 'out_for_delivery', 'delivered'];
 
 /**
  * Fulfilment (BR-6, BR-7, FR-5.2). Creates a shipment/AWB via the shipping port
@@ -94,13 +99,30 @@ export class FulfilmentService {
     return { shipmentId: shipment.id, awb: awb.awb };
   }
 
-  /** Pull tracking updates and advance the order state (BR-6). */
+  /**
+   * Pull tracking updates and advance the order state (BR-6). Stores only
+   * events not already recorded, moves the shipment status forward, and walks
+   * the order through each legal transition up to the furthest courier status
+   * (e.g. packed → shipped → out_for_delivery), written as a single update.
+   */
   async syncTracking(shipmentId: string): Promise<void> {
     const shipment = await this.prisma.shipment.findUnique({ where: { id: shipmentId } });
     if (!shipment?.awb) return;
-    const updates = await this.shipping.getTracking(shipment.awb);
+    const order = await this.prisma.order.findUnique({ where: { id: shipment.orderId } });
+    if (!order) return;
+    const updates = await this.shipping.getTracking(shipment.awb, {
+      orderStatus: order.status,
+      since: shipment.createdAt.toISOString(),
+    });
 
+    const eventKey = (e: { status: string; description: string; location?: string | null }) =>
+      `${e.status}|${e.description}|${e.location ?? ''}`;
+    const existing = await this.prisma.trackingEvent.findMany({ where: { shipmentId } });
+    const stored = new Set(existing.map(eventKey));
     for (const u of updates) {
+      const key = eventKey(u);
+      if (stored.has(key)) continue;
+      stored.add(key);
       await this.prisma.trackingEvent.create({
         data: {
           shipmentId,
@@ -112,19 +134,29 @@ export class FulfilmentService {
       });
     }
 
-    // Map the latest tracking status onto the order state machine.
-    const latest = updates[updates.length - 1]?.status;
-    const map: Record<string, OrderStatus> = {
-      shipped: 'shipped',
-      out_for_delivery: 'out_for_delivery',
-      delivered: 'delivered',
-    };
-    const target = latest ? map[latest] : undefined;
-    if (target) {
-      const order = await this.prisma.order.findFirst({ where: { id: shipment.orderId } });
-      if (order && canTransition(order.status, target)) {
-        await this.prisma.order.update({ where: { id: shipment.orderId }, data: { status: target } });
-      }
+    // Furthest progress step reported by the courier.
+    const furthestRank = updates.reduce((max, u) => Math.max(max, progressRank(u.status)), -1);
+    const furthest = ORDER_PROGRESS_STEPS[furthestRank];
+    if (!furthest) return;
+
+    if (SHIPMENT_PROGRESS_STATUSES.includes(furthest) && furthestRank > progressRank(shipment.status)) {
+      await this.prisma.shipment.update({
+        where: { id: shipmentId },
+        data: { status: furthest as 'packed' | 'shipped' | 'out_for_delivery' | 'delivered' },
+      });
+    }
+
+    // Only courier movement (shipped and beyond) advances the order; never
+    // confirm a pending order or touch a terminal one.
+    if (!ORDER_MOVING_STATUSES.includes(furthest) || order.status === 'pending') return;
+    let current: OrderStatus = order.status;
+    for (;;) {
+      const next: OrderStatus | undefined = ORDER_PROGRESS_STEPS[progressRank(current) + 1];
+      if (!next || progressRank(next) > furthestRank || !canTransition(current, next)) break;
+      current = next;
+    }
+    if (current !== order.status) {
+      await this.prisma.order.update({ where: { id: order.id }, data: { status: current } });
     }
   }
 

@@ -85,6 +85,7 @@ describe('OrderService — removed variants', () => {
     ],
     payments: [],
     shipments: [],
+    returns: [],
     invoice: null,
   };
 
@@ -92,6 +93,7 @@ describe('OrderService — removed variants', () => {
     const added: string[] = [];
     const prisma = {
       order: { findUnique: async () => order },
+      address: { findUnique: async () => null },
       variant: {
         findMany: async ({ where: { id } }: { where: { id: { in: string[] } } }) =>
           variants.filter((v) => id.in.includes(v.id as string)),
@@ -137,5 +139,118 @@ describe('OrderService — removed variants', () => {
     const cart = await svc.reorder('c1', 'o1');
     expect(added).toEqual(['v-ok']);
     expect(cart).toMatchObject({ cartId: 'cart1' });
+  });
+});
+
+/** Order detail payload: reconciled tracking, address, returnability, attributes, returns. */
+describe('OrderService.getForCustomer — detail payload', () => {
+  const order = {
+    id: 'o1',
+    customerId: 'c1',
+    addressId: 'a1',
+    status: 'delivered',
+    updatedAt: new Date('2025-01-02T09:00:00.000Z'),
+    items: [
+      { id: 'i1', variantId: 'v1', title: 'Tea 250 g', sku: 'TEA-250', quantity: 1, unitPrice: 30000 },
+      { id: 'i2', variantId: 'v-gone', title: 'Honey', sku: 'HONEY', quantity: 1, unitPrice: 20000 },
+    ],
+    payments: [],
+    invoice: null,
+    shipments: [
+      {
+        id: 's1',
+        status: 'packed',
+        createdAt: new Date('2025-01-01T09:00:00.000Z'),
+        events: [
+          { status: 'packed', description: 'Shipment packed', location: null, occurredAt: new Date('2025-01-01T10:00:00.000Z') },
+          { status: 'shipped', description: 'Handed to courier', location: 'Bengaluru', occurredAt: new Date('2025-01-01T11:00:00.000Z') },
+          { status: 'out_for_delivery', description: 'Out for delivery', location: null, occurredAt: new Date('2025-01-01T12:00:00.000Z') },
+        ],
+      },
+    ],
+    returns: [
+      {
+        id: 'r1',
+        status: 'requested',
+        reason: 'Damaged / broken product: cracked',
+        resolution: 'replace',
+        imagesJson: ['https://cdn.belzo.test/returns/x.jpg', 42],
+        items: [{ id: 'ri1', returnRequestId: 'r1', orderItemId: 'i1', quantity: 1 }],
+        createdAt: new Date('2025-01-03T00:00:00.000Z'),
+        updatedAt: new Date('2025-01-03T00:00:00.000Z'),
+      },
+    ],
+  };
+
+  function build(address: Record<string, unknown> | null) {
+    const prisma = {
+      order: { findUnique: async () => order },
+      address: { findUnique: async () => address },
+      variant: {
+        findMany: async () => [
+          {
+            id: 'v1',
+            imageUrl: null,
+            attributesJson: { size: '250 g', colour: 'Green', nested: { x: 1 } },
+            product: { slug: 'tea', isReturnable: false, images: [] },
+          },
+        ],
+      },
+    } as unknown as PrismaService;
+    return new OrderService(prisma, {} as InventoryService, {} as PaymentService, {} as CartService);
+  }
+
+  const ownAddress = {
+    id: 'a1',
+    customerId: 'c1',
+    fullName: 'Test User',
+    phone: '9000000000',
+    line1: '1 Main Road',
+    line2: null,
+    city: 'Bengaluru',
+    state: 'Karnataka',
+    pincode: '560001',
+  };
+
+  it('reconciles a stale packed shipment with the delivered order', async () => {
+    const res = await build(ownAddress).getForCustomer('c1', 'o1');
+    expect(res.tracking.latestStatus).toBe('delivered');
+    expect(res.shipments[0]!.status).toBe('delivered');
+    expect(res.tracking.shipments[0]!.providerStatus).toBe('packed');
+    expect(res.tracking.shipments[0]!.events[0]).toMatchObject({ status: 'delivered', derived: true });
+  });
+
+  it('exposes item returnability/attributes, the owned address and return requests', async () => {
+    const res = await build(ownAddress).getForCustomer('c1', 'o1');
+    expect(res.items[0]).toMatchObject({ isReturnable: false, attributes: { size: '250 g', colour: 'Green' } });
+    expect(res.items[0]!.attributes).not.toHaveProperty('nested');
+    expect(res.items[1]).toMatchObject({ isReturnable: true, attributes: {} });
+    expect(res.address).toEqual({
+      fullName: 'Test User',
+      phone: '9000000000',
+      line1: '1 Main Road',
+      line2: null,
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      pincode: '560001',
+    });
+    expect(res.returns).toEqual([
+      expect.objectContaining({
+        id: 'r1',
+        status: 'requested',
+        resolution: 'replace',
+        images: ['https://cdn.belzo.test/returns/x.jpg'],
+        items: [{ orderItemId: 'i1', quantity: 1 }],
+      }),
+    ]);
+  });
+
+  it('returns a null address when it belongs to someone else', async () => {
+    const res = await build({ ...ownAddress, customerId: 'other' }).getForCustomer('c1', 'o1');
+    expect(res.address).toBeNull();
+  });
+
+  it('still rejects another customer', async () => {
+    await expect(build(ownAddress).getForCustomer('c2', 'o1')).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
