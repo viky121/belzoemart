@@ -11,12 +11,30 @@ import { STORAGE_PROVIDER, type StorageProvider } from '../../integrations/stora
 import { InventoryService } from '../catalogue/inventory.service';
 import { PaymentService } from '../checkout/payment.service';
 import { WalletService } from '../engagement/wallet.service';
+import { codReturnCredit } from './cod-return-credit';
 import { RETURN_MEDIA_FOLDER, isOwnReturnImageUrl } from './return-images';
 
 type ReturnResolution = 'refund_source' | 'refund_wallet' | 'replace';
 
 /** Payment states that mean money was taken online (mirrors the storefront's "prepaid"). */
 const SETTLED_PAYMENT_STATUSES = ['captured', 'refunded', 'partially_refunded'];
+
+/** A return being marked received, with its order (as loaded by adminUpdate). */
+interface ReceivedReturn {
+  id: string;
+  orderId: string;
+  resolution: string;
+  items: { orderItemId: string; quantity: number }[];
+  order: {
+    customerId: string;
+    status: string;
+    grandTotal: number;
+    shipping: number;
+    codFee: number;
+    items: { id: string; variantId: string; unitPrice: number; quantity: number }[];
+    payments: { provider: string; status: string; amount: number }[];
+  };
+}
 
 /**
  * Returns & refunds (BR-9, BR-10, BR-11, FR-5.5, FR-5.6). A return can be
@@ -63,13 +81,11 @@ export class ReturnService {
     if (input.resolution === 'replace' && !reasonDef?.allowReplace) {
       throw new BadRequestException('Replacement is not available for this return reason');
     }
-    if (input.resolution === 'refund_source') {
-      const prepaid = order.payments.some(
-        (p) => p.provider !== 'cod' && p.method !== 'cod' && SETTLED_PAYMENT_STATUSES.includes(p.status),
-      );
-      if (!prepaid) {
-        throw new BadRequestException('Refund to the original payment method is available only for prepaid orders');
-      }
+    const prepaid = order.payments.some(
+      (p) => p.provider !== 'cod' && p.method !== 'cod' && SETTLED_PAYMENT_STATUSES.includes(p.status),
+    );
+    if (input.resolution === 'refund_source' && !prepaid) {
+      throw new BadRequestException('Refund to the original payment method is available only for prepaid orders');
     }
     if (reasonDef?.commentRequired && reasonComments(reasonDef, input.reason).length < OTHER_REASON_MIN_CHARS) {
       throw new BadRequestException(`Please describe the issue (at least ${OTHER_REASON_MIN_CHARS} characters)`);
@@ -145,7 +161,8 @@ export class ReturnService {
         customerId,
         reason: input.reason,
         imagesJson: images,
-        resolution: input.resolution ?? 'refund_source',
+        // No gateway payment to refund (e.g. COD): default to the wallet.
+        resolution: input.resolution ?? (prepaid ? 'refund_source' : 'refund_wallet'),
         items: { create: items.map((it) => ({ orderItemId: it.orderItemId, quantity: it.quantity })) },
       },
       include: { items: true },
@@ -186,17 +203,7 @@ export class ReturnService {
     return this.prisma.returnRequest.update({ where: { id: returnId }, data: { status } });
   }
 
-  private async processReceived(ret: {
-    id: string;
-    orderId: string;
-    resolution: string;
-    items: { orderItemId: string; quantity: number }[];
-    order: {
-      grandTotal: number;
-      items: { id: string; variantId: string; unitPrice: number; quantity: number }[];
-      payments: { status: string; amount: number }[];
-    };
-  }): Promise<void> {
+  private async processReceived(ret: ReceivedReturn): Promise<void> {
     // Restock the returned quantities.
     let refundAmount = 0;
     for (const ri of ret.items) {
@@ -207,12 +214,23 @@ export class ReturnService {
     }
 
     const captured = ret.order.payments.find((p) => p.status === 'captured');
+
+    // COD: no gateway payment exists, so the refund always goes to the wallet.
+    if (!captured && ret.order.payments.some((p) => p.provider === 'cod')) {
+      await this.processCodReceived(ret);
+      return;
+    }
+
     const capturedAmount = captured?.amount ?? 0;
     const toRefund = clampRefund(refundAmount, capturedAmount);
+    const refunds =
+      (ret.resolution === 'refund_source' && toRefund > 0 && Boolean(captured)) ||
+      (ret.resolution === 'refund_wallet' && toRefund > 0);
 
+    // 'refunded' only when money is actually returned.
     await this.prisma.returnRequest.update({
       where: { id: ret.id },
-      data: { status: ret.resolution === 'replace' ? 'received' : 'refunded' },
+      data: { status: refunds ? 'refunded' : 'received' },
     });
 
     if (ret.resolution === 'refund_source' && toRefund > 0 && captured) {
@@ -226,5 +244,50 @@ export class ReturnService {
         `return:${ret.id}`,
       );
     }
+  }
+
+  /**
+   * COD return received: once the order was delivered (cash collected), credit
+   * the returned items' share to the wallet (ref `return:<id>`, idempotent),
+   * capped by what is left after earlier credits for the order. The return is
+   * marked 'refunded' only when a credit exists for it.
+   */
+  private async processCodReceived(ret: ReceivedReturn): Promise<void> {
+    const ref = `return:${ret.id}`;
+    const delivered = ret.order.status === 'delivered' || ret.order.status === 'returned';
+    let credited = false;
+
+    if (ret.resolution !== 'replace' && delivered) {
+      const others = await this.prisma.returnRequest.findMany({
+        where: { orderId: ret.orderId, id: { not: ret.id } },
+        include: { items: true },
+      });
+      const entries = await this.prisma.walletEntry.findMany({
+        where: { customerId: ret.order.customerId, ref: { in: [ref, ...others.map((o) => `return:${o.id}`)] } },
+        select: { ref: true, delta: true },
+      });
+      if (entries.some((e) => e.ref === ref)) {
+        credited = true; // Already credited on an earlier run: never credit twice.
+      } else {
+        const amount = codReturnCredit({
+          grandTotal: ret.order.grandTotal,
+          shipping: ret.order.shipping,
+          codFee: ret.order.codFee,
+          items: ret.order.items,
+          returning: ret.items,
+          previouslyRefunded: others.filter((o) => o.status === 'refunded').flatMap((o) => o.items),
+          alreadyCredited: entries.reduce((s, e) => s + Math.max(0, e.delta), 0),
+        });
+        if (amount > 0) {
+          await this.wallet.earn(ret.order.customerId, amount, 'return_refund', ref);
+          credited = true;
+        }
+      }
+    }
+
+    await this.prisma.returnRequest.update({
+      where: { id: ret.id },
+      data: { status: credited ? 'refunded' : 'received' },
+    });
   }
 }

@@ -388,7 +388,9 @@ export function resolutionOptions(order: OrderDetail, code: string | null | unde
   opts.push({
     value: 'refund_wallet',
     label: 'Refund to Belzo wallet',
-    description: 'Credited to your wallet once the item is received - use it on your next order.',
+    description: paymentSummary(order).isCod
+      ? 'Cash on Delivery orders are refunded to your Belzo wallet once we receive the item - use it on your next order.'
+      : 'Credited to your wallet once the item is received - use it on your next order.',
   });
   const reason = findReturnReason(code ?? null);
   if (reason?.allowReplace) {

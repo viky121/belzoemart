@@ -57,6 +57,148 @@ describe('ReturnService', () => {
   });
 });
 
+/** Receiving a return on a Cash-on-Delivery order credits the wallet once delivered. */
+describe('ReturnService.adminUpdate(received) — COD wallet credit', () => {
+  // subtotal 1,500.00 − discount 150.00 = goods 1,350.00; + shipping 40 + COD fee 20 = 1,410.00.
+  const ITEMS = [
+    { id: 'oi1', variantId: 'v1', unitPrice: 60000, quantity: 2 },
+    { id: 'oi2', variantId: 'v2', unitPrice: 30000, quantity: 1 },
+  ];
+  type Line = { orderItemId: string; quantity: number };
+
+  function setup(opts: {
+    orderStatus?: string;
+    resolution?: string;
+    lines?: Line[];
+    others?: { id: string; status: string; items: Line[] }[];
+    entries?: { ref: string; delta: number }[];
+    payments?: { provider: string; status: string; amount: number }[];
+  } = {}) {
+    const entries = [...(opts.entries ?? [])];
+    const earned: { customerId: string; amount: number; ref: string }[] = [];
+    const statuses: string[] = [];
+    const gatewayRefunds: number[] = [];
+    const ret = {
+      id: 'r1',
+      orderId: 'o1',
+      resolution: opts.resolution ?? 'refund_wallet',
+      items: opts.lines ?? [{ orderItemId: 'oi1', quantity: 1 }],
+      order: {
+        customerId: 'c1',
+        status: opts.orderStatus ?? 'delivered',
+        grandTotal: 141000,
+        shipping: 4000,
+        codFee: 2000,
+        items: ITEMS,
+        payments: opts.payments ?? [{ provider: 'cod', status: 'pending', amount: 141000 }],
+      },
+    };
+    const prisma = {
+      order: { findUnique: async () => ({ id: 'o1', customerId: 'c1' }) },
+      returnRequest: {
+        findUnique: async () => ret,
+        findMany: async () => opts.others ?? [],
+        update: async ({ data }: { data: { status: string } }) => {
+          statuses.push(data.status);
+          return ret;
+        },
+      },
+      walletEntry: {
+        findMany: async ({ where }: { where: { customerId: string; ref: { in: string[] } } }) =>
+          entries.filter((e) => where.ref.in.includes(e.ref)),
+      },
+    } as unknown as PrismaService;
+    const inventory = { adjust: async () => undefined } as unknown as InventoryService;
+    const payments = {
+      refund: async (_o: string, amount: number) => {
+        gatewayRefunds.push(amount);
+        return { status: 'processed' };
+      },
+    } as unknown as PaymentService;
+    const wallet = {
+      earn: async (customerId: string, amount: number, _reason: string, ref: string) => {
+        if (entries.some((e) => e.ref === ref)) return { balance: 0, applied: false };
+        earned.push({ customerId, amount, ref });
+        entries.push({ ref, delta: amount });
+        return { balance: amount, applied: true };
+      },
+    } as never;
+    const svc = new ReturnService(prisma, inventory, payments, wallet, storage);
+    return { svc, earned, statuses, gatewayRefunds };
+  }
+
+  it('delivered COD: credits the returned items share of the goods total and marks it refunded', async () => {
+    const { svc, earned, statuses } = setup();
+    await svc.adminUpdate('r1', 'received');
+    // 1 × 600.00 of 1,500.00 line value → 40% of 1,350.00 goods = 540.00 (no shipping / COD fee).
+    expect(earned).toEqual([{ customerId: 'c1', amount: 54000, ref: 'return:r1' }]);
+    expect(statuses).toEqual(['refunded']);
+  });
+
+  it('re-processing the same return never credits twice', async () => {
+    const { svc, earned, statuses } = setup();
+    await svc.adminUpdate('r1', 'received');
+    await svc.adminUpdate('r1', 'received');
+    expect(earned).toHaveLength(1);
+    expect(statuses).toEqual(['refunded', 'refunded']);
+  });
+
+  it('the last return of a fully returned order gets the remainder incl. shipping and COD fee', async () => {
+    const { svc, earned } = setup({
+      lines: [
+        { orderItemId: 'oi1', quantity: 1 },
+        { orderItemId: 'oi2', quantity: 1 },
+      ],
+      others: [{ id: 'r0', status: 'refunded', items: [{ orderItemId: 'oi1', quantity: 1 }] }],
+      entries: [{ ref: 'return:r0', delta: 54000 }],
+    });
+    await svc.adminUpdate('r1', 'received');
+    // 1,410.00 − 540.00 already credited = 870.00; total credit never exceeds grandTotal.
+    expect(earned).toEqual([{ customerId: 'c1', amount: 87000, ref: 'return:r1' }]);
+  });
+
+  it('caps a partial return by what is left after earlier credits', async () => {
+    const { svc, earned } = setup({
+      others: [{ id: 'r0', status: 'requested', items: [] }],
+      entries: [{ ref: 'return:r0', delta: 140000 }],
+    });
+    await svc.adminUpdate('r1', 'received');
+    expect(earned).toEqual([{ customerId: 'c1', amount: 1000, ref: 'return:r1' }]);
+  });
+
+  it('COD order that never reached delivered: no credit and not marked refunded', async () => {
+    for (const orderStatus of ['shipped', 'cancelled']) {
+      const { svc, earned, statuses } = setup({ orderStatus });
+      await svc.adminUpdate('r1', 'received');
+      expect(earned).toEqual([]);
+      expect(statuses).toEqual(['received']);
+    }
+  });
+
+  it('COD replacement and legacy refund_source returns', async () => {
+    const replace = setup({ resolution: 'replace' });
+    await replace.svc.adminUpdate('r1', 'received');
+    expect(replace.earned).toEqual([]);
+    expect(replace.statuses).toEqual(['received']);
+
+    // There is no gateway payment for COD: a legacy refund_source request is credited to the wallet.
+    const legacy = setup({ resolution: 'refund_source' });
+    await legacy.svc.adminUpdate('r1', 'received');
+    expect(legacy.gatewayRefunds).toEqual([]);
+    expect(legacy.earned).toEqual([{ customerId: 'c1', amount: 54000, ref: 'return:r1' }]);
+  });
+
+  it('prepaid path unchanged: wallet refund is unit price × qty clamped to the captured amount', async () => {
+    const { svc, earned, statuses, gatewayRefunds } = setup({
+      payments: [{ provider: 'razorpay', status: 'captured', amount: 141000 }],
+    });
+    await svc.adminUpdate('r1', 'received');
+    expect(earned).toEqual([{ customerId: 'c1', amount: 60000, ref: 'return:r1' }]);
+    expect(gatewayRefunds).toEqual([]);
+    expect(statuses).toEqual(['refunded']);
+  });
+});
+
 /** Server-side validation of return requests: items, quantities and photos. */
 describe('ReturnService.request — validation', () => {
   const ITEM_A = '11111111-1111-4111-8111-111111111111';
@@ -142,7 +284,8 @@ describe('ReturnService.request — validation', () => {
   it('accepts "No longer needed" without photos', async () => {
     const { svc, createdData } = build();
     await svc.request('c1', { ...base, reasonCode: 'not_needed', reason: 'No longer needed' });
-    expect(createdData[0]).toMatchObject({ imagesJson: [], reason: 'No longer needed' });
+    // COD order without a chosen resolution defaults to the wallet (no gateway payment).
+    expect(createdData[0]).toMatchObject({ imagesJson: [], reason: 'No longer needed', resolution: 'refund_wallet' });
   });
 
   it('rejects an item that is not in the order', async () => {

@@ -287,6 +287,12 @@ describe('return reasons, resolutions and steps', () => {
     expect(values(makeOrder({ payments: [cod] }), 'other')).toEqual(['refund_wallet']);
   });
 
+  it('tells COD customers their refund goes to the wallet', () => {
+    const wallet = (o: OrderDetail) => resolutionOptions(o, 'damaged').find((x) => x.value === 'refund_wallet');
+    expect(wallet(makeOrder({ payments: [cod] }))?.description).toMatch(/Cash on Delivery orders are refunded to your Belzo wallet/);
+    expect(wallet(makeOrder())?.description).not.toMatch(/Cash on Delivery/);
+  });
+
   it('step 1: at least one item within the remaining quantity', () => {
     const o = makeOrder();
     expect(returnStepError(o, draft({ quantities: {} }), 1)).toMatch(/at least one item/);
