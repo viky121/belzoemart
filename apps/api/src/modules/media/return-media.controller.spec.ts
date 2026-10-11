@@ -42,4 +42,12 @@ describe('ReturnMediaController.upload', () => {
     expect(res.key).toMatch(/^returns\/[0-9a-f-]{36}\.jpg$/);
     expect(isOwnReturnImageUrl(res.url, storage.getUrl('returns/'))).toBe(true);
   });
+
+  it('accepts its own URL when the file name has no or a long extension', async () => {
+    const { ctrl, storage } = build();
+    for (const name of ['IMG_20240101_123456', 'camera-roll.photograph']) {
+      const res = await ctrl.upload(file('image/jpeg', name));
+      expect(isOwnReturnImageUrl(res.url, storage.getUrl('returns/'))).toBe(true);
+    }
+  });
 });
