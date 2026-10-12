@@ -58,6 +58,10 @@ export const USER_ROLES = ['customer'] as const;
 export const ADMIN_ROLES = ['super_admin', 'catalogue_manager', 'order_manager', 'marketing', 'support'] as const;
 export type AdminRole = (typeof ADMIN_ROLES)[number];
 
+/** Native clients send `X-Client-Platform: mobile` to receive/send the refresh token in the body. */
+export const CLIENT_PLATFORM_HEADER = 'x-client-platform';
+export const MOBILE_CLIENT_PLATFORM = 'mobile';
+
 /** Default pagination bounds. */
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;

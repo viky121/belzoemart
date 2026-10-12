@@ -11,7 +11,14 @@ import {
   promoContentSchema,
   homeBlockSchema,
   sanitizeHomeContent,
+  mobileRefreshSchema,
+  mobileLogoutSchema,
+  mobileAuthResponseSchema,
+  mobileRefreshResponseSchema,
+  checkoutPreviewSchema,
+  profilePatchSchema,
 } from './schemas';
+import { CLIENT_PLATFORM_HEADER, MOBILE_CLIENT_PLATFORM } from './constants';
 
 const UUID = '11111111-1111-4111-8111-111111111111';
 const UUID2 = '22222222-2222-4222-8222-222222222222';
@@ -274,5 +281,66 @@ describe('schemas — productQuerySchema ids', () => {
     const res = productQuerySchema.safeParse({ ids: `${UUID},${UUID2}` });
     expect(res.success).toBe(true);
     if (res.success) expect(res.data.ids).toBe(`${UUID},${UUID2}`);
+  });
+});
+
+describe('schemas — mobile auth (A1)', () => {
+  const customer = { id: 'c1', name: 'Asha', email: null, phone: '9876543210', locale: 'en' };
+
+  it('exposes the client-platform header constants', () => {
+    expect(CLIENT_PLATFORM_HEADER).toBe('x-client-platform');
+    expect(MOBILE_CLIENT_PLATFORM).toBe('mobile');
+  });
+
+  it('mobileRefreshSchema accepts a token and rejects empty, oversized or missing', () => {
+    expect(mobileRefreshSchema.safeParse({ refreshToken: 'rt' }).success).toBe(true);
+    expect(mobileRefreshSchema.safeParse({ refreshToken: 'x'.repeat(512) }).success).toBe(true);
+    expect(mobileRefreshSchema.safeParse({ refreshToken: '' }).success).toBe(false);
+    expect(mobileRefreshSchema.safeParse({ refreshToken: 'x'.repeat(513) }).success).toBe(false);
+    expect(mobileRefreshSchema.safeParse({}).success).toBe(false);
+  });
+
+  it('mobileLogoutSchema makes the token optional but still validates it', () => {
+    expect(mobileLogoutSchema.safeParse({}).success).toBe(true);
+    expect(mobileLogoutSchema.safeParse({ refreshToken: 'rt' }).success).toBe(true);
+    expect(mobileLogoutSchema.safeParse({ refreshToken: '' }).success).toBe(false);
+  });
+
+  it('mobileAuthResponseSchema requires the customer; refresh response omits it', () => {
+    const tokens = { accessToken: 'at', expiresIn: 900, refreshToken: 'rt' };
+    expect(mobileAuthResponseSchema.safeParse({ ...tokens, customer }).success).toBe(true);
+    expect(mobileAuthResponseSchema.safeParse(tokens).success).toBe(false);
+    expect(mobileAuthResponseSchema.safeParse({ ...tokens, refreshToken: '', customer }).success).toBe(false);
+    expect(mobileRefreshResponseSchema.safeParse(tokens).success).toBe(true);
+    expect(mobileRefreshResponseSchema.safeParse({ ...tokens, expiresIn: 0 }).success).toBe(false);
+  });
+});
+
+describe('schemas — checkoutPreviewSchema paymentMethod (A6)', () => {
+  it('is optional and accepts known methods only', () => {
+    expect(checkoutPreviewSchema.safeParse({ addressId: UUID }).success).toBe(true);
+    expect(checkoutPreviewSchema.safeParse({ addressId: UUID, paymentMethod: 'cod' }).success).toBe(true);
+    expect(checkoutPreviewSchema.safeParse({ addressId: UUID, paymentMethod: 'upi' }).success).toBe(true);
+    expect(checkoutPreviewSchema.safeParse({ addressId: UUID, paymentMethod: 'bitcoin' }).success).toBe(false);
+  });
+});
+
+describe('schemas — profilePatchSchema', () => {
+  it('accepts a partial patch and trims fields', () => {
+    const res = profilePatchSchema.safeParse({ name: '  Asha  ', locale: 'hi' });
+    expect(res.success).toBe(true);
+    if (res.success) expect(res.data).toEqual({ name: 'Asha', locale: 'hi' });
+    expect(profilePatchSchema.safeParse({}).success).toBe(true);
+  });
+
+  it('accepts +91 / 91 / bare mobiles and rejects invalid values', () => {
+    expect(profilePatchSchema.safeParse({ phone: '+919876543210' }).success).toBe(true);
+    expect(profilePatchSchema.safeParse({ phone: '919876543210' }).success).toBe(true);
+    expect(profilePatchSchema.safeParse({ phone: '9876543210' }).success).toBe(true);
+    expect(profilePatchSchema.safeParse({ phone: '5876543210' }).success).toBe(false);
+    expect(profilePatchSchema.safeParse({ email: 'not-an-email' }).success).toBe(false);
+    expect(profilePatchSchema.safeParse({ name: '' }).success).toBe(false);
+    expect(profilePatchSchema.safeParse({ locale: 'fr' }).success).toBe(false);
+    expect(profilePatchSchema.safeParse({ dob: '2000-01-01' }).success).toBe(false);
   });
 });

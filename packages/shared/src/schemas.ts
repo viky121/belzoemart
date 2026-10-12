@@ -91,6 +91,47 @@ export const authTokensSchema = z.object({
 });
 export type AuthTokens = z.infer<typeof authTokensSchema>;
 
+/** Native-client (X-Client-Platform: mobile) refresh/logout bodies and auth responses. */
+export const mobileRefreshSchema = z.object({ refreshToken: z.string().min(1).max(512) });
+export const mobileLogoutSchema = mobileRefreshSchema.partial();
+export const customerSummarySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string().nullable(),
+  phone: z.string().nullable(),
+  locale: z.string(),
+});
+export const mobileAuthResponseSchema = z.object({
+  accessToken: z.string().min(1),
+  expiresIn: z.number().int().positive(),
+  refreshToken: z.string().min(1),
+  customer: customerSummarySchema,
+});
+export const mobileRefreshResponseSchema = mobileAuthResponseSchema.omit({ customer: true });
+export type MobileAuthResponse = z.infer<typeof mobileAuthResponseSchema>;
+export type CustomerSummary = z.infer<typeof customerSummarySchema>;
+
+// ---------------------------------------------------------------------------
+// Profile
+// ---------------------------------------------------------------------------
+
+export const profilePatchSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  // Customers created via mobile OTP have no email (and vice-versa); the
+  // profile-completion flow lets them add the missing contact. Uniqueness is
+  // enforced server-side in ProfileService.update.
+  email: z.string().trim().email('Enter a valid email address').max(190).optional(),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^(?:\+?91)?[6-9]\d{9}$/, 'Enter a valid 10-digit mobile number')
+    .optional(),
+  gender: z.string().trim().max(20).optional(),
+  dob: z.string().datetime().optional(),
+  photoUrl: z.string().url().optional(),
+  locale: z.enum(['en', 'hi']).optional(),
+});
+
 // ---------------------------------------------------------------------------
 // Address
 // ---------------------------------------------------------------------------
@@ -313,6 +354,7 @@ export type CartItemInput = z.infer<typeof cartItemInputSchema>;
 export const checkoutPreviewSchema = z.object({
   addressId: uuidSchema,
   couponCode: z.string().trim().max(40).optional(),
+  paymentMethod: z.enum(PAYMENT_METHODS).optional(),
 });
 export type CheckoutPreview = z.infer<typeof checkoutPreviewSchema>;
 
