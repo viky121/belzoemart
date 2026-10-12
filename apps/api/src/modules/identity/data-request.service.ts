@@ -20,7 +20,7 @@ export class DataRequestService {
     const req = await this.prisma.dataRequest.create({
       data: { customerId, type: 'export' },
     });
-    await this.queue.enqueue(QUEUES.NOTIFICATIONS, 'dpdp.export', {
+    await this.queue.enqueue(QUEUES.DPDP, 'dpdp.export', {
       dataRequestId: req.id,
       customerId,
     });
@@ -31,7 +31,7 @@ export class DataRequestService {
     const req = await this.prisma.dataRequest.create({
       data: { customerId, type: 'deletion' },
     });
-    await this.queue.enqueue(QUEUES.NOTIFICATIONS, 'dpdp.deletion', {
+    await this.queue.enqueue(QUEUES.DPDP, 'dpdp.deletion', {
       dataRequestId: req.id,
       customerId,
     });

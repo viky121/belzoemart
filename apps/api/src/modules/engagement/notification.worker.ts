@@ -3,6 +3,7 @@ import { Worker } from 'bullmq';
 import { RedisService } from '../../common/redis/redis.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { QUEUES } from '../../common/queue/queue.constants';
+import { QueueService } from '../../common/queue/queue.service';
 import { NotificationService } from './notification.service';
 
 interface OrderJob {
@@ -11,7 +12,7 @@ interface OrderJob {
 
 /**
  * NotificationDispatcher (BR-8). Consumes the NOTIFICATIONS queue for order and
- * DPDP events (enqueued by U4/U5/U2), resolves the customer's contact + locale,
+ * abandoned-cart events (enqueued by U4/U5/U6), resolves the customer's contact + locale,
  * and dispatches via NotificationService. Runs in the worker process.
  */
 @Injectable()
@@ -23,14 +24,20 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
     private readonly redis: RedisService,
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationService,
+    private readonly queue: QueueService,
   ) {}
 
   onModuleInit(): void {
     this.worker = new Worker(
       QUEUES.NOTIFICATIONS,
       async (job) => {
-        // DPDP jobs are handled by the identity worker; skip them here.
-        if (job.name.startsWith('dpdp.')) return;
+        // DPDP jobs live on their own queue now. Forward any legacy ones still
+        // sitting here (enqueued before the split) instead of dropping them.
+        if (job.name.startsWith('dpdp.')) {
+          await this.queue.enqueue(QUEUES.DPDP, job.name, job.data);
+          this.logger.log({ jobId: job.id }, 'Forwarded legacy DPDP job to the dpdp queue');
+          return;
+        }
 
         // Abandoned-cart carries a customerId (no order).
         if (job.name === 'abandoned_cart') {

@@ -93,6 +93,26 @@ function makeFake() {
 }
 
 describe('DataRequestService', () => {
+  describe('enqueue on the dedicated dpdp queue (A5)', () => {
+    it('requestExport enqueues dpdp.export to the dpdp queue', async () => {
+      const f = makeFake();
+      const res = await f.svc.requestExport('c1');
+      expect(f.queue.enqueue).toHaveBeenCalledWith('dpdp', 'dpdp.export', {
+        dataRequestId: res.jobId,
+        customerId: 'c1',
+      });
+    });
+
+    it('requestDeletion enqueues dpdp.deletion to the dpdp queue', async () => {
+      const f = makeFake();
+      const res = await f.svc.requestDeletion('c1');
+      expect(f.queue.enqueue).toHaveBeenCalledWith('dpdp', 'dpdp.deletion', {
+        dataRequestId: res.jobId,
+        customerId: 'c1',
+      });
+    });
+  });
+
   describe('processDeletion (A2)', () => {
     it("revokes every unrevoked token of the customer inside the transaction", async () => {
       const f = makeFake();

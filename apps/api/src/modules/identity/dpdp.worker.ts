@@ -10,8 +10,9 @@ interface DpdpJobData {
 }
 
 /**
- * BullMQ consumer for DPDP jobs (export/deletion). Runs in the worker process.
- * Job retries/backoff are configured on the producer side (RESILIENCY-10).
+ * BullMQ consumer for DPDP jobs (export/deletion) on the dedicated `dpdp`
+ * queue. Runs in the worker process. Job retries/backoff are configured on the
+ * producer side (RESILIENCY-10). Unknown job names fail visibly.
  */
 @Injectable()
 export class DpdpWorker implements OnModuleInit, OnModuleDestroy {
@@ -25,13 +26,15 @@ export class DpdpWorker implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit(): void {
     this.worker = new Worker(
-      QUEUES.NOTIFICATIONS,
+      QUEUES.DPDP,
       async (job) => {
         const data = job.data as DpdpJobData;
         if (job.name === 'dpdp.export') {
           await this.dataRequests.processExport(data.dataRequestId);
         } else if (job.name === 'dpdp.deletion') {
           await this.dataRequests.processDeletion(data.dataRequestId);
+        } else {
+          throw new Error(`Unknown DPDP job ${job.name}`);
         }
       },
       { connection: this.redis.client },
