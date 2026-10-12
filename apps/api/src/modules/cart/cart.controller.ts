@@ -55,6 +55,13 @@ export class CartController {
     return this.cart.saveForLater(await resolveCartRef(req, this.tokens), variantId, true);
   }
 
+  /** Inverse of save-for-later: move a saved line back into the active cart (quantity kept). */
+  @Public()
+  @Post('items/:variantId/move-to-cart')
+  async moveToCart(@Req() req: Request, @Param('variantId') variantId: string) {
+    return this.cart.saveForLater(await resolveCartRef(req, this.tokens), variantId, false);
+  }
+
   @Post('merge')
   async merge(@CurrentUser() user: JwtPrincipal, @Body() body: { guestToken: string }) {
     return this.cart.merge(body.guestToken, user.sub);
