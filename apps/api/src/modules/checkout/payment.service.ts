@@ -25,7 +25,11 @@ export class PaymentService {
     private readonly cart: CartService,
   ) {}
 
-  /** Create the gateway order for an order's pending payment; returns client config. */
+  /**
+   * Create the gateway order for an order's pending payment; returns client config.
+   * Idempotent: only a payment still in `created` is initiated; any other status
+   * (a replayed place, a concurrent second call) returns `clientConfig: {}`.
+   */
   async initiate(orderId: string): Promise<{ provider: string; clientConfig: Record<string, unknown> }> {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
@@ -38,10 +42,31 @@ export class PaymentService {
       return { provider: 'cod', clientConfig: { cod: true } };
     }
 
-    const providerOrder = await this.provider.createOrder(payment.amount, order.id);
+    // Atomic claim: only one caller may move created → pending. Every replay,
+    // sequential or concurrent, sees count 0 and returns without side effects,
+    // so an idempotent replay never creates a second gateway order or touches the row.
+    const claim = await this.prisma.payment.updateMany({
+      where: { id: payment.id, status: 'created' },
+      data: { status: 'pending' },
+    });
+    if (claim.count === 0) {
+      return { provider: payment.provider, clientConfig: {} };
+    }
+
+    let providerOrder: Awaited<ReturnType<PaymentProvider['createOrder']>>;
+    try {
+      providerOrder = await this.provider.createOrder(payment.amount, order.id);
+    } catch (e) {
+      // Undo the claim so a later replay can initiate again; rethrow (5xx → client keeps its key).
+      await this.prisma.payment.updateMany({
+        where: { id: payment.id, status: 'pending', providerOrderId: null },
+        data: { status: 'created' },
+      });
+      throw e;
+    }
     await this.prisma.payment.update({
       where: { id: payment.id },
-      data: { providerOrderId: providerOrder.providerOrderId, status: 'pending' },
+      data: { providerOrderId: providerOrder.providerOrderId }, // status is already 'pending'; never overwrite it here
     });
 
     // The mock provider has no real gateway to deliver a capture webhook, so a

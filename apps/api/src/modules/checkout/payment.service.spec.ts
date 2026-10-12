@@ -80,6 +80,23 @@ function makeStore(opts: { orderStatus?: string; payment?: Partial<PaymentRow> }
         Object.assign(p, data);
         return { ...p };
       }),
+      // Honours every `where` field (id, status, providerOrderId: null) like a
+      // single conditional SQL UPDATE, and returns the matched count.
+      updateMany: jest.fn(
+        async ({ where, data }: { where: Partial<PaymentRow>; data: Partial<PaymentRow> }) => {
+          let count = 0;
+          for (const row of payments) {
+            const match = Object.entries(where).every(
+              ([k, v]) => (row as unknown as Record<string, unknown>)[k] === v,
+            );
+            if (match) {
+              Object.assign(row, data);
+              count++;
+            }
+          }
+          return { count };
+        },
+      ),
     },
     webhookEvent: {
       findUnique: jest.fn(async ({ where: { eventId } }: { where: { eventId: string } }) => events[eventId] ?? null),
@@ -191,5 +208,88 @@ describe('PaymentService — cart clear on capture (A4)', () => {
     expect(store.payments[0]!.status).toBe('captured');
     expect(queue.enqueue).toHaveBeenCalledTimes(3);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('Cart clear failed for order o1'));
+  });
+});
+
+describe('PaymentService.initiate — idempotent (A7)', () => {
+  const CLAIM = { where: { id: 'p1', status: 'created' }, data: { status: 'pending' } };
+
+  it.each(['captured', 'pending', 'failed', 'refunded', 'partially_refunded'])(
+    'leaves a %s payment untouched and returns an empty clientConfig',
+    async (status) => {
+      const { svc, store, provider } = build({ payment: { status, providerOrderId: 'po_1' } }, 'mock');
+      const res = await svc.initiate('o1');
+      expect(res).toEqual({ provider: 'mock', clientConfig: {} });
+      expect(provider.createOrder).not.toHaveBeenCalled();
+      expect(store.db.payment.update).not.toHaveBeenCalled();
+      // The only write attempt is the conditional claim, which matches 0 rows.
+      expect(store.db.payment.updateMany).toHaveBeenCalledTimes(1);
+      expect(store.db.payment.updateMany).toHaveBeenCalledWith(CLAIM);
+      expect(store.payments[0]).toMatchObject({ status, providerOrderId: 'po_1' });
+    },
+  );
+
+  it('initiates a created payment once; the update writes only providerOrderId; mock auto-captures', async () => {
+    const { svc, store, provider } = build({ payment: { status: 'created', providerOrderId: null } }, 'mock');
+    const res = await svc.initiate('o1');
+    expect(provider.createOrder).toHaveBeenCalledTimes(1);
+    expect(provider.createOrder).toHaveBeenCalledWith(118000, 'o1');
+    expect(res).toEqual({
+      provider: 'mock',
+      clientConfig: { provider: 'mock', providerOrderId: 'mock_order_o1', amount: 118000 },
+    });
+    expect(store.db.payment.updateMany).toHaveBeenCalledWith(CLAIM);
+    // First update is initiate's own: providerOrderId only, never status.
+    expect(store.db.payment.update.mock.calls[0]![0]).toEqual({
+      where: { id: 'p1' },
+      data: { providerOrderId: 'mock_order_o1' },
+    });
+    expect(store.payments[0]).toMatchObject({ status: 'captured', providerOrderId: 'mock_order_o1' });
+    expect(store.orders.o1!.status).toBe('confirmed');
+  });
+
+  it('a later sequential replay does nothing', async () => {
+    const { svc, store, provider } = build({ payment: { status: 'created', providerOrderId: null } }, 'mock');
+    await svc.initiate('o1');
+    const again = await svc.initiate('o1');
+    expect(again).toEqual({ provider: 'mock', clientConfig: {} });
+    expect(provider.createOrder).toHaveBeenCalledTimes(1);
+    expect(store.payments[0]).toMatchObject({ status: 'captured', providerOrderId: 'mock_order_o1' });
+  });
+
+  it('two concurrent initiate calls create exactly one gateway order', async () => {
+    const { svc, store, provider } = build({ payment: { status: 'created', providerOrderId: null } }, 'mock');
+    const results = await Promise.all([svc.initiate('o1'), svc.initiate('o1')]);
+    expect(provider.createOrder).toHaveBeenCalledTimes(1);
+    const real = results.filter((r) => Object.keys(r.clientConfig).length > 0);
+    const empty = results.filter((r) => Object.keys(r.clientConfig).length === 0);
+    expect(real).toHaveLength(1);
+    expect(empty).toHaveLength(1);
+    expect(real[0]!.clientConfig).toMatchObject({ providerOrderId: 'mock_order_o1' });
+    expect(store.payments[0]).toMatchObject({ status: 'captured', providerOrderId: 'mock_order_o1' });
+  });
+
+  it('reverts the claim when createOrder rejects, so a retry can initiate again', async () => {
+    const { svc, store, provider } = build({ payment: { status: 'created', providerOrderId: null } }, 'mock');
+    provider.createOrder.mockRejectedValueOnce(new Error('gateway down'));
+    await expect(svc.initiate('o1')).rejects.toThrow('gateway down');
+    expect(store.payments[0]).toMatchObject({ status: 'created', providerOrderId: null });
+    expect(store.db.payment.updateMany).toHaveBeenLastCalledWith({
+      where: { id: 'p1', status: 'pending', providerOrderId: null },
+      data: { status: 'created' },
+    });
+    expect(store.db.payment.update).not.toHaveBeenCalled();
+
+    const res = await svc.initiate('o1');
+    expect(provider.createOrder).toHaveBeenCalledTimes(2);
+    expect(res.clientConfig).toMatchObject({ providerOrderId: 'mock_order_o1' });
+    expect(store.payments[0]).toMatchObject({ status: 'captured', providerOrderId: 'mock_order_o1' });
+  });
+
+  it('COD is unchanged', async () => {
+    const { svc, store, provider } = build({ payment: { provider: 'cod', status: 'pending', providerOrderId: null } });
+    expect(await svc.initiate('o1')).toEqual({ provider: 'cod', clientConfig: { cod: true } });
+    expect(store.db.payment.updateMany).not.toHaveBeenCalled();
+    expect(provider.createOrder).not.toHaveBeenCalled();
   });
 });
