@@ -11,6 +11,7 @@ import { AppModule } from './app.module';
 import { validateEnv } from './common/config/env.schema';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
+import { configureTrustProxy } from './common/http/trust-proxy';
 
 async function bootstrap(): Promise<void> {
   const env = validateEnv(process.env as Record<string, unknown>);
@@ -19,6 +20,10 @@ async function bootstrap(): Promise<void> {
     bufferLogs: true,
     rawBody: true, // capture raw body for payment webhook signature verification
   });
+
+  // req.ip = the client address Caddy forwarded (one proxy hop), so throttling
+  // and lockout key on the real client instead of the proxy.
+  configureTrustProxy(app);
 
   // Structured logging (SECURITY-03)
   app.useLogger(app.get(Logger));
