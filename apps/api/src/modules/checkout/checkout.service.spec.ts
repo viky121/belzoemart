@@ -212,6 +212,15 @@ describe('CheckoutService.preview — shippingWaived (display-only "You save")',
     const none = await build(20000, undefined).preview({ customerId: 'cust1' }, 'addr1');
     expect(none.shippingWaived).toBe(0);
   });
+
+  it('A6: preview with isCod=true includes the ₹39 COD fee in codFee and grandTotal', async () => {
+    const svc = build(60000, undefined);
+    const prepaid = await svc.preview({ customerId: 'cust1' }, 'addr1');
+    const cod = await svc.preview({ customerId: 'cust1' }, 'addr1', undefined, true);
+    expect(prepaid.breakup.codFee).toBe(0);
+    expect(cod.breakup.codFee).toBe(3900);
+    expect(cod.breakup.grandTotal).toBe(prepaid.breakup.grandTotal + 3900);
+  });
 });
 
 describe('CheckoutService — removed variants in the cart', () => {

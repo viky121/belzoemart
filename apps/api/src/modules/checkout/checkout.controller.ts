@@ -25,7 +25,14 @@ export class CheckoutController {
 
   @Post('preview')
   preview(@CurrentUser() user: JwtPrincipal, @Body() dto: CheckoutPreviewDto) {
-    return this.checkout.preview({ customerId: user.sub }, dto.addressId, dto.couponCode);
+    // Optional paymentMethod: 'cod' includes the COD fee in the preview. The web
+    // sends none, so isCod stays false exactly as before.
+    return this.checkout.preview(
+      { customerId: user.sub },
+      dto.addressId,
+      dto.couponCode,
+      dto.paymentMethod === 'cod',
+    );
   }
 
   @Post('place')
