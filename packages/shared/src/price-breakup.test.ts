@@ -1,5 +1,6 @@
-import { computeTotals, paise, type CouponSpec, type PriceLine } from '@belzo/shared';
-import { breakupView, snapshotFromBreakup, type OrderMoneySnapshot } from '@/lib/price-breakup';
+import { paise } from './money';
+import { computeTotals, type CouponSpec, type PriceLine } from './pricing';
+import { breakupView, snapshotFromBreakup, type OrderMoneySnapshot } from './price-breakup';
 
 const sumRows = (s: OrderMoneySnapshot) => breakupView(s).rows.reduce((t, r) => t + r.amount, 0);
 

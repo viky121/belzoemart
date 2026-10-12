@@ -1,42 +1,10 @@
-import { homeSectionSchema, type HomeSection } from '@belzo/shared';
+import type { HomeSection } from '@belzo/shared';
 import type { CategoryNodeDto, ProductCardDto } from '@belzo/shared';
 import { catalogueApi, type Paginated } from './catalogue-api';
 
+export { DEFAULT_SECTIONS, sanitizeHomeSections, getHomeSections } from '@belzo/shared';
+
 const EMPTY: Paginated<ProductCardDto> = { items: [], total: 0, page: 1, pageSize: 0 };
-
-/**
- * Backward-compatible default sections, used whenever `home.sections` is unset
- * or holds nothing valid. These reproduce today's cross-theme named rails so an
- * unconfigured install looks essentially unchanged and never renders empty.
- */
-export const DEFAULT_SECTIONS: HomeSection[] = [
-  { id: 'default-deals', title: 'Deals of the Day', source: { type: 'sort', sort: 'discount' }, limit: 12, enabled: true },
-  { id: 'default-best-sellers', title: 'Best Sellers', source: { type: 'sort', sort: 'popularity' }, limit: 10, enabled: true },
-  { id: 'default-new-arrivals', title: 'New Arrivals', source: { type: 'sort', sort: 'newest' }, limit: 10, enabled: true },
-];
-
-/**
- * Per-section sanitize: run the element schema over each entry, keep the valid
- * ones (with zod defaults applied), and return null when none survive so the
- * caller can fall back to DEFAULT_SECTIONS.
- */
-export function sanitizeHomeSections(value: unknown): HomeSection[] | null {
-  const raw = Array.isArray(value) ? value : [];
-  const valid = raw
-    .map((s) => homeSectionSchema.safeParse(s))
-    .filter((r): r is { success: true; data: HomeSection } => r.success)
-    .map((r) => r.data);
-  return valid.length > 0 ? valid : null;
-}
-
-/**
- * Resolve the configured sections to render: sanitize the raw config (or fall
- * back to defaults), then drop disabled sections while preserving order.
- */
-export function getHomeSections(rawSections: unknown): HomeSection[] {
-  const sections = sanitizeHomeSections(rawSections) ?? DEFAULT_SECTIONS;
-  return sections.filter((s) => s.enabled !== false);
-}
 
 export type ResolvedSection = {
   id: string;

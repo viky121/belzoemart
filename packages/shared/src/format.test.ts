@@ -1,4 +1,4 @@
-import { formatInr } from '@/lib/format-inr';
+import { formatInr } from './format';
 
 describe('formatInr', () => {
   it('shows two decimals for fractional amounts', () => {

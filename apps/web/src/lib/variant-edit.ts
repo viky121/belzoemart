@@ -1,3 +1,5 @@
+import { pickAttr } from '@belzo/shared';
+
 /**
  * Pure helpers for the product editor's "Variants, price & stock" section.
  * Money is integer paise on the wire; the inputs are rupee strings.
@@ -125,14 +127,7 @@ export function variantUpsertBody(v: AdminVariantRow, e: VariantEdit): VariantUp
   };
 }
 
-/** Trimmed value of the first attribute whose key (case-insensitive) is one of `keys`, else ''. */
-export function pickAttr(
-  attrs: Record<string, string> | null | undefined,
-  ...keys: string[]
-): string {
-  const found = Object.entries(attrs ?? {}).find(([k]) => keys.includes(k.toLowerCase()));
-  return found?.[1]?.trim() ?? '';
-}
+export { pickAttr };
 
 /**
  * Variant attributes after editing Size/Color: every other key (e.g. "Pack Of")

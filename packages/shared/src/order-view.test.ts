@@ -1,4 +1,6 @@
-import { CANCEL_REASONS, RETURN_REASONS, reconcileTracking, type OrderStatus } from '@belzo/shared';
+import type { OrderStatus } from './constants';
+import { reconcileTracking } from './order-tracking';
+import { CANCEL_REASONS, RETURN_REASONS } from './returns';
 import {
   buildReturnPayload,
   buildStepper,
@@ -19,7 +21,7 @@ import {
   type OrderPayment,
   type OrderReturn,
   type ReturnDraft,
-} from '@/lib/order-view';
+} from './order-view';
 
 const ITEM_A = '11111111-1111-4111-8111-111111111111';
 const ITEM_B = '22222222-2222-4222-8222-222222222222';
@@ -144,12 +146,12 @@ describe('buildStepper', () => {
 
   it('never fabricates dates', () => {
     const steps = buildStepper(makeOrder({ status: 'packed' }));
-    expect(steps[0].at).toBe('2025-06-01T10:00:00.000Z');
+    expect(steps[0]!.at).toBe('2025-06-01T10:00:00.000Z');
     expect(steps[1]).toMatchObject({ key: 'confirmed', state: 'done', at: null });
     expect(steps[2]).toMatchObject({ key: 'packed', state: 'current', at: null });
     expect(steps.slice(3).every((s) => s.at === null)).toBe(true);
     const withInvoice = buildStepper(makeOrder({ status: 'packed', invoice: { number: 'INV-1', createdAt: '2025-06-01T11:00:00.000Z' } }));
-    expect(withInvoice[1].at).toBe('2025-06-01T11:00:00.000Z');
+    expect(withInvoice[1]!.at).toBe('2025-06-01T11:00:00.000Z');
   });
 
   it('cancelled order: placed then a terminal Cancelled step', () => {
@@ -167,7 +169,7 @@ describe('buildStepper', () => {
       ['cancelled', 'terminal'],
       ['refunded', 'terminal'],
     ]);
-    expect(steps[2].at).toBeNull();
+    expect(steps[2]!.at).toBeNull();
   });
 
   it('returned + refunded order: all progress done, then Returned and Refunded', () => {
@@ -247,7 +249,7 @@ describe('returnEligibility', () => {
 
   it('non-returnable items are blocked', () => {
     const base = makeOrder();
-    const o = makeOrder({ items: [{ ...base.items[0], isReturnable: false }, base.items[1]] });
+    const o = makeOrder({ items: [{ ...base.items[0]!, isReturnable: false }, base.items[1]!] });
     const e = returnEligibility(o);
     expect(e.eligible).toBe(true);
     expect(e.items[0]).toEqual({ id: ITEM_A, maxQty: 0, returnable: false, blockedReason: 'Non-returnable item' });
