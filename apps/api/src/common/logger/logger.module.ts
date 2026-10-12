@@ -22,6 +22,7 @@ import { randomUUID } from 'node:crypto';
             'req.body.password',
             'req.body.mfaCode',
             'req.body.code',
+            'req.body.refreshToken',
             'res.headers["set-cookie"]',
             '*.password',
             '*.token',
