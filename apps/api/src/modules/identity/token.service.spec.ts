@@ -1,5 +1,5 @@
 import { JwtService } from '@nestjs/jwt';
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import fc from 'fast-check';
 import { TokenService } from './token.service';
 import type { PrismaService } from '../../common/prisma/prisma.service';
@@ -21,10 +21,24 @@ interface Row {
   replacedById: string | null;
 }
 
-function makeFakePrisma(): PrismaService {
+/**
+ * `customers` overrides the status per id; any id not listed is an `active`
+ * customer. Map an id to `null` to simulate a missing customer.
+ */
+function makeFakePrisma(
+  customers: Record<string, { status: string } | null> = {},
+  customerLookups: string[] = [],
+): PrismaService {
   const rows: Row[] = [];
   let seq = 0;
   return {
+    customer: {
+      findUnique: async ({ where: { id } }: { where: { id: string } }) => {
+        customerLookups.push(id);
+        if (id in customers) return customers[id] ?? null;
+        return { status: 'active' };
+      },
+    },
     refreshToken: {
       create: async ({ data }: { data: Omit<Row, 'id' | 'revokedAt' | 'replacedById'> }) => {
         const row: Row = { id: `t${seq++}`, revokedAt: null, replacedById: null, ...data };
@@ -112,5 +126,36 @@ describe('TokenService', () => {
   it('rejects an unknown refresh token', async () => {
     const svc = new TokenService(jwt, makeFakePrisma());
     await expect(svc.rotate('does-not-exist')).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('A2: a blocked customer is rejected with 403 and the family is revoked', async () => {
+    const customers: Record<string, { status: string } | null> = {};
+    const svc = new TokenService(jwt, makeFakePrisma(customers));
+    const first = await svc.issue('user-3', 'customer');
+    const second = await svc.rotate(first.refreshToken); // active → fine
+
+    customers['user-3'] = { status: 'blocked' };
+    const p = svc.rotate(second.refreshToken);
+    await expect(p).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(p).rejects.toThrow('Account is blocked');
+
+    // The family is revoked: even once unblocked, a sibling token cannot rotate.
+    customers['user-3'] = { status: 'active' };
+    await expect(svc.rotate(second.refreshToken)).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('A2: a missing customer is rejected', async () => {
+    const svc = new TokenService(jwt, makeFakePrisma({ 'user-4': null }));
+    const first = await svc.issue('user-4', 'customer');
+    await expect(svc.rotate(first.refreshToken)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('A2: an admin principal is never looked up as a customer', async () => {
+    const lookups: string[] = [];
+    const svc = new TokenService(jwt, makeFakePrisma({}, lookups));
+    const first = await svc.issue('admin-1', 'admin');
+    const next = await svc.rotate(first.refreshToken, async () => ['super_admin']);
+    expect(next.refreshToken).not.toBe(first.refreshToken);
+    expect(lookups).toEqual([]);
   });
 });

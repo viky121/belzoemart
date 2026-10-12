@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { AdminRole } from '@belzo/shared';
@@ -96,6 +96,21 @@ export class TokenService {
 
     if (existing.expiresAt.getTime() < Date.now()) {
       throw new UnauthorizedException('Refresh token expired');
+    }
+
+    // A blocked (or deleted) customer must not keep a session alive by rotating.
+    if (existing.principalKind === 'customer') {
+      const customer = await this.prisma.customer.findUnique({
+        where: { id: existing.principalId },
+        select: { status: true },
+      });
+      if (!customer || customer.status === 'blocked') {
+        await this.prisma.refreshToken.updateMany({
+          where: { familyId: existing.familyId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        throw new ForbiddenException('Account is blocked');
+      }
     }
 
     // Re-resolve roles on rotation so role changes take effect (admins only).

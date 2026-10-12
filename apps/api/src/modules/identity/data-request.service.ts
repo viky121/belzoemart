@@ -70,6 +70,12 @@ export class DataRequestService {
           status: 'blocked',
         },
       });
+      // End every live session of the deleted account (refresh rotation is
+      // also rejected for blocked customers in TokenService.rotate).
+      await tx.refreshToken.updateMany({
+        where: { principalId: req.customerId, principalKind: 'customer', revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
       await tx.dataRequest.update({
         where: { id: dataRequestId },
         data: { status: 'completed', completedAt: new Date() },
