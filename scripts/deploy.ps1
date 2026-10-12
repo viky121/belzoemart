@@ -27,6 +27,7 @@ Write-Host '==> Packaging source…' -ForegroundColor Cyan
 tar --exclude=node_modules --exclude=.git --exclude=.next --exclude=dist `
   --exclude=.pnpm-store --exclude='*.pem' --exclude='*.tgz' `
   --exclude=.env --exclude=.env.local --exclude=tsconfig.tsbuildinfo `
+  --exclude=./apps/mobile `
   -czf $tgz .
 
 Write-Host '==> Uploading to server…' -ForegroundColor Cyan
