@@ -3,6 +3,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { QueueService } from '../../common/queue/queue.service';
 import { QUEUES } from '../../common/queue/queue.constants';
 import { InventoryService } from '../catalogue/inventory.service';
+import { CartService } from '../cart/cart.service';
 import { PAYMENT_PROVIDER, type PaymentProvider } from '../../integrations/payment/payment.provider';
 import { createHash } from 'node:crypto';
 
@@ -21,6 +22,7 @@ export class PaymentService {
     private readonly inventory: InventoryService,
     private readonly queue: QueueService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
+    private readonly cart: CartService,
   ) {}
 
   /** Create the gateway order for an order's pending payment; returns client config. */
@@ -132,6 +134,15 @@ export class PaymentService {
     // Convert reservations to sales (decrements reserved).
     for (const item of order.items) {
       await this.inventory.confirmSale(item.variantId, item.quantity, order.id);
+    }
+
+    // Paid: clear the purchased lines from the customer's cart. Runs once,
+    // because a replayed/late webhook returns above when the order is no
+    // longer pending. Non-fatal: the payment is already captured.
+    try {
+      await this.cart.removePurchased(order.customerId, order.items.map((i) => i.variantId));
+    } catch (e) {
+      this.logger.warn(`Cart clear failed for order ${order.id}: ${String(e)}`);
     }
 
     // Hand off to U5 fulfilment + U6 notifications (async, decoupled).

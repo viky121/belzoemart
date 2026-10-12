@@ -148,6 +148,17 @@ export class CartService {
     return this.getCart(ref);
   }
 
+  /** Remove the active (not saved-for-later) lines for the given variants from a customer's cart. Never creates a cart. */
+  async removePurchased(customerId: string, variantIds: string[]): Promise<number> {
+    if (variantIds.length === 0) return 0;
+    const cart = await this.prisma.cart.findUnique({ where: { customerId } });
+    if (!cart) return 0;
+    const { count } = await this.prisma.cartItem.deleteMany({
+      where: { cartId: cart.id, variantId: { in: variantIds }, savedForLater: false },
+    });
+    return count;
+  }
+
   /** Merge a guest cart into the user's cart on login (BR-2): quantities sum. */
   async merge(guestToken: string, customerId: string) {
     const guestCart = await this.prisma.cart.findUnique({

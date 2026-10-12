@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { paise, type Money, type PaymentMethod, type PriceBreakup, type PriceLine } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { InventoryService } from '../catalogue/inventory.service';
@@ -62,6 +62,8 @@ export interface PlaceOrderResult {
  */
 @Injectable()
 export class CheckoutService {
+  private readonly logger = new Logger('CheckoutService');
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cart: CartService,
@@ -312,6 +314,17 @@ export class CheckoutService {
 
     if (input.couponCode) {
       await this.coupons.redeem(input.couponCode, order.id, ref.customerId);
+    }
+
+    // COD orders are final at place, so clear the purchased lines now. Online
+    // orders are cleared on payment capture (PaymentService.markCaptured), so a
+    // failed payment leaves the cart intact for a retry. Non-fatal: the order exists.
+    if (isCod) {
+      try {
+        await this.cart.removePurchased(ref.customerId, snapshot.map((s) => s.variantId));
+      } catch (e) {
+        this.logger.warn(`Cart clear failed for order ${order.id}: ${String(e)}`);
+      }
     }
 
     const pay = order.payments[0];

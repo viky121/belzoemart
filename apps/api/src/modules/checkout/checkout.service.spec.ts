@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, Logger } from '@nestjs/common';
 import { CheckoutService } from './checkout.service';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { CartService } from '../cart/cart.service';
@@ -40,6 +40,7 @@ describe('CheckoutService.place — idempotency', () => {
         }),
     } as unknown as PrismaService;
 
+    const removePurchased = jest.fn().mockResolvedValue(1);
     const cart = {
       getCart: async () => ({
         cartId: 'c1',
@@ -51,6 +52,7 @@ describe('CheckoutService.place — idempotency', () => {
           },
         ],
       }),
+      removePurchased,
     } as unknown as CartService;
 
     const pricing =
@@ -75,6 +77,7 @@ describe('CheckoutService.place — idempotency', () => {
       svc: new CheckoutService(prisma, cart, pricing, coupons, inventory, settings),
       reserveCalls,
       created,
+      removePurchased,
     };
   }
 
@@ -124,6 +127,44 @@ describe('CheckoutService.place — idempotency', () => {
     expect(data.payments.create.amount).toBe(958800);
     expect(result.payment.amount).toBe(958800);
     expect(result.breakup.grandTotal).toBe(958800);
+  });
+
+  describe('A4: clears purchased cart lines', () => {
+    afterEach(() => jest.restoreAllMocks());
+
+    it('a fresh COD order clears the purchased variants', async () => {
+      const { svc, removePurchased } = build(null);
+      const result = await svc.place({ customerId: 'cust1' }, { addressId: 'addr1', paymentMethod: 'cod' }, 'KEY-COD');
+      expect(result.reused).toBe(false);
+      expect(removePurchased).toHaveBeenCalledTimes(1);
+      expect(removePurchased).toHaveBeenCalledWith('cust1', ['v1']);
+    });
+
+    it('a fresh online (upi) order does not clear (cleared on capture instead)', async () => {
+      const { svc, removePurchased } = build(null);
+      await svc.place({ customerId: 'cust1' }, { addressId: 'addr1', paymentMethod: 'upi' }, 'KEY-UPI');
+      expect(removePurchased).not.toHaveBeenCalled();
+    });
+
+    it('a reused key does not clear', async () => {
+      const existing = {
+        id: 'order-1', grandTotal: 118000, payments: [{ provider: 'cod' }],
+        subtotal: 100000, discount: 0, shipping: 0, codFee: 0, tax: 18000, cgst: 9000, sgst: 9000, igst: 0,
+      };
+      const { svc, removePurchased } = build(existing);
+      const result = await svc.place({ customerId: 'cust1' }, { addressId: 'addr1', paymentMethod: 'cod' }, 'KEY-1');
+      expect(result.reused).toBe(true);
+      expect(removePurchased).not.toHaveBeenCalled();
+    });
+
+    it('a removePurchased rejection still returns the order and logs a warning', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      const { svc, removePurchased } = build(null);
+      removePurchased.mockRejectedValueOnce(new Error('db down'));
+      const result = await svc.place({ customerId: 'cust1' }, { addressId: 'addr1', paymentMethod: 'cod' }, 'KEY-COD2');
+      expect(result).toMatchObject({ orderId: 'new-order', reused: false });
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('Cart clear failed for order new-order'));
+    });
   });
 });
 

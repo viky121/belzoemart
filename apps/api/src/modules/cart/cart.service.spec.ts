@@ -115,3 +115,75 @@ describe('CartService — removed variants', () => {
     expect(JSON.stringify(cart)).not.toContain('12345');
   });
 });
+
+describe('CartService.removePurchased (A4)', () => {
+  interface Line {
+    cartId: string;
+    variantId: string;
+    savedForLater: boolean;
+  }
+
+  function build(opts: { hasCart: boolean }) {
+    const lines: Line[] = [
+      { cartId: 'c1', variantId: 'v1', savedForLater: false },
+      { cartId: 'c1', variantId: 'v2', savedForLater: true },
+      { cartId: 'c1', variantId: 'v3', savedForLater: false },
+      { cartId: 'other', variantId: 'v1', savedForLater: false },
+    ];
+    const cartFind = jest.fn(async ({ where }: { where: { customerId?: string } }) =>
+      opts.hasCart && where.customerId === 'u1' ? { id: 'c1' } : null,
+    );
+    const cartCreate = jest.fn();
+    const deleteMany = jest.fn(
+      async ({
+        where,
+      }: {
+        where: { cartId: string; variantId: { in: string[] }; savedForLater: boolean };
+      }) => {
+        const before = lines.length;
+        for (let i = lines.length - 1; i >= 0; i--) {
+          const l = lines[i]!;
+          if (
+            l.cartId === where.cartId &&
+            where.variantId.in.includes(l.variantId) &&
+            l.savedForLater === where.savedForLater
+          ) {
+            lines.splice(i, 1);
+          }
+        }
+        return { count: before - lines.length };
+      },
+    );
+    const prisma = {
+      cart: { findUnique: cartFind, create: cartCreate },
+      cartItem: { deleteMany },
+    } as unknown as PrismaService;
+    return { svc: new CartService(prisma), lines, cartFind, cartCreate, deleteMany };
+  }
+
+  it('deletes only the active lines for the given variants', async () => {
+    const { svc, lines } = build({ hasCart: true });
+    const count = await svc.removePurchased('u1', ['v1', 'v2']);
+    expect(count).toBe(1);
+    // Saved-for-later v2, the unpurchased v3 and another cart's v1 remain.
+    expect(lines).toEqual([
+      { cartId: 'c1', variantId: 'v2', savedForLater: true },
+      { cartId: 'c1', variantId: 'v3', savedForLater: false },
+      { cartId: 'other', variantId: 'v1', savedForLater: false },
+    ]);
+  });
+
+  it('returns 0 without creating a cart when the customer has none', async () => {
+    const { svc, cartCreate, deleteMany } = build({ hasCart: false });
+    expect(await svc.removePurchased('u1', ['v1'])).toBe(0);
+    expect(cartCreate).not.toHaveBeenCalled();
+    expect(deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('skips the database for an empty variant list', async () => {
+    const { svc, cartFind, deleteMany } = build({ hasCart: true });
+    expect(await svc.removePurchased('u1', [])).toBe(0);
+    expect(cartFind).not.toHaveBeenCalled();
+    expect(deleteMany).not.toHaveBeenCalled();
+  });
+});
