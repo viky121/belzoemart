@@ -5,6 +5,7 @@ import type { ComponentProps } from 'react';
 
 import { qk } from '@/api/query-keys';
 import type { CartView } from '@/api/types';
+import { AccountScreen } from '@/features/profile/screens/AccountScreen';
 import { useCartIdentity } from '@/store/session';
 import { theme } from '@/theme';
 
@@ -66,7 +67,7 @@ export function MainTabs() {
           tabBarAccessibilityLabel: badge ? `Cart, ${badge} items` : 'Cart',
         }}
       />
-      <Tab.Screen name="AccountTab" component={PlaceholderScreen} options={{ title: 'Account' }} />
+      <Tab.Screen name="AccountTab" component={AccountScreen} options={{ title: 'Account' }} />
     </Tab.Navigator>
   );
 }

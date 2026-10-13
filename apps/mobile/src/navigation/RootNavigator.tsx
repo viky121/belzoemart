@@ -1,5 +1,8 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { LoginScreen } from '@/features/auth/screens/LoginScreen';
+import { OtpVerifyScreen } from '@/features/auth/screens/OtpVerifyScreen';
+import { RegisterScreen } from '@/features/auth/screens/RegisterScreen';
 import { OnboardingScreen } from '@/features/onboarding/screens/OnboardingScreen';
 import { theme } from '@/theme';
 
@@ -98,15 +101,11 @@ export function RootNavigator({ initialRouteName }: RootNavigatorProps) {
       <Stack.Screen name="CmsPage" component={PlaceholderScreen} options={{ title: '' }} />
 
       <Stack.Group screenOptions={{ presentation: 'modal' }}>
-        <Stack.Screen name="Login" component={PlaceholderScreen} options={{ title: 'Sign in' }} />
-        <Stack.Screen
-          name="OtpVerify"
-          component={PlaceholderScreen}
-          options={{ title: 'Verify' }}
-        />
+        <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Sign in' }} />
+        <Stack.Screen name="OtpVerify" component={OtpVerifyScreen} options={{ title: 'Verify' }} />
         <Stack.Screen
           name="Register"
-          component={PlaceholderScreen}
+          component={RegisterScreen}
           options={{ title: 'Create account' }}
         />
         <Stack.Screen
