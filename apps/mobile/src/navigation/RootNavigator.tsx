@@ -8,6 +8,7 @@ import { ImageViewerScreen } from '@/features/products/screens/ImageViewerScreen
 import { ProductDetailScreen } from '@/features/products/screens/ProductDetailScreen';
 import { ProductListScreen } from '@/features/products/screens/ProductListScreen';
 import { SearchScreen } from '@/features/search/screens/SearchScreen';
+import { WishlistScreen } from '@/features/wishlist/screens/WishlistScreen';
 import { theme } from '@/theme';
 
 import { MainTabs } from './MainTabs';
@@ -19,6 +20,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 // Every [auth] route is always registered so deep links resolve for guests (design §2.2).
 const ProtectedPlaceholder = withRequireAuth(PlaceholderScreen);
+const ProtectedWishlist = withRequireAuth(WishlistScreen);
 
 export interface RootNavigatorProps {
   initialRouteName: 'Onboarding' | 'Main';
@@ -73,7 +75,7 @@ export function RootNavigator({ initialRouteName }: RootNavigatorProps) {
       />
       <Stack.Screen
         name="Wishlist"
-        component={ProtectedPlaceholder}
+        component={ProtectedWishlist}
         options={{ title: 'Wishlist' }}
       />
       <Stack.Screen

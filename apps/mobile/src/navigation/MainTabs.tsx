@@ -5,13 +5,13 @@ import type { ComponentProps } from 'react';
 
 import { qk } from '@/api/query-keys';
 import type { CartView } from '@/api/types';
+import { CartScreen } from '@/features/cart/screens/CartScreen';
 import { CategoriesScreen } from '@/features/categories/screens/CategoriesScreen';
 import { HomeScreen } from '@/features/home/screens/HomeScreen';
 import { AccountScreen } from '@/features/profile/screens/AccountScreen';
 import { useCartIdentity } from '@/store/session';
 import { theme } from '@/theme';
 
-import { PlaceholderScreen } from './PlaceholderScreen';
 import type { MainTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -61,7 +61,7 @@ export function MainTabs() {
       />
       <Tab.Screen
         name="CartTab"
-        component={PlaceholderScreen}
+        component={CartScreen}
         options={{
           title: 'Cart',
           tabBarBadge: badge,

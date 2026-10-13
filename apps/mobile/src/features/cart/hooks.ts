@@ -5,7 +5,15 @@ import type { CartView } from '@/api/types';
 import { useCartIdentity } from '@/store/session';
 import { useToast } from '@/ui/Toast';
 
-import { addToCart, fetchCart } from './api';
+import {
+  addToCart,
+  fetchCart,
+  moveToCart,
+  removeCartLine,
+  saveForLater,
+  updateCartQuantity,
+  validateCoupon,
+} from './api';
 
 /** The current cart (identity-keyed). Owned here; the tab badge reads the same cache. */
 export function useCart() {
@@ -30,5 +38,48 @@ export function useAddToCart() {
       toast.show({ message: 'Added to cart', tone: 'success' });
     },
     onError: () => toast.show({ message: 'Could not add to cart. Please try again.', tone: 'error' }),
+  });
+}
+
+/**
+ * Shared cart-line mutation: replaces the cart cache on success; on a 500/P2025
+ * (the line changed server-side) it toasts and refetches (design §6.5).
+ */
+function useCartLineMutation<V>(fn: (v: V) => Promise<CartView>) {
+  const queryClient = useQueryClient();
+  const identity = useCartIdentity();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (view) => queryClient.setQueryData(qk.cart(identity), view),
+    onError: () => {
+      toast.show({ message: 'This item changed. Your cart has been refreshed.', tone: 'info' });
+      void queryClient.invalidateQueries({ queryKey: qk.cart(identity) });
+    },
+  });
+}
+
+export function useUpdateQuantity() {
+  return useCartLineMutation(({ variantId, quantity }: { variantId: string; quantity: number }) =>
+    updateCartQuantity(variantId, quantity),
+  );
+}
+
+export function useRemoveLine() {
+  return useCartLineMutation((variantId: string) => removeCartLine(variantId));
+}
+
+export function useSaveForLater() {
+  return useCartLineMutation((variantId: string) => saveForLater(variantId));
+}
+
+export function useMoveToCart() {
+  return useCartLineMutation((variantId: string) => moveToCart(variantId));
+}
+
+export function useValidateCoupon() {
+  return useMutation({
+    mutationFn: ({ code, subtotal }: { code: string; subtotal: number }) =>
+      validateCoupon(code, subtotal),
   });
 }
