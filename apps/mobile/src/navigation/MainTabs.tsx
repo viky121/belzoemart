@@ -5,6 +5,8 @@ import type { ComponentProps } from 'react';
 
 import { qk } from '@/api/query-keys';
 import type { CartView } from '@/api/types';
+import { CategoriesScreen } from '@/features/categories/screens/CategoriesScreen';
+import { HomeScreen } from '@/features/home/screens/HomeScreen';
 import { AccountScreen } from '@/features/profile/screens/AccountScreen';
 import { useCartIdentity } from '@/store/session';
 import { theme } from '@/theme';
@@ -51,11 +53,10 @@ export function MainTabs() {
         ),
       })}
     >
-      {/* Placeholders until FEAT-004/005 land the real tab screens. */}
-      <Tab.Screen name="HomeTab" component={PlaceholderScreen} options={{ title: 'Home' }} />
+      <Tab.Screen name="HomeTab" component={HomeScreen} options={{ title: 'Home' }} />
       <Tab.Screen
         name="CategoriesTab"
-        component={PlaceholderScreen}
+        component={CategoriesScreen}
         options={{ title: 'Categories' }}
       />
       <Tab.Screen
