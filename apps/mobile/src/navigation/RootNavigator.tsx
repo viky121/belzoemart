@@ -4,6 +4,10 @@ import { LoginScreen } from '@/features/auth/screens/LoginScreen';
 import { OtpVerifyScreen } from '@/features/auth/screens/OtpVerifyScreen';
 import { RegisterScreen } from '@/features/auth/screens/RegisterScreen';
 import { OnboardingScreen } from '@/features/onboarding/screens/OnboardingScreen';
+import { ImageViewerScreen } from '@/features/products/screens/ImageViewerScreen';
+import { ProductDetailScreen } from '@/features/products/screens/ProductDetailScreen';
+import { ProductListScreen } from '@/features/products/screens/ProductListScreen';
+import { SearchScreen } from '@/features/search/screens/SearchScreen';
 import { theme } from '@/theme';
 
 import { MainTabs } from './MainTabs';
@@ -42,11 +46,11 @@ export function RootNavigator({ initialRouteName }: RootNavigatorProps) {
       <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
       <Stack.Screen
         name="ProductList"
-        component={PlaceholderScreen}
+        component={ProductListScreen}
         options={{ title: 'Products' }}
       />
-      <Stack.Screen name="ProductDetail" component={PlaceholderScreen} options={{ title: '' }} />
-      <Stack.Screen name="Search" component={PlaceholderScreen} options={{ title: 'Search' }} />
+      <Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ title: '' }} />
+      <Stack.Screen name="Search" component={SearchScreen} options={{ title: 'Search' }} />
       <Stack.Screen
         name="Checkout"
         component={ProtectedPlaceholder}
@@ -126,7 +130,7 @@ export function RootNavigator({ initialRouteName }: RootNavigatorProps) {
       </Stack.Group>
 
       <Stack.Group screenOptions={{ presentation: 'fullScreenModal', headerShown: false }}>
-        <Stack.Screen name="ImageViewer" component={PlaceholderScreen} />
+        <Stack.Screen name="ImageViewer" component={ImageViewerScreen} />
       </Stack.Group>
     </Stack.Navigator>
   );
