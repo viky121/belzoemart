@@ -1,0 +1,60 @@
+# EAS upload rules. This file REPLACES every .gitignore for EAS uploads.
+# Keep it a superset of /.gitignore and /apps/mobile/.gitignore
+# (apps/mobile/scripts/check-easignore.mjs enforces this).
+
+# --- from /.gitignore ---
+node_modules/
+.pnpm-store/
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+*.pem
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+apps/api/prisma/*.db
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.docker-data/
+
+# --- from /apps/mobile/.gitignore ---
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/.expo/
+apps/mobile/dist/
+*.jks
+*.keystore
+google-services.json
+
+# --- secrets, broader than .gitignore ---
+.env*
+*.p12
+*.p8
+*.key
+
+# --- not needed to build the app ---
+apps/api/
+apps/web/
+/infra/
+/aidlc-docs/
+/.agents/
+/.kiro/
+/.github/
+/docs/
+/scripts/
+/Caddyfile
+/docker-compose*.yml
+/DEPLOY.md
+/tmp-*.sh
