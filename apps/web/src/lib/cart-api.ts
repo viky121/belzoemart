@@ -2,6 +2,7 @@
 
 import { apiFetch, type ApiRequestOptions } from './api-client';
 import { safeUuid } from './uuid';
+import { safeLocal } from './safe-storage';
 
 /**
  * Client-side cart API. Uses a guest token (persisted in localStorage) so
@@ -10,12 +11,17 @@ import { safeUuid } from './uuid';
  */
 const GUEST_KEY = 'belzo_guest_token';
 
+// In-memory fallback so the guest token stays stable for the page's lifetime
+// even when localStorage is unavailable (private mode / blocked site data).
+let memoToken: string | null = null;
+
 export function getGuestToken(): string {
   if (typeof window === 'undefined') return '';
-  let token = window.localStorage.getItem(GUEST_KEY);
+  let token = safeLocal.get(GUEST_KEY) ?? memoToken;
   if (!token) {
     token = safeUuid();
-    window.localStorage.setItem(GUEST_KEY, token);
+    safeLocal.set(GUEST_KEY, token);
+    memoToken = token;
   }
   return token;
 }

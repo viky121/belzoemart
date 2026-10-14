@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { usePincode } from '@/lib/use-pincode';
+import { safeSession } from '@/lib/safe-storage';
 
 /**
  * Design shape (A): a blocking first-visit gate (full-screen popup).
@@ -35,7 +36,7 @@ export function PincodeGate() {
   // Read the per-session acknowledgement once on mount.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    setAcked(window.sessionStorage.getItem(ACK_KEY) === '1');
+    setAcked(safeSession.get(ACK_KEY) === '1');
   }, []);
 
   // Pre-fill with the remembered PIN (from localStorage via the hook) when known.
@@ -48,7 +49,7 @@ export function PincodeGate() {
   useEffect(() => {
     if (acked !== false || !submitted) return;
     if (pincode && serviceable === true) {
-      window.sessionStorage.setItem(ACK_KEY, '1');
+      safeSession.set(ACK_KEY, '1');
       setAcked(true);
     }
   }, [acked, submitted, pincode, serviceable]);

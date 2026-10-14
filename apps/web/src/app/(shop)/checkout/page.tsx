@@ -11,6 +11,7 @@ import { breakupView, snapshotFromBreakup } from '@/lib/price-breakup';
 import { cartApi, type CartLine } from '@/lib/cart-api';
 import { placeholderImage, isUsableImageUrl } from '@/lib/category-theme';
 import { safeUuid } from '@/lib/uuid';
+import { safeSession } from '@/lib/safe-storage';
 import { openRazorpayCheckout, type RazorpayClientConfig } from '@/lib/razorpay';
 
 interface Address {
@@ -94,7 +95,7 @@ export default function CheckoutPage() {
       .then((c) => setItems(c.items.filter((i) => !i.savedForLater)))
       .catch(() => setItems([]));
     if (typeof window !== 'undefined') {
-      setCoupon(window.sessionStorage.getItem('belzo_coupon') ?? '');
+      setCoupon(safeSession.get('belzo_coupon') ?? '');
     }
   }, [accessToken, loadAddresses, router]);
 
@@ -160,7 +161,7 @@ export default function CheckoutPage() {
         method: 'POST',
         body: { addressId, paymentMethod: method, couponCode: coupon || undefined },
       });
-      if (typeof window !== 'undefined') window.sessionStorage.removeItem('belzo_coupon');
+      safeSession.remove('belzo_coupon');
 
       const cfg = result.payment.clientConfig;
       // Live Razorpay → open the hosted checkout widget. Capture is confirmed
