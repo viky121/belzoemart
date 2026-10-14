@@ -1,0 +1,7 @@
+{
+  "task_id": "task-bulk-excel-template",
+  "task_description": "Implement the Belzo eMart ONE-Excel-template bulk product import/export (Parent/Child format) exactly as specified in .agents/tasks/bulk-excel-template/design.md, plus round-3 design-review Finding 1 (single-row Size/Colour twin-attribute propagation) and the cheap round-3 NITs listed in plan.md. Additive migration (Product.sku, Variant.costPrice), shared bulk-sheet module, API BulkSheetService + GET /admin/products/sheet + POST /admin/products/bulk-v2, admin web bulk page rewrite with exceljs (dynamic import), costPrice in the product editor, removal of the old CSV template/export.",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}

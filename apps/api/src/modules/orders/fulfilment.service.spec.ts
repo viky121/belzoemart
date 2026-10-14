@@ -212,3 +212,77 @@ describe('FulfilmentService.syncTracking', () => {
     expect(shipmentUpdates).toEqual([]);
   });
 });
+
+/**
+ * cancelShipmentsForOrder notifies the courier and marks our shipment cancelled
+ * (with a tracking event), skips terminal shipments, and never throws when the
+ * courier call fails (the order cancel is authoritative).
+ */
+describe('FulfilmentService.cancelShipmentsForOrder', () => {
+  function build(opts: {
+    shipments: { id: string; awb: string | null; status: string }[];
+    cancelThrows?: boolean;
+  }) {
+    const cancelledAwbs: string[] = [];
+    const shipmentUpdates: { id: string; data: Record<string, unknown> }[] = [];
+    const events: Record<string, unknown>[] = [];
+    const prisma = {
+      shipment: {
+        findMany: async () => opts.shipments,
+        update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+          shipmentUpdates.push({ id: where.id, data });
+          return {};
+        },
+      },
+      trackingEvent: {
+        create: async ({ data }: { data: Record<string, unknown> }) => {
+          events.push(data);
+          return data;
+        },
+      },
+    } as unknown as PrismaService;
+    const shipping = {
+      kind: 'mock' as const,
+      cancelShipment: async (awb: string) => {
+        if (opts.cancelThrows) throw new Error('courier down');
+        cancelledAwbs.push(awb);
+      },
+    } as unknown as ShippingProvider;
+    const svc = new FulfilmentService(prisma, shipping, {} as SettingsService);
+    return { svc, cancelledAwbs, shipmentUpdates, events };
+  }
+
+  it('cancels the courier shipment and marks ours cancelled with a tracking event', async () => {
+    const { svc, cancelledAwbs, shipmentUpdates, events } = build({
+      shipments: [{ id: 's1', awb: 'AWB1', status: 'packed' }],
+    });
+    await svc.cancelShipmentsForOrder('order-1');
+    expect(cancelledAwbs).toEqual(['AWB1']);
+    expect(shipmentUpdates).toEqual([{ id: 's1', data: { status: 'cancelled' } }]);
+    expect(events[0]).toMatchObject({ shipmentId: 's1', status: 'cancelled', description: 'Shipment cancelled' });
+  });
+
+  it('skips shipments that are already terminal', async () => {
+    const { svc, cancelledAwbs, shipmentUpdates, events } = build({
+      shipments: [
+        { id: 's1', awb: 'AWB1', status: 'delivered' },
+        { id: 's2', awb: 'AWB2', status: 'cancelled' },
+        { id: 's3', awb: 'AWB3', status: 'rto' },
+      ],
+    });
+    await svc.cancelShipmentsForOrder('order-1');
+    expect(cancelledAwbs).toEqual([]);
+    expect(shipmentUpdates).toEqual([]);
+    expect(events).toEqual([]);
+  });
+
+  it('still cancels our shipment when the courier call fails', async () => {
+    const { svc, shipmentUpdates, events } = build({
+      shipments: [{ id: 's1', awb: 'AWB1', status: 'shipped' }],
+      cancelThrows: true,
+    });
+    await expect(svc.cancelShipmentsForOrder('order-1')).resolves.toBeUndefined();
+    expect(shipmentUpdates).toEqual([{ id: 's1', data: { status: 'cancelled' } }]);
+    expect(events[0]).toMatchObject({ status: 'cancelled' });
+  });
+});

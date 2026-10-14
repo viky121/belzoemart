@@ -1,0 +1,42 @@
+# Local development infrastructure for Belzo eMart.
+# Starts PostgreSQL and Redis. The api/web/worker run on the host via `pnpm dev`.
+#
+#   docker compose -f infra/docker-compose.yml up -d
+#
+services:
+  postgres:
+    image: postgres:16.3-alpine
+    container_name: belzo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: belzo
+      POSTGRES_PASSWORD: belzo
+      POSTGRES_DB: belzo
+    ports:
+      - '5433:5432'
+    volumes:
+      - belzo-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U belzo -d belzo']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: belzo-redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '6380:6379'
+    volumes:
+      - belzo-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  belzo-postgres-data:
+  belzo-redis-data:

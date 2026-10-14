@@ -1,0 +1,34 @@
+{
+  "verdict": "APPROVED",
+  "approved": true,
+  "blockingItems": [],
+  "findings": [
+    {
+      "severity": "low",
+      "confidence": "confirmed",
+      "label": "Empty-array save reverts to defaults",
+      "detail": "homeSectionsSchema has no .min(1), so saving [] is valid, but an empty array sanitizes to null on read and restores DEFAULT_SECTIONS. To render zero rails an admin must disable all sections instead of deleting them. Add an editor hint. Non-blocking (documented design quirk)."
+    },
+    {
+      "severity": "low",
+      "confidence": "confirmed",
+      "label": "Web sanitizer missing the 24-cap",
+      "detail": "sanitizeHomeSections in apps/web/src/lib/home-sections.ts omits the .slice(0, 24) the API controller applies. Harmless today because the controller is always upstream; add the slice for parity so the resolver stays safe if ever fed raw config directly."
+    },
+    {
+      "severity": "low",
+      "confidence": "confirmed",
+      "label": "No server-side structural validation on PUT /admin/settings",
+      "detail": "home.sections is stored as arbitrary JSON (value: z.unknown()), gated only by super_admin RBAC. Accepted design tradeoff; storefront safety depends on sanitize-on-read, which all three read paths perform. A dedicated PUT /admin/home-sections using homeSectionsSchema could add write-time enforcement later without changing storage shape."
+    }
+  ],
+  "focusAreas": {
+    "sanitizationParity": "pass — controller and web resolver run homeSectionSchema.safeParse per element, keep passers, null only when none valid; only divergence is the harmless 24-cap noted as low finding",
+    "manualIdsBranch": "pass — published-only, picked-order reorder, slice(0,pageSize) honors limit, early return leaves paginated path untouched; no injection (Prisma parameterized)",
+    "openRedirect": "pass — hrefs built only from sort enum, server category slugs, or /search?categoryId=<uuid>; titles render as escaped text, never feed hrefs",
+    "backwardCompatDefaults": "pass — unconfigured store returns sections:null and both themes fall back to DEFAULT_SECTIONS",
+    "sharedConfigBothThemes": "pass — classic and eMart consume getHomeSections+resolveHomeSections; hero/promos/why/category/brands chrome preserved",
+    "writePathValidation": "accepted tradeoff — see low finding; client validates with homeSectionsSchema, reads sanitize defensively"
+  },
+  "reviewDoc": "c:\\xampp\\htdocs\\Belzo\\.agents\\tasks\\home-sections-config\\impl-review.md"
+}

@@ -1,0 +1,18 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "severity": "non-blocking",
+      "confidence": "confirmed",
+      "label": "Brand created outside row transaction",
+      "message": "findOrCreateBrandByName runs before the per-row $transaction, so a brand can persist even if the product write fails. Harmless orphan reused on retry; optionally move inside the transaction or clean up unused brands."
+    },
+    {
+      "severity": "non-blocking",
+      "confidence": "confirmed",
+      "label": "Unrounded taxRatePct on the frontend",
+      "message": "The bulk page truncates stock with Math.trunc but passes taxRatePct through Number() unrounded, so a decimal GST value would fail the controller's z.number().int() and 400 the whole batch instead of becoming a per-row error. Low likelihood (GST slabs are integers); mirror the Math.trunc treatment."
+    }
+  ],
+  "reviewDoc": "c:\\xampp\\htdocs\\Belzo\\.agents\\tasks\\bulk-upload-fix\\review.md"
+}

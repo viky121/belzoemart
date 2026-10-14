@@ -1,0 +1,18 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "label": "Stale not-serviceable flash on PIN re-check",
+      "severity": "non-blocking",
+      "confidence": "likely",
+      "detail": "Switching from one unserviceable PIN to another briefly shows the old 'This PIN code is not serviceable.' message until the new check resolves, because use-pincode.ts resets serviceable to null only when pincode becomes falsy, not on a value change. Lives in the unmodified hook and self-corrects; optional fix is to clear local state on submit or reset serviceable in the hook."
+    },
+    {
+      "label": "No focus trap on modal overlay",
+      "severity": "non-blocking",
+      "confidence": "confirmed",
+      "detail": "The gate sets role=dialog and aria-modal=true and blocks pointer interaction, but does not trap keyboard focus, so a tabbing user can reach the storefront behind the overlay. Minor a11y gap, not a functional bypass of the mandatory flow for normal usage."
+    }
+  ],
+  "reviewDoc": "c:\\xampp\\htdocs\\Belzo/.agents/tasks/pincode-gate-review.md"
+}

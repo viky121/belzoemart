@@ -1,0 +1,24 @@
+# Belzo eMart reverse proxy.
+#
+# PRODUCTION: HTTPS via Let's Encrypt (auto-TLS) for belzoemart.com.
+# Requests to /api/* go to the NestJS API; everything else to the Next.js web.
+# Caddy obtains and renews certificates automatically (requires ports 80 + 443
+# open to the internet).
+belzoemart.com, www.belzoemart.com {
+	encode zstd gzip
+
+	@api path /api/*
+	reverse_proxy @api api:4000
+
+	reverse_proxy web:3000
+}
+
+# ---------------------------------------------------------------------------
+# RAW-IP / HTTP-ONLY fallback (previous config, kept for reference):
+#
+# :80 {
+# 	encode zstd gzip
+# 	@api path /api/*
+# 	reverse_proxy @api api:4000
+# 	reverse_proxy web:3000
+# }

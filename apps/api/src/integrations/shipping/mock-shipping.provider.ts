@@ -55,4 +55,9 @@ export class MockShippingProvider implements ShippingProvider {
       occurredAt: new Date(Math.min(start + i * STEP_GAP_MS, now)).toISOString(),
     }));
   }
+
+  /** The mock courier has nothing to call out to — cancellation always succeeds. */
+  async cancelShipment(_awb: string): Promise<void> {
+    // No-op: local dev/test courier.
+  }
 }

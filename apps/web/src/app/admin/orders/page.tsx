@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { adminFetch } from '@/lib/admin-api';
 import { formatInr } from '@/lib/catalogue-api';
 
@@ -156,11 +157,18 @@ export default function AdminOrdersPage() {
             <tbody>
               {data.items.map((o) => (
                 <tr key={o.id}>
-                  <td><strong>#{o.id.slice(0, 8).toUpperCase()}</strong></td>
+                  <td>
+                    <Link href={`/admin/orders/${o.id}`} className="aod-link" data-testid={`order-link-${o.id}`}>
+                      <strong>#{o.id.slice(0, 8).toUpperCase()}</strong>
+                    </Link>
+                  </td>
                   <td><span className={`admin-status ${STATUS_CLASS[o.status] ?? ''}`}>{o.status.replace(/_/g, ' ')}</span></td>
                   <td>{formatInr(o.grandTotal)}</td>
                   <td>{new Date(o.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                   <td>
+                    <Link href={`/admin/orders/${o.id}`} className="aod-link" data-testid={`order-view-${o.id}`}>
+                      View
+                    </Link>
                     {o.status === 'confirmed' && (
                       <button onClick={() => createShipment(o)} data-testid={`ship-${o.id}`}>Create shipment</button>
                     )}

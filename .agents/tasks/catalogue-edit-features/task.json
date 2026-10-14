@@ -1,0 +1,7 @@
+{
+  "task_id": "task-catalogue-edit-features",
+  "task_description": "Admin catalogue: (1) export products to CSV and make re-upload edit existing SKUs (title, category, prices, fields, stock, status, image REPLACE) for an Excel round trip; (2) product editor gains a 'Variants, price & stock' section editing SKU, MRP, selling price, stock and product status without wiping bulk tiers/attributes/weight/variant image.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}

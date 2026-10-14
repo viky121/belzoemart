@@ -1,0 +1,38 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    {
+      "id": 1,
+      "severity": "MEDIUM",
+      "title": "Editor behavior for the Why Choose section on the Classic theme is unspecified (silent no-op), inconsistent with the Hero fix",
+      "location": "design.md — Admin editor UX section; Rendering -> Classic -> Why",
+      "problem": "The design hides the Hero sub-form for selectedTheme==='classic' because classic never renders home.hero, but home.why is likewise never rendered on classic (verified: (shop)/page.tsx has no why section; only emart-home.tsx renders em-why). The design is silent on whether the Why Choose editor is hidden for classic, so an implementer will likely leave it visible, reproducing the exact silent-no-op UI the design eliminated for hero.",
+      "fix": "For parity with hero: when selectedTheme==='classic', hide the Why Choose sub-form and show a hint ('Why items are used by the eMart theme only'), round-tripping why data through state/save but not editing it. Or explicitly document that it stays visible and justify the difference from the hero decision."
+    },
+    {
+      "id": 2,
+      "severity": "NIT",
+      "title": "Nested-card sanitize is all-or-nothing within a block, contradicting the stated per-element leniency contract",
+      "location": "design.md — Public read / sanitize contract (keepValid(v.blocks, homeBlockSchema))",
+      "problem": "homeBlockCardSchema.title is .min(1); keepValid runs homeBlockSchema.safeParse over the whole block, so one invalid nested card drops the entire cards block including valid cards. This mirrors the hero all-or-nothing issue the design fixed and violates its 'per-element' claim. Blast radius is one block and the editor's pre-save guard prevents creating it via UI, so NIT.",
+      "fix": "Sanitize cards per-element (map homeBlockCardSchema.safeParse over the array, keep valid ones), or explicitly document the wholesale-drop deviation for nested arrays."
+    },
+    {
+      "id": 3,
+      "severity": "NIT",
+      "title": "Two-theme in-memory editor state shape and save/unsaved-edit semantics under-specified",
+      "location": "design.md — Admin editor UX ('switching the selector swaps the in-memory home state')",
+      "problem": "content-editor.tsx holds a single home state with setters that mutate it; editing both themes without refetch requires holding both themes' content and targeting the selected theme in every setter. The design does not name the state shape or state that each save persists only the selected theme's key while the other theme's edits stay unsaved in memory.",
+      "fix": "Specify e.g. useState<Record<ThemeName, HomeContent>>, have setters write homes[selectedTheme], and note save persists only the active theme (each theme saved separately; switching preserves edits in memory only)."
+    },
+    {
+      "id": 4,
+      "severity": "NIT",
+      "title": "Ambiguous which PROMO_COLORS gains pink",
+      "location": "design.md — Admin editor UX -> Promos ('extend PROMO_COLORS to include pink')",
+      "problem": "Two PROMO_COLORS exist: the shared one in schemas.ts (already has pink) and a local const in content-editor.tsx verified as ['green','blue','amber'] (no pink). DEFAULT_HOME_CLASSIC uses color:'pink', so the colour select must offer pink or a pink promo renders with no matching option.",
+      "fix": "State that content-editor.tsx imports PROMO_COLORS from @belzo/shared (dropping its local 3-value array) so dropdown and schema stay in sync including pink."
+    }
+  ],
+  "reviewDoc": "c:\\xampp\\htdocs\\Belzo\\.agents\\tasks\\theme-home-content\\design-review.md"
+}

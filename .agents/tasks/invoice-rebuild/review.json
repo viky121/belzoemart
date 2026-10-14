@@ -1,0 +1,20 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "id": 1,
+      "label": "GSTIN validation is shape-only and client-only",
+      "severity": "non-blocking",
+      "confidence": "confirmed",
+      "detail": "isValidGstin checks the 15-character pattern but not the check digit. The admin settings service has no server-side check for store.gstin. Add the GSTIN checksum to isValidGstin and enforce it in the settings service for store.gstin."
+    },
+    {
+      "id": 2,
+      "label": "Blended-rate drift (out of scope)",
+      "severity": "informational",
+      "confidence": "confirmed",
+      "detail": "Per-line tax drifts about 0.5-1% from rate x taxable (5% line: Rs 76.02 vs Rs 76.48; 18% line: Rs 102.62 vs Rs 103.20) because computeTotals charges one integer-rounded weighted rate across the cart. Track it as a separate pricing-engine fix; pricing.ts must stay untouched here."
+    }
+  ],
+  "reviewDoc": "c:\\xampp\\htdocs\\Belzo\\.agents\\tasks\\invoice-rebuild/review.md"
+}

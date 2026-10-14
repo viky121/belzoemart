@@ -1,0 +1,27 @@
+{
+  "brand": "Belzo eMart",
+  "nav": {
+    "home": "Home",
+    "categories": "Categories",
+    "cart": "Cart",
+    "account": "Account",
+    "orders": "Orders",
+    "admin": "Admin"
+  },
+  "home": {
+    "heroTitle": "Everything you need, delivered across India",
+    "heroSubtitle": "Apparel, groceries, electronics and handicrafts — all in one place.",
+    "shopNow": "Shop now",
+    "comingSoon": "Storefront catalogue arrives in the next build unit."
+  },
+  "admin": {
+    "title": "Belzo eMart Admin",
+    "subtitle": "Back-office panel. Dashboards and management tools arrive in later units.",
+    "restricted": "Restricted area — sign in with an admin account."
+  },
+  "common": {
+    "language": "Language",
+    "english": "English",
+    "hindi": "हिन्दी"
+  }
+}

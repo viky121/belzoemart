@@ -1,0 +1,19 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    { "id": 1, "severity": "NIT", "title": "Pre-existing reserve/capture race on a concurrent reused online place (unreachable with online payment off)", "location": "design.md §6.6; checkout.service.ts place (reserve after order commit); payment.service.ts markCaptured", "fix": "Add a §14 Phase-5 row: move stock reservation inside the order transaction (or gate initiate on reservation completion) before enabling online payment in the app." },
+    { "id": 2, "severity": "NIT", "title": "Concurrent loser returns success while the winner's createOrder later fails and reverts", "location": "design.md §7 A7 failure handling", "fix": "Fold into the §14 Phase-5 Razorpay note (needs retry-payment route or expiry job)." },
+    { "id": 3, "severity": "NIT", "title": "Status line still says iteration 3", "location": "design.md line 4", "fix": "Update to iteration 4, revised against the round-2 re-run (0 HIGH, 2 MEDIUM, 10 NIT)." },
+    { "id": 4, "severity": "NIT", "title": "§6.6 step 4 uses qk.cart(id)", "location": "design.md §6.6", "fix": "invalidateQueries({ queryKey: qk.cart('customer') })." },
+    { "id": 5, "severity": "NIT", "title": "§6.4 step 0 listed after step 1", "location": "design.md §6.4", "fix": "Move the (caller) parse line above step 1." },
+    { "id": 6, "severity": "NIT", "title": ".dockerignore contents conflict between §0 and §8.3", "location": "design.md §0, §8.3", "fix": "List apps/mobile and **/node_modules in §8.3." },
+    { "id": 7, "severity": "NIT", "title": "Step-0 baseline list omits token.service.spec.ts", "location": "design.md §17 step 0", "fix": "Add apps/api/src/modules/identity/token.service.spec.ts." },
+    { "id": 8, "severity": "NIT", "title": "Pin @babel/runtime explicitly", "location": "design.md §12", "fix": "Add as a direct dependency pinned to the resolved 7.x version." },
+    { "id": 9, "severity": "NIT", "title": "Phase-5 carry-overs missing from §14", "location": "design.md §14", "fix": "Record whole-line removePurchased refinement and optional principal-kind check in TokenService.rotate." },
+    { "id": 10, "severity": "NIT", "title": "Document that A7 freezes a pending payment whose mock auto-capture failed", "location": "design.md §7 A7 / §14", "fix": "Add one sentence so nobody lets pending through later." },
+    { "id": 11, "severity": "NIT", "title": "Auto-cancel copy may lead to coupon rejection", "location": "design.md §6.6, §14", "fix": "Append '(any coupon used on the cancelled order may not be reusable)' or note in §14." },
+    { "id": 12, "severity": "NIT", "title": "Node 20.14 install of mobile importers assumed warnings-only", "location": "design.md §8.4, §15, §16.2", "fix": "Record as UNVERIFIED in §15 or test under Node 20.14 in §16.2 step 6." },
+    { "id": 13, "severity": "NIT", "title": "§2.5 boot bound ignores unbounded local I/O", "location": "design.md §2.5", "fix": "State that hydrate and SecureStore reads are local and unbounded." }
+  ],
+  "reviewDoc": "c:\\xampp\\htdocs\\Belzo\\.agents\\tasks\\mobile-app/design-review-r2.md"
+}
