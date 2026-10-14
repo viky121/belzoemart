@@ -1,5 +1,6 @@
 'use client';
 
+import { apiBaseUrl } from './api-base';
 import { apiFetch, ApiClientError, type ApiRequestOptions } from './api-client';
 import { compressImage } from './image-compress';
 
@@ -87,8 +88,6 @@ export async function adminListMedia(folder?: string): Promise<{ items: MediaIte
   return adminFetch<{ items: MediaItem[] }>(`/admin/media${qs}`);
 }
 
-const UPLOAD_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000';
-
 // Server cap (apps/api media.controller MAX_BYTES). Keep in sync. We reject
 // oversized bodies here so the user gets a clear message instead of a raw
 // `net::ERR_CONNECTION_RESET` — which is what the browser shows when the API
@@ -130,7 +129,7 @@ export async function adminUpload(
 
   let res: Response;
   try {
-    res = await fetch(`${UPLOAD_BASE}/api/v1/admin/media/upload`, {
+    res = await fetch(`${apiBaseUrl()}/api/v1/admin/media/upload`, {
       method: 'POST',
       credentials: 'include',
       headers: adminAccessToken ? { authorization: `Bearer ${adminAccessToken}` } : {},

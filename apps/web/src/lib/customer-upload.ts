@@ -1,8 +1,7 @@
 'use client';
 
+import { apiBaseUrl } from './api-base';
 import { compressImage } from './image-compress';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000';
 
 // Keep in sync with the API's CUSTOMER_IMAGE_MAX_BYTES (customer-image-upload.ts).
 const SERVER_MAX_BYTES = 15 * 1024 * 1024;
@@ -31,7 +30,7 @@ async function uploadCustomerImage(
 
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}/api/v1${path}`, {
+    res = await fetch(`${apiBaseUrl()}/api/v1${path}`, {
       method: 'POST',
       credentials: 'include',
       headers: accessToken ? { authorization: `Bearer ${accessToken}` } : {},
