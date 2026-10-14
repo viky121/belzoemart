@@ -1045,7 +1045,7 @@ nav.main a:hover {
 /* Hover zoom: the inner layer scales around the cursor; .pdp__hero clips it. */
 .pdp__zoom {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0; /* longhand for iOS Safari <14.1 */
   transition: transform 0.18s ease-out;
   will-change: transform;
 }
@@ -5691,7 +5691,7 @@ a.od-item__title:hover { color: var(--fk-blue); }
 /* Modals */
 .od-modal {
   position: fixed;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0; /* longhand for iOS Safari <14.1 */
   z-index: 10000;
   display: flex;
   align-items: center;
@@ -5866,7 +5866,7 @@ a.od-item__title:hover { color: var(--fk-blue); }
 .od-upload__plus { font-size: 1.3rem; line-height: 1; }
 .od-upload__input {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0; /* longhand for iOS Safari <14.1 */
   width: 100%;
   height: 100%;
   opacity: 0;
@@ -6440,7 +6440,7 @@ a.od-item__title:hover { color: var(--fk-blue); }
 body.pingate-locked { overflow: hidden; }
 .pingate {
   position: fixed;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0; /* longhand for iOS Safari <14.1 */
   z-index: 10000;
   display: flex;
   align-items: center;
@@ -6484,7 +6484,7 @@ body.pingate-locked { overflow: hidden; }
 /* ===== Post-login profile completion prompt ===== */
 .profprompt {
   position: fixed;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0; /* longhand for iOS Safari <14.1 */
   z-index: 9000;
   display: flex;
   align-items: center;

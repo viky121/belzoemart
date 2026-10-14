@@ -326,7 +326,7 @@
 
 .pm-modal {
   position: fixed;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0; /* longhand for iOS Safari <14.1 */
   z-index: 100;
   background: rgba(15, 23, 42, 0.5);
   display: grid;
@@ -1605,7 +1605,7 @@
    ============================================================ */
 .adlogin {
   position: fixed;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0; /* longhand for iOS Safari <14.1 */
   display: grid;
   place-items: center;
   padding: 20px;
@@ -1618,7 +1618,7 @@
 
 .adlogin__bg {
   position: absolute;
-  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0; /* longhand for iOS Safari <14.1 */
   z-index: 1;
   pointer-events: none;
 }
@@ -1857,4 +1857,91 @@
   .catpick__row {
     grid-template-columns: 1fr;
   }
+}
+
+/* ---- Admin order detail (orders/[id]) ---- */
+.aod-back {
+  display: inline-block;
+  margin-bottom: 14px;
+  color: #1d4ed8;
+  font-weight: 700;
+  font-size: 0.88rem;
+  text-decoration: none;
+}
+.aod-back:hover { text-decoration: underline; }
+
+.aod-link {
+  color: #1d4ed8;
+  text-decoration: none;
+}
+.aod-link:hover { text-decoration: underline; }
+
+.aod-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.aod-info { display: flex; flex-direction: column; gap: 8px; }
+.aod-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.88rem;
+  border-bottom: 1px dashed #eef2f7;
+  padding-bottom: 8px;
+}
+.aod-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.aod-row > span { color: #64748b; }
+.aod-row--total {
+  border-top: 1px solid #e8edf3;
+  border-bottom: 0;
+  padding-top: 10px;
+  margin-top: 2px;
+  font-size: 1rem;
+}
+.aod-row--total > span { color: #0f172a; font-weight: 800; }
+
+.aod-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.aod-prod { display: flex; align-items: center; gap: 12px; }
+.aod-item-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #f1f5f9;
+  flex-shrink: 0;
+}
+.aod-prod-title { font-weight: 700; color: #0f172a; text-decoration: none; }
+.aod-prod-title:hover { text-decoration: underline; }
+
+.aod-ship { padding: 10px 0; border-bottom: 1px solid #eef2f7; }
+.aod-ship:last-child { border-bottom: 0; }
+.aod-timeline {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+.aod-timeline li { padding-left: 14px; position: relative; }
+.aod-timeline li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
 }

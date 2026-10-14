@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { adminFetch } from '@/lib/admin-api';
+import { safeUuid } from '@/lib/uuid';
 import { PROMO_COLORS, homeContentSchema, type HomeBlock } from '@belzo/shared';
 import {
   DEFAULT_FOOTER,
@@ -108,8 +109,8 @@ export function ContentEditor() {
     setHome((h) => {
       const block: HomeBlock =
         type === 'banner'
-          ? { type: 'banner', id: crypto.randomUUID(), title: '', text: '', imageUrl: '', ctaText: '', ctaHref: '#', enabled: true }
-          : { type: 'cards', id: crypto.randomUUID(), title: '', cards: [], enabled: true };
+          ? { type: 'banner', id: safeUuid(), title: '', text: '', imageUrl: '', ctaText: '', ctaHref: '#', enabled: true }
+          : { type: 'cards', id: safeUuid(), title: '', cards: [], enabled: true };
       return { ...h, blocks: [...h.blocks, block] };
     });
   const setBlock = (i: number, patch: Partial<HomeBlock>) =>

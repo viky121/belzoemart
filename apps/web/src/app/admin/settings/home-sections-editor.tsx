@@ -11,6 +11,7 @@ import {
   type CategoryNodeDto,
 } from '@belzo/shared';
 import { DEFAULT_SECTIONS } from '@/lib/home-sections';
+import { safeUuid } from '@/lib/uuid';
 
 /** Admin product row shape (subset of the admin product list we need here). */
 interface ProdRow {
@@ -83,7 +84,7 @@ export function HomeSectionsEditor() {
     setSections((list) => [
       ...list,
       {
-        id: crypto.randomUUID(),
+        id: safeUuid(),
         title: 'New section',
         source: { type: 'sort', sort: 'discount' },
         limit: 12,
