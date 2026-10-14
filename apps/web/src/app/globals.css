@@ -6560,3 +6560,84 @@ body.pingate-locked { overflow: hidden; }
   opacity: 0.6;
   cursor: default;
 }
+
+/* ============================================================
+   Responsive hardening (mobile / tablet / desktop)
+   Fixes horizontal overflow on small screens: flex children
+   that hold inputs must be allowed to shrink, long tokens
+   (emails/URLs) must wrap, and auto grids must never size a
+   track wider than the container. A page-level `overflow-x:
+   clip` guard catches anything missed WITHOUT breaking the
+   sticky header (unlike `overflow-x: hidden`).
+   ============================================================ */
+.theme-root {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+/* Flex items that contain the search input must be shrinkable. */
+.em-search,
+.header-search-wrap,
+.header-search {
+  min-width: 0;
+}
+.header-search input,
+.header-search__input {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Long emails / links must wrap instead of widening a grid track. */
+.em-footer__brand,
+.em-footer__col {
+  min-width: 0;
+}
+.em-footer__brand p,
+.em-footer__col a,
+.em-footer__col span {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Auto grids: never force a column wider than the available width. */
+.product-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+}
+.em-promos {
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+}
+.em-why__grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
+}
+
+/* Tablet / large phone: tighten the header so it fits one row. */
+@media (max-width: 820px) {
+  .em-topbar__inner {
+    gap: 12px;
+  }
+  .em-actions {
+    gap: 16px;
+  }
+}
+
+/* Phones: compact header, and collapse the footer to one column. */
+@media (max-width: 560px) {
+  .em-topbar__inner {
+    gap: 10px;
+    height: 58px;
+  }
+  .em-actions {
+    gap: 14px;
+  }
+  .em-brand img {
+    height: 32px;
+  }
+  .em-footer__grid {
+    grid-template-columns: 1fr;
+    gap: 22px;
+    padding: 28px 16px 20px;
+  }
+  .em-footer__bar {
+    padding: 14px 16px;
+  }
+}
