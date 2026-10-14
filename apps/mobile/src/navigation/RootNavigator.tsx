@@ -5,6 +5,8 @@ import { AddressFormScreen } from '@/features/addresses/screens/AddressFormScree
 import { LoginScreen } from '@/features/auth/screens/LoginScreen';
 import { CheckoutScreen } from '@/features/checkout/screens/CheckoutScreen';
 import { OrderConfirmationScreen } from '@/features/checkout/screens/OrderConfirmationScreen';
+import { OrderDetailScreen } from '@/features/orders/screens/OrderDetailScreen';
+import { OrdersListScreen } from '@/features/orders/screens/OrdersListScreen';
 import { OtpVerifyScreen } from '@/features/auth/screens/OtpVerifyScreen';
 import { RegisterScreen } from '@/features/auth/screens/RegisterScreen';
 import { OnboardingScreen } from '@/features/onboarding/screens/OnboardingScreen';
@@ -29,6 +31,8 @@ const ProtectedCheckout = withRequireAuth(CheckoutScreen);
 const ProtectedOrderConfirmation = withRequireAuth(OrderConfirmationScreen);
 const ProtectedAddresses = withRequireAuth(AddressesScreen);
 const ProtectedAddressForm = withRequireAuth(AddressFormScreen);
+const ProtectedOrders = withRequireAuth(OrdersListScreen);
+const ProtectedOrderDetail = withRequireAuth(OrderDetailScreen);
 
 export interface RootNavigatorProps {
   initialRouteName: 'Onboarding' | 'Main';
@@ -73,12 +77,12 @@ export function RootNavigator({ initialRouteName }: RootNavigatorProps) {
       />
       <Stack.Screen
         name="Orders"
-        component={ProtectedPlaceholder}
+        component={ProtectedOrders}
         options={{ title: 'My orders' }}
       />
       <Stack.Screen
         name="OrderDetail"
-        component={ProtectedPlaceholder}
+        component={ProtectedOrderDetail}
         options={{ title: 'Order details' }}
       />
       <Stack.Screen
