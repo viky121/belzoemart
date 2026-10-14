@@ -41,7 +41,6 @@ export type RootStackParamList = {
   Notifications: undefined;
   ProfileEdit: undefined;
   PrivacyData: undefined;
-  DataExportView: { requestId: string };
   Help: undefined;
   CmsPage: { slug: string };
   // presentation: 'modal'
@@ -56,8 +55,6 @@ export type RootStackParamList = {
   };
   Register: { redirect?: RedirectTarget } | undefined;
   AddressForm: { addressId?: string; selectForCheckout?: boolean } | undefined;
-  CancelOrder: { orderId: string };
-  ReturnRequest: { orderId: string };
   // presentation: 'fullScreenModal'
   ImageViewer: { images: string[]; index: number };
 };
@@ -80,10 +77,7 @@ export const AUTH_REQUIRED_ROUTES = [
   'Notifications',
   'ProfileEdit',
   'PrivacyData',
-  'DataExportView',
   'AddressForm',
-  'CancelOrder',
-  'ReturnRequest',
 ] as const satisfies readonly RootRouteName[];
 
 declare global {

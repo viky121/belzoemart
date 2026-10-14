@@ -51,15 +51,15 @@ changes reload over Metro.
 
 ## Scripts
 
-| Script | What it does |
-| --- | --- |
-| `start` | Metro bundler for the dev client (`expo start --dev-client`). |
-| `android` | Build and run the native app (`expo run:android`). |
-| `typecheck` | `tsc --noEmit`. |
-| `lint` | ESLint over `src/**` and `app.config.ts`. |
-| `test` | Jest (jest-expo). |
-| `doctor` | `expo-doctor` environment checks. |
-| `export:android` | JS bundle export for inspection (`dist/`). |
+| Script           | What it does                                                  |
+| ---------------- | ------------------------------------------------------------- |
+| `start`          | Metro bundler for the dev client (`expo start --dev-client`). |
+| `android`        | Build and run the native app (`expo run:android`).            |
+| `typecheck`      | `tsc --noEmit`.                                               |
+| `lint`           | ESLint over `src/**` and `app.config.ts`.                     |
+| `test`           | Jest (jest-expo).                                             |
+| `doctor`         | `expo-doctor` environment checks.                             |
+| `export:android` | JS bundle export for inspection (`dist/`).                    |
 
 Run the full gate from the root:
 

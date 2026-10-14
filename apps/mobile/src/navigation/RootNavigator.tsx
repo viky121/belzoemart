@@ -23,14 +23,12 @@ import { WishlistScreen } from '@/features/wishlist/screens/WishlistScreen';
 import { theme } from '@/theme';
 
 import { MainTabs } from './MainTabs';
-import { PlaceholderScreen } from './PlaceholderScreen';
 import { withRequireAuth } from './RequireAuth';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 // Every [auth] route is always registered so deep links resolve for guests (design §2.2).
-const ProtectedPlaceholder = withRequireAuth(PlaceholderScreen);
 const ProtectedWishlist = withRequireAuth(WishlistScreen);
 const ProtectedCheckout = withRequireAuth(CheckoutScreen);
 const ProtectedOrderConfirmation = withRequireAuth(OrderConfirmationScreen);
@@ -47,8 +45,8 @@ export interface RootNavigatorProps {
 }
 
 /**
- * Root native stack (design §2.1). Routes still rendering PlaceholderScreen are replaced by
- * FEAT-004/005, which then deletes PlaceholderScreen.
+ * Root native stack (design §2.1). Every route renders its real screen; auth-gated routes are
+ * wrapped with withRequireAuth so deep links still resolve for guests (design §2.2).
  */
 export function RootNavigator({ initialRouteName }: RootNavigatorProps) {
   return (
@@ -118,11 +116,6 @@ export function RootNavigator({ initialRouteName }: RootNavigatorProps) {
         component={ProtectedPrivacyData}
         options={{ title: 'Privacy & data' }}
       />
-      <Stack.Screen
-        name="DataExportView"
-        component={ProtectedPlaceholder}
-        options={{ title: 'Your data' }}
-      />
       <Stack.Screen name="Help" component={HelpScreen} options={{ title: 'Help' }} />
       <Stack.Screen name="CmsPage" component={CmsPageScreen} options={{ title: '' }} />
 
@@ -138,16 +131,6 @@ export function RootNavigator({ initialRouteName }: RootNavigatorProps) {
           name="AddressForm"
           component={ProtectedAddressForm}
           options={{ title: 'Address' }}
-        />
-        <Stack.Screen
-          name="CancelOrder"
-          component={ProtectedPlaceholder}
-          options={{ title: 'Cancel order' }}
-        />
-        <Stack.Screen
-          name="ReturnRequest"
-          component={ProtectedPlaceholder}
-          options={{ title: 'Return items' }}
         />
       </Stack.Group>
 
