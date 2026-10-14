@@ -5,8 +5,13 @@ import { AddressFormScreen } from '@/features/addresses/screens/AddressFormScree
 import { LoginScreen } from '@/features/auth/screens/LoginScreen';
 import { CheckoutScreen } from '@/features/checkout/screens/CheckoutScreen';
 import { OrderConfirmationScreen } from '@/features/checkout/screens/OrderConfirmationScreen';
+import { CmsPageScreen } from '@/features/content/screens/CmsPageScreen';
+import { HelpScreen } from '@/features/content/screens/HelpScreen';
+import { NotificationsScreen } from '@/features/notifications/screens/NotificationsScreen';
 import { OrderDetailScreen } from '@/features/orders/screens/OrderDetailScreen';
 import { OrdersListScreen } from '@/features/orders/screens/OrdersListScreen';
+import { ProfileEditScreen } from '@/features/profile/screens/ProfileEditScreen';
+import { PrivacyDataScreen } from '@/features/privacy/screens/PrivacyDataScreen';
 import { OtpVerifyScreen } from '@/features/auth/screens/OtpVerifyScreen';
 import { RegisterScreen } from '@/features/auth/screens/RegisterScreen';
 import { OnboardingScreen } from '@/features/onboarding/screens/OnboardingScreen';
@@ -33,6 +38,9 @@ const ProtectedAddresses = withRequireAuth(AddressesScreen);
 const ProtectedAddressForm = withRequireAuth(AddressFormScreen);
 const ProtectedOrders = withRequireAuth(OrdersListScreen);
 const ProtectedOrderDetail = withRequireAuth(OrderDetailScreen);
+const ProtectedNotifications = withRequireAuth(NotificationsScreen);
+const ProtectedProfileEdit = withRequireAuth(ProfileEditScreen);
+const ProtectedPrivacyData = withRequireAuth(PrivacyDataScreen);
 
 export interface RootNavigatorProps {
   initialRouteName: 'Onboarding' | 'Main';
@@ -97,17 +105,17 @@ export function RootNavigator({ initialRouteName }: RootNavigatorProps) {
       />
       <Stack.Screen
         name="Notifications"
-        component={ProtectedPlaceholder}
+        component={ProtectedNotifications}
         options={{ title: 'Notifications' }}
       />
       <Stack.Screen
         name="ProfileEdit"
-        component={ProtectedPlaceholder}
+        component={ProtectedProfileEdit}
         options={{ title: 'Edit profile' }}
       />
       <Stack.Screen
         name="PrivacyData"
-        component={ProtectedPlaceholder}
+        component={ProtectedPrivacyData}
         options={{ title: 'Privacy & data' }}
       />
       <Stack.Screen
@@ -115,8 +123,8 @@ export function RootNavigator({ initialRouteName }: RootNavigatorProps) {
         component={ProtectedPlaceholder}
         options={{ title: 'Your data' }}
       />
-      <Stack.Screen name="Help" component={PlaceholderScreen} options={{ title: 'Help' }} />
-      <Stack.Screen name="CmsPage" component={PlaceholderScreen} options={{ title: '' }} />
+      <Stack.Screen name="Help" component={HelpScreen} options={{ title: 'Help' }} />
+      <Stack.Screen name="CmsPage" component={CmsPageScreen} options={{ title: '' }} />
 
       <Stack.Group screenOptions={{ presentation: 'modal' }}>
         <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Sign in' }} />

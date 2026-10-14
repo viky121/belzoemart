@@ -14,6 +14,8 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useCategories } from '@/features/categories/hooks';
+import { useUnreadCount } from '@/features/notifications/hooks';
+import { IconButton } from '@/ui/IconButton';
 import type { RootStackParamList } from '@/navigation/types';
 import { usePincodeStore } from '@/store/pincode';
 import { useRecentlyViewedStore } from '@/store/recently-viewed';
@@ -48,6 +50,7 @@ export function HomeScreen() {
 
   const pincode = usePincodeStore((s) => s.pincode);
   const isCustomer = useSessionStore((s) => s.status === 'authenticated');
+  const unread = useUnreadCount();
   const recentIds = useRecentlyViewedStore((s) => s.ids);
   const recent = useRecentlyViewedProducts(recentIds);
 
@@ -112,14 +115,13 @@ export function HomeScreen() {
             </Text>
           </Pressable>
           {isCustomer ? (
-            <Pressable
+            <IconButton
+              icon="bell-outline"
+              label="Notifications"
+              color={theme.colors.white}
+              badge={unread}
               onPress={() => navigation.navigate('Notifications')}
-              accessibilityRole="button"
-              accessibilityLabel="Notifications"
-              hitSlop={8}
-            >
-              <MaterialCommunityIcons name="bell-outline" size={24} color={theme.colors.white} />
-            </Pressable>
+            />
           ) : null}
         </View>
         <View style={styles.searchWrap}>
