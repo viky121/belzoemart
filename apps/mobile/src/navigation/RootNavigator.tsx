@@ -1,6 +1,10 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { AddressesScreen } from '@/features/addresses/screens/AddressesScreen';
+import { AddressFormScreen } from '@/features/addresses/screens/AddressFormScreen';
 import { LoginScreen } from '@/features/auth/screens/LoginScreen';
+import { CheckoutScreen } from '@/features/checkout/screens/CheckoutScreen';
+import { OrderConfirmationScreen } from '@/features/checkout/screens/OrderConfirmationScreen';
 import { OtpVerifyScreen } from '@/features/auth/screens/OtpVerifyScreen';
 import { RegisterScreen } from '@/features/auth/screens/RegisterScreen';
 import { OnboardingScreen } from '@/features/onboarding/screens/OnboardingScreen';
@@ -21,6 +25,10 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 // Every [auth] route is always registered so deep links resolve for guests (design §2.2).
 const ProtectedPlaceholder = withRequireAuth(PlaceholderScreen);
 const ProtectedWishlist = withRequireAuth(WishlistScreen);
+const ProtectedCheckout = withRequireAuth(CheckoutScreen);
+const ProtectedOrderConfirmation = withRequireAuth(OrderConfirmationScreen);
+const ProtectedAddresses = withRequireAuth(AddressesScreen);
+const ProtectedAddressForm = withRequireAuth(AddressFormScreen);
 
 export interface RootNavigatorProps {
   initialRouteName: 'Onboarding' | 'Main';
@@ -55,12 +63,12 @@ export function RootNavigator({ initialRouteName }: RootNavigatorProps) {
       <Stack.Screen name="Search" component={SearchScreen} options={{ title: 'Search' }} />
       <Stack.Screen
         name="Checkout"
-        component={ProtectedPlaceholder}
+        component={ProtectedCheckout}
         options={{ title: 'Checkout' }}
       />
       <Stack.Screen
         name="OrderConfirmation"
-        component={ProtectedPlaceholder}
+        component={ProtectedOrderConfirmation}
         options={{ title: 'Order placed', headerBackVisible: false }}
       />
       <Stack.Screen
@@ -80,7 +88,7 @@ export function RootNavigator({ initialRouteName }: RootNavigatorProps) {
       />
       <Stack.Screen
         name="Addresses"
-        component={ProtectedPlaceholder}
+        component={ProtectedAddresses}
         options={{ title: 'Addresses' }}
       />
       <Stack.Screen
@@ -116,7 +124,7 @@ export function RootNavigator({ initialRouteName }: RootNavigatorProps) {
         />
         <Stack.Screen
           name="AddressForm"
-          component={ProtectedPlaceholder}
+          component={ProtectedAddressForm}
           options={{ title: 'Address' }}
         />
         <Stack.Screen

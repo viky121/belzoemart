@@ -7,4 +7,7 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   testPathIgnorePatterns: ['/node_modules/', '/android/', '/ios/', '/dist/'],
+  // Async screen tests (TanStack Query + debounce timers) can leave a batch
+  // timer pending after teardown; force a clean exit so runs are deterministic.
+  forceExit: true,
 };
