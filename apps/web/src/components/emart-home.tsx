@@ -7,7 +7,7 @@ import { contentApi } from '@/lib/content-api';
 import { iconFor, isUsableImageUrl } from '@/lib/category-theme';
 import { getSiteContent } from '@/lib/site-content';
 import { getHomeSections, resolveHomeSections } from '@/lib/home-sections';
-import type { CategoryNodeDto } from '@belzo/shared';
+import { getCategoriesCached } from '@/lib/server-catalogue';
 
 /** Soft pastel promo cards (themed heading + "Shop Now" pill), as per mockup. */
 const PROMO_BG: Record<string, string> = {
@@ -19,10 +19,14 @@ const PROMO_BG: Record<string, string> = {
 
 /** eMart theme storefront home: grocery/FMCG look — content is admin-editable. */
 export async function EmartHome() {
-  const { home, sections } = await getSiteContent();
-  const categories = await catalogueApi.categories().catch(() => [] as CategoryNodeDto[]);
-  const brands = await catalogueApi.brands().catch(() => []);
-  const banners = await contentApi.banners('home_hero').catch(() => []);
+  // Independent reads run concurrently (categories/brands/banners don't depend
+  // on settings); home sections resolve afterwards since they need `sections`.
+  const [{ home, sections }, categories, brands, banners] = await Promise.all([
+    getSiteContent(),
+    getCategoriesCached(),
+    catalogueApi.brands().catch(() => []),
+    contentApi.banners('home_hero').catch(() => []),
+  ]);
 
   const heroSlides: HeroSlide[] = banners.map((b) => ({
     title: b.title ?? 'Belzo eMart offer',

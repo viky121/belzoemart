@@ -1,4 +1,5 @@
 import { apiFetch } from './api-client';
+import { requestCache } from './request-cache';
 import type { HomeContent, HeroContent, PromoContent, WhyItem, HomeBlock } from '@belzo/shared';
 import { DEFAULT_HOME_CLASSIC, DEFAULT_HOME_EMART, mergeHome, type ThemeName } from '@belzo/shared';
 
@@ -51,10 +52,20 @@ interface RawPublicSettings {
   sections?: unknown;
 }
 
+/**
+ * Fetch the public settings once per server render. `cache` (React request
+ * memoization) dedupes every caller in the same request — the layout, the home
+ * page's `getTheme()`, and `getSiteContent()` all share a single
+ * `/settings/public` round-trip instead of 3–4 separate ones.
+ */
+export const fetchPublicSettings = requestCache(
+  async (): Promise<RawPublicSettings> => apiFetch<RawPublicSettings>('/settings/public'),
+);
+
 /** Read theme + editable home/footer content from the public settings endpoint. */
 export async function getSiteContent(): Promise<SiteContent> {
   try {
-    const s = await apiFetch<RawPublicSettings>('/settings/public', { revalidate: 30 });
+    const s = await fetchPublicSettings();
     const theme: ThemeName = s.theme === 'emart' ? 'emart' : 'classic';
     return {
       theme,

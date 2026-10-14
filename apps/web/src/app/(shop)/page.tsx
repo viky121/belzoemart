@@ -9,7 +9,8 @@ import { getSiteContent, type PromoContent } from '@/lib/site-content';
 import { getHomeSections, resolveHomeSections } from '@/lib/home-sections';
 import { isUsableImageUrl } from '@/lib/category-theme';
 import { EmartHome } from '@/components/emart-home';
-import type { CategoryNodeDto, ProductCardDto } from '@belzo/shared';
+import { getCategoriesCached } from '@/lib/server-catalogue';
+import type { ProductCardDto } from '@belzo/shared';
 
 /** Map a managed promo colour to the classic tile's gradient so the classic
  *  look is preserved while the content is admin-managed. */
@@ -29,9 +30,11 @@ const EMPTY: Paginated<ProductCardDto> = { items: [], total: 0, page: 1, pageSiz
 export default async function HomePage() {
   if ((await getTheme()) === 'emart') return <EmartHome />;
 
-  const categories = await catalogueApi.categories().catch(() => [] as CategoryNodeDto[]);
-  const banners = await contentApi.banners('home_hero').catch(() => []);
-  const { home, sections } = await getSiteContent();
+  const [categories, banners, { home, sections }] = await Promise.all([
+    getCategoriesCached(),
+    contentApi.banners('home_hero').catch(() => []),
+    getSiteContent(),
+  ]);
   const blocks = home.blocks.filter((b) => b.enabled !== false);
 
   const [resolvedSections, byCategory] = await Promise.all([
