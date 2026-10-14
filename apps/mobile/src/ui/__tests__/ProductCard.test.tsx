@@ -21,7 +21,7 @@ const product: ProductCardDto = {
 };
 
 describe('ProductCard', () => {
-  it('renders title, unit, price, struck MRP, discount badge and rating', async () => {
+  it('renders title, unit, price, struck MRP and discount badge', async () => {
     await renderWithProviders(<ProductCard product={product} onPress={jest.fn()} />);
     expect(screen.getByText('Organic Basmati Rice')).toBeTruthy();
     expect(screen.getByText('1 kg')).toBeTruthy();
@@ -29,8 +29,7 @@ describe('ProductCard', () => {
     const mrp = screen.getByTestId('price-mrp');
     expect(mrp).toHaveTextContent(formatInr(25_000));
     expect(mrp).toHaveStyle({ textDecorationLine: 'line-through' });
-    expect(screen.getByText('20% off')).toBeTruthy();
-    expect(screen.getByText('4.3')).toBeTruthy();
+    expect(screen.getByText('20% OFF')).toBeTruthy();
   });
 
   it('has an accessible label with title, unit and price summary', async () => {

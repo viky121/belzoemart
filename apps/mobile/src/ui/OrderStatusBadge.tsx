@@ -6,7 +6,9 @@ import { theme } from '@/theme';
 /** Tone → colours (design §3.4). */
 export const TONE_COLORS: Record<Tone, { fg: string; bg: string }> = {
   ok: { fg: theme.colors.brandStrong, bg: theme.colors.successBg },
-  info: { fg: theme.colors.primaryStrong, bg: theme.colors.surface2 },
+  // In-transit (confirmed/packed/shipped/out-for-delivery): orange, so it reads
+  // distinctly from the green "Delivered" state (mockup §orders).
+  info: { fg: theme.colors.orangeStrong, bg: theme.colors.accentBg },
   warn: { fg: theme.colors.warnText, bg: theme.colors.warnBg },
   bad: { fg: theme.colors.danger, bg: theme.colors.dangerBg },
   muted: { fg: theme.colors.muted, bg: theme.colors.surface2 },

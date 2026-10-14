@@ -21,13 +21,13 @@ describe('OrderStatusBadge', () => {
 
   it('maps tones to the design colours', () => {
     expect(statusBadge('delivered').tone).toBe('ok');
-    expect(TONE_COLORS.ok.fg).toBe('#15803d');
+    expect(TONE_COLORS.ok.fg).toBe('#15674f');
     expect(statusBadge('cancelled').tone).toBe('bad');
     expect(TONE_COLORS.bad.fg).toBe('#b91c1c');
     expect(statusBadge('pending').tone).toBe('warn');
-    expect(TONE_COLORS.warn).toEqual({ fg: '#92400e', bg: '#fef3c7' });
+    expect(TONE_COLORS.warn).toEqual({ fg: '#9a5a12', bg: '#fdecd8' });
     expect(statusBadge('shipped').tone).toBe('info');
-    expect(TONE_COLORS.info.fg).toBe('#1c5cd6');
+    expect(TONE_COLORS.info.fg).toBe('#e2550f');
     expect(statusBadge('returned').tone).toBe('muted');
     expect(TONE_COLORS.muted.fg).toBe('#6b7280');
   });

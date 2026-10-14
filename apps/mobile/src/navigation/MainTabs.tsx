@@ -18,11 +18,11 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-const ICONS: Record<keyof MainTabParamList, IconName> = {
-  HomeTab: 'home-outline',
-  CategoriesTab: 'view-grid-outline',
-  CartTab: 'cart-outline',
-  AccountTab: 'account-outline',
+const ICONS: Record<keyof MainTabParamList, { on: IconName; off: IconName }> = {
+  HomeTab: { on: 'home', off: 'home-outline' },
+  CategoriesTab: { on: 'view-grid', off: 'view-grid-outline' },
+  CartTab: { on: 'cart', off: 'cart-outline' },
+  AccountTab: { on: 'account', off: 'account-outline' },
 };
 
 /** Active units in the cached cart (no fetch here; the Cart feature owns the query). */
@@ -46,10 +46,22 @@ export function MainTabs() {
         headerShown: false,
         tabBarActiveTintColor: theme.colors.primaryStrong,
         tabBarInactiveTintColor: theme.colors.muted,
-        tabBarLabelStyle: { fontSize: 12 },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarStyle: {
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.border,
+          borderTopWidth: 1,
+          height: 62,
+          paddingTop: 6,
+          paddingBottom: 8,
+        },
         tabBarAllowFontScaling: true,
-        tabBarIcon: ({ color, size }) => (
-          <MaterialCommunityIcons name={ICONS[route.name]} color={color} size={size} />
+        tabBarIcon: ({ color, size, focused }) => (
+          <MaterialCommunityIcons
+            name={focused ? ICONS[route.name].on : ICONS[route.name].off}
+            color={color}
+            size={size}
+          />
         ),
       })}
     >

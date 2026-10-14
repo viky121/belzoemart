@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     ...typography.caption,
     fontSize: 11,
     lineHeight: 14,
-    color: colors.ink,
+    color: colors.white,
     fontWeight: '700',
   },
 });

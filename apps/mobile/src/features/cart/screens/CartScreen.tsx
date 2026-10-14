@@ -1,4 +1,5 @@
 import { formatInr } from '@belzo/shared';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -67,6 +68,17 @@ export function CartScreen() {
           My Cart
         </Text>
 
+        {active.length > 0 ? (
+          <View style={styles.freeDelivery}>
+            <MaterialCommunityIcons
+              name="truck-fast-outline"
+              size={18}
+              color={theme.colors.brandStrong}
+            />
+            <Text style={styles.freeDeliveryText}>Free delivery on eligible orders</Text>
+          </View>
+        ) : null}
+
         {active.map((line) => (
           <CartLineRow key={line.id} line={line} onPress={() => openProduct(line.productId)} />
         ))}
@@ -116,6 +128,22 @@ export function CartScreen() {
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
   heading: { ...theme.typography.heading, color: theme.colors.inkStrong, padding: theme.spacing.lg, paddingBottom: theme.spacing.sm },
+  freeDelivery: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    backgroundColor: theme.colors.successBg,
+    borderRadius: theme.radius.lg,
+  },
+  freeDeliveryText: {
+    ...theme.typography.body,
+    color: theme.colors.brandStrong,
+    fontWeight: '700',
+  },
   slabHint: { ...theme.typography.caption, color: theme.colors.muted, paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.sm },
   sectionTitle: { ...theme.typography.title, color: theme.colors.inkStrong, paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.lg },
   note: { ...theme.typography.caption, color: theme.colors.muted, padding: theme.spacing.lg },

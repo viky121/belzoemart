@@ -191,7 +191,7 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + theme.spacing.sm }]}>
         <Button title="Add to cart" variant="primary" style={styles.footerBtn} disabled={!inStock} loading={add.isPending} onPress={onAdd} testID="pdp-add" />
-        <Button title="Buy now" variant="accent" style={styles.footerBtn} disabled={!inStock} onPress={onBuyNow} testID="pdp-buy" />
+        <Button title="Buy now" variant="secondary" style={styles.footerBtn} disabled={!inStock} onPress={onBuyNow} testID="pdp-buy" />
       </View>
     </View>
   );

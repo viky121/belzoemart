@@ -1,18 +1,41 @@
 import { formatDate, formatInr, shortOrderId } from '@belzo/shared';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { RootScreenProps } from '@/navigation/types';
 import { theme } from '@/theme';
-import { EmptyState, ErrorState, Screen } from '@/ui';
+import { Chip, EmptyState, ErrorState, Screen } from '@/ui';
 import { OrderStatusBadge } from '@/ui/OrderStatusBadge';
 import { RemoteImage } from '@/ui/RemoteImage';
 import { ListSkeleton } from '@/ui/Skeleton';
 
 import { useOrders } from '../hooks';
 
-/** Orders list (design §11): thumbnail, short id, date, item count, total, status badge. */
+const FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'processing', label: 'Processing' },
+  { key: 'shipped', label: 'Shipped' },
+  { key: 'delivered', label: 'Delivered' },
+] as const;
+type FilterKey = (typeof FILTERS)[number]['key'];
+
+function matchesFilter(status: string, key: FilterKey): boolean {
+  switch (key) {
+    case 'all':
+      return true;
+    case 'processing':
+      return ['pending', 'confirmed', 'packed', 'processing'].includes(status);
+    case 'shipped':
+      return ['shipped', 'out_for_delivery'].includes(status);
+    case 'delivered':
+      return status === 'delivered';
+  }
+}
+
+/** Orders list (design §11): status filter tabs + order cards with status badges. */
 export function OrdersListScreen({ navigation }: RootScreenProps<'Orders'>) {
   const { data, isLoading, isError, error, refetch } = useOrders();
+  const [filter, setFilter] = useState<FilterKey>('all');
   const orders = data ?? [];
 
   if (isLoading) {
@@ -42,10 +65,31 @@ export function OrdersListScreen({ navigation }: RootScreenProps<'Orders'>) {
     );
   }
 
+  const visible = orders.filter((o) => matchesFilter(o.status, filter));
+
   return (
     <Screen>
+      <View style={styles.tabsWrap}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabs}
+        >
+          {FILTERS.map((f) => (
+            <Chip
+              key={f.key}
+              label={f.label}
+              selected={filter === f.key}
+              onPress={() => setFilter(f.key)}
+            />
+          ))}
+        </ScrollView>
+      </View>
       <ScrollView contentContainerStyle={styles.body}>
-        {orders.map((o) => {
+        {visible.length === 0 ? (
+          <Text style={styles.emptyFilter}>No {filter === 'all' ? '' : filter} orders.</Text>
+        ) : null}
+        {visible.map((o) => {
           const first = o.items[0];
           const img = o.imageUrl ?? first?.imageUrl ?? null;
           return (
@@ -82,6 +126,13 @@ export function OrdersListScreen({ navigation }: RootScreenProps<'Orders'>) {
 }
 
 const styles = StyleSheet.create({
+  tabsWrap: {
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  },
+  tabs: { flexDirection: 'row', gap: theme.spacing.sm, padding: theme.spacing.md },
+  emptyFilter: { ...theme.typography.body, color: theme.colors.muted, textAlign: 'center', paddingVertical: theme.spacing.xl },
   body: { padding: theme.spacing.lg, gap: theme.spacing.md },
   row: {
     flexDirection: 'row',

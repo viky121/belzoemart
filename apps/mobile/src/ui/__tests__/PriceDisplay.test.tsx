@@ -10,7 +10,7 @@ describe('PriceDisplay', () => {
     await renderWithProviders(<PriceDisplay price={7_500} mrp={10_000} />, { navigation: false });
     expect(screen.getByText(formatInr(7_500))).toBeTruthy();
     expect(screen.getByTestId('price-mrp')).toHaveTextContent(formatInr(10_000));
-    expect(screen.getByText('25% off')).toBeTruthy();
+    expect(screen.getByText('25% OFF')).toBeTruthy();
     expect(
       screen.getByLabelText(`Price ${formatInr(7_500)}, MRP ${formatInr(10_000)}, 25% off`),
     ).toBeTruthy();
