@@ -149,8 +149,8 @@ export function CategoriesScreen() {
                 <View style={[styles.tileIcon, { backgroundColor: PASTELS[i % PASTELS.length] }]}>
                   <MaterialCommunityIcons
                     name={iconForCategory(t.name)}
-                    size={26}
-                    color={theme.colors.inkStrong}
+                    size={24}
+                    color={theme.colors.primaryStrong}
                   />
                 </View>
                 <Text style={styles.tileName} numberOfLines={2}>
@@ -212,16 +212,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: theme.spacing.md,
   },
-  contentTitle: { ...theme.typography.title, color: theme.colors.inkStrong, flex: 1 },
+  contentTitle: {
+    ...theme.typography.bodyLg,
+    fontWeight: '700',
+    color: theme.colors.inkStrong,
+    flexShrink: 1,
+    marginRight: theme.spacing.sm,
+  },
   viewAll: { ...theme.typography.caption, color: theme.colors.primaryStrong, fontWeight: '700' },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  tile: { width: '33.33%', alignItems: 'center', paddingVertical: theme.spacing.sm, gap: 6 },
+  tile: { width: '33.33%', alignItems: 'center', paddingVertical: theme.spacing.md, gap: 6 },
   tileIcon: {
-    width: 64,
-    height: 64,
+    width: 54,
+    height: 54,
     borderRadius: theme.radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tileName: { ...theme.typography.caption, color: theme.colors.ink, textAlign: 'center' },
+  tileName: {
+    ...theme.typography.caption,
+    fontSize: 11,
+    lineHeight: 14,
+    color: theme.colors.ink,
+    textAlign: 'center',
+  },
 });

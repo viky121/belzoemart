@@ -1,6 +1,7 @@
 import { resolveSlabPrice, type ProductCardDto } from '@belzo/shared';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useLayoutEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { isApiError } from '@/api/errors';
@@ -38,6 +39,9 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
 
   const [selectedId, setSelectedId] = useState('');
   const [qty, setQty] = useState(1);
+  // The "added to cart" confirmation is derived: it only shows for the exact
+  // variant+quantity that was added, so changing either clears it automatically.
+  const [confirmedKey, setConfirmedKey] = useState<string | null>(null);
 
   const p = product.data;
   useEffect(() => {
@@ -72,6 +76,7 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
   const variant = variants.find((v) => v.id === selectedId) ?? variants.find((v) => v.inStock) ?? variants[0];
   const price = variant ? resolveSlabPrice(variant.sellingPrice, variant.priceSlabs, qty) : p.sellingPrice;
   const inStock = variant?.inStock ?? false;
+  const added = confirmedKey !== null && confirmedKey === `${variant?.id ?? ''}:${qty}`;
 
   const images = Array.from(
     new Set([variant?.imageUrl, ...p.images.map((i) => i.url)].filter((u): u is string => Boolean(u))),
@@ -89,7 +94,11 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
   }
 
   function onAdd() {
-    if (variant) add.mutate({ variantId: variant.id, quantity: qty });
+    if (variant)
+      add.mutate(
+        { variantId: variant.id, quantity: qty },
+        { onSuccess: () => setConfirmedKey(`${variant.id}:${qty}`) },
+      );
   }
   function onBuyNow() {
     if (!variant) return;
@@ -189,9 +198,36 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
         ) : null}
       </ScrollView>
 
+      {added ? (
+        <Pressable
+          style={styles.addedBar}
+          onPress={() => navigation.navigate('Main', { screen: 'CartTab' })}
+          accessibilityRole="button"
+          accessibilityLabel="Added to cart. View cart"
+        >
+          <MaterialCommunityIcons name="check-circle" size={18} color={theme.colors.white} />
+          <Text style={styles.addedText}>Added to cart</Text>
+          <Text style={styles.addedLink}>VIEW CART ›</Text>
+        </Pressable>
+      ) : null}
       <View style={[styles.footer, { paddingBottom: insets.bottom + theme.spacing.sm }]}>
-        <Button title="Add to cart" variant="primary" style={styles.footerBtn} disabled={!inStock} loading={add.isPending} onPress={onAdd} testID="pdp-add" />
-        <Button title="Buy now" variant="secondary" style={styles.footerBtn} disabled={!inStock} onPress={onBuyNow} testID="pdp-buy" />
+        <Button
+          title={added ? 'Add more' : 'Add to cart'}
+          variant={added ? 'secondary' : 'primary'}
+          style={styles.footerBtn}
+          disabled={!inStock}
+          loading={add.isPending}
+          onPress={onAdd}
+          testID="pdp-add"
+        />
+        <Button
+          title={added ? 'Go to cart' : 'Buy now'}
+          variant={added ? 'primary' : 'secondary'}
+          style={styles.footerBtn}
+          disabled={!inStock && !added}
+          onPress={added ? () => navigation.navigate('Main', { screen: 'CartTab' }) : onBuyNow}
+          testID="pdp-buy"
+        />
       </View>
     </View>
   );
@@ -224,4 +260,14 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   footerBtn: { flex: 1 },
+  addedBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.brandStrong,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+  },
+  addedText: { ...theme.typography.body, color: theme.colors.white, fontWeight: '700', flex: 1 },
+  addedLink: { ...theme.typography.body, color: theme.colors.white, fontWeight: '800' },
 });

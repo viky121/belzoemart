@@ -24,7 +24,9 @@ import { usePincodeStore } from '@/store/pincode';
 import { useRecentlyViewedStore } from '@/store/recently-viewed';
 import { useCartIdentity, useSessionStore } from '@/store/session';
 import { theme } from '@/theme';
+import { ProductCard } from '@/ui/ProductCard';
 import { ProductRail } from '@/ui/ProductRail';
+import { SectionHeader } from '@/ui/SectionHeader';
 import { BelzoLogo } from '@/ui/brand/BelzoLogo';
 import { OfflineBanner } from '@/ui/OfflineBanner';
 import { SearchBar } from '@/ui/SearchBar';
@@ -66,6 +68,8 @@ export function HomeScreen() {
     .reduce((n, l) => n + l.quantity, 0);
   const deals = useProducts({ sort: 'discount' });
   const dealItems = deals.data?.pages[0]?.items ?? [];
+  const popular = useProducts({});
+  const popularItems = popular.data?.pages[0]?.items ?? [];
 
   const [pinSheet, setPinSheet] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -166,12 +170,12 @@ export function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.body}
       >
-        <HeroBanner banners={banners.data ?? []} hero={content.hero} onOpenHref={openHref} />
         <CategoryShortcuts
           categories={topCategories}
           onPressCategory={onPressCategory}
           onMore={() => navigation.navigate('Main', { screen: 'CategoriesTab' })}
         />
+        <HeroBanner banners={banners.data ?? []} hero={content.hero} onOpenHref={openHref} />
         <ProductRail
           title="Deals for you"
           products={dealItems}
@@ -195,6 +199,21 @@ export function HomeScreen() {
             products={recent.data ?? []}
             onPressProduct={onPressProduct}
           />
+        ) : null}
+        {popularItems.length > 0 ? (
+          <View style={styles.gridSection}>
+            <SectionHeader
+              title="Top picks for you"
+              onAction={() => navigation.navigate('ProductList', { title: 'All products' })}
+            />
+            <View style={styles.grid}>
+              {popularItems.map((item) => (
+                <View key={item.id} style={styles.gridCell}>
+                  <ProductCard product={item} onPress={() => onPressProduct(item)} />
+                </View>
+              ))}
+            </View>
+          </View>
         ) : null}
         <WhyGrid items={content.why} />
         <HomeBlocks blocks={content.blocks} onOpenHref={openHref} />
@@ -229,4 +248,13 @@ const styles = StyleSheet.create({
   pinText: { ...theme.typography.caption, color: theme.colors.ink, flexShrink: 1 },
   searchWrap: { marginTop: theme.spacing.sm },
   body: { paddingBottom: theme.spacing.xl },
+  gridSection: { marginTop: theme.spacing.md },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.lg,
+    rowGap: theme.spacing.md,
+  },
+  gridCell: { width: '48%' },
 });
