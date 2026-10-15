@@ -18,27 +18,49 @@ type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 const PASTELS = ['#e4f3ec', '#fdeee4', '#e7f0ff', '#f3e8ff', '#e2f7ff', '#fff2d9', '#ffe3ec'] as const;
 
-/** Map a category name to a world-class line icon (images are not set on the API). */
+/** Map a category/subcategory name to a relevant icon (API provides no images). */
 function iconForCategory(name: string): IconName {
   const s = name.toLowerCase();
-  if (/groc|food|fresh|veg|fruit|staple|atta|rice|dairy|snack|beverage/.test(s))
-    return 'food-apple-outline';
+  // Personal care
+  if (/\bhair\b|shampoo/.test(s)) return 'hair-dryer-outline';
+  if (/skin|lotion|cream|moistur|face/.test(s)) return 'lotion-outline';
+  if (/oral|tooth|dental/.test(s)) return 'toothbrush';
+  if (/bath|spa|shower|soap|body\s*wash/.test(s)) return 'shower';
+  if (/perfume|fragrance|\bdeo/.test(s)) return 'spray';
+  if (/shav|razor|groom|beard/.test(s)) return 'razor-double-edge';
+  if (/makeup|beaut|cosmet|lipstick/.test(s)) return 'lipstick';
+  // Home care / household
+  if (/laundry|deterg|washing|fabric/.test(s)) return 'washing-machine';
+  if (/dish|utensil/.test(s)) return 'silverware-fork-knife';
+  if (/freshener|air\s*fresh/.test(s)) return 'air-filter';
+  if (/home\s*care|household|clean|floor|toilet|disinfect/.test(s)) return 'spray-bottle';
+  // Grocery
+  if (/atta|flour|rice|grain|staple/.test(s)) return 'rice';
+  if (/oil|ghee/.test(s)) return 'bottle-tonic';
+  if (/spice|masala/.test(s)) return 'shaker-outline';
+  if (/snack|namkeen|chips/.test(s)) return 'food-croissant';
+  if (/dairy|milk|curd|cheese|butter/.test(s)) return 'cup-water';
+  if (/beverage|drink|juice|tea|coffee|water/.test(s)) return 'cup';
+  if (/biscuit|cookie|chocolate|sweet|candy/.test(s)) return 'cookie';
+  if (/veg|fruit|fresh/.test(s)) return 'food-apple-outline';
+  if (/food|grocer/.test(s)) return 'basket-outline';
+  // Baby
+  if (/diaper/.test(s)) return 'baby-face-outline';
+  if (/baby\s*food|formula/.test(s)) return 'baby-bottle-outline';
+  if (/baby|infant/.test(s)) return 'baby-carriage';
+  // Other top-level
   if (/fashion|cloth|apparel|wear|shirt|footwear|shoe/.test(s)) return 'tshirt-crew-outline';
-  if (/mobile|phone|laptop|gadget|device|tv|camera/.test(s)) return 'cellphone';
-  if (/electro|appliance|washing|fridge|refriger/.test(s)) return 'television';
+  if (/mobile|phone|laptop|gadget|device|\btv\b|electro|appliance/.test(s)) return 'cellphone';
   if (/home|furnit|decor|living|kitchen/.test(s)) return 'sofa-outline';
-  if (/clean|laundry|deterg|home care|household/.test(s)) return 'spray-bottle';
-  if (/beauty|personal|cosmet|grooming|skin|hair|makeup/.test(s)) return 'lipstick';
-  if (/sport|fit|outdoor|gym/.test(s)) return 'dumbbell';
-  if (/toy|game/.test(s)) return 'teddy-bear';
-  if (/baby|infant|kid/.test(s)) return 'baby-carriage';
   if (/book|station|office/.test(s)) return 'book-open-variant';
   if (/health|pharma|medic|wellness/.test(s)) return 'heart-pulse';
+  if (/sport|fit|gym|outdoor/.test(s)) return 'dumbbell';
+  if (/toy|game/.test(s)) return 'teddy-bear';
   if (/pet/.test(s)) return 'paw';
-  return 'shape-outline';
+  return 'tag-outline';
 }
 
-/** Categories (reference layout): left category rail + right subcategory grid. */
+/** Categories (Flipkart-style): left category rail + right subcategory grid. */
 export function CategoriesScreen() {
   const navigation = useNavigation<Nav>();
   const { data, isLoading, isError, error, refetch } = useCategories();
@@ -104,15 +126,10 @@ export function CategoriesScreen() {
                 accessibilityLabel={c.name}
                 style={[styles.railItem, on && styles.railItemOn]}
               >
-                <View
-                  style={[
-                    styles.railIcon,
-                    { backgroundColor: on ? theme.colors.primaryBg : theme.colors.surface2 },
-                  ]}
-                >
+                <View style={[styles.railIcon, on && styles.railIconOn]}>
                   <MaterialCommunityIcons
                     name={iconForCategory(c.name)}
-                    size={22}
+                    size={24}
                     color={on ? theme.colors.primaryStrong : theme.colors.muted}
                   />
                 </View>
@@ -129,14 +146,13 @@ export function CategoriesScreen() {
           contentContainerStyle={styles.contentInner}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.contentHead}>
-            <Text style={styles.contentTitle} numberOfLines={1}>
-              {activeCat.name}
-            </Text>
-            <Pressable onPress={() => openCategory(activeCat)} accessibilityRole="link">
-              <Text style={styles.viewAll}>View all →</Text>
-            </Pressable>
-          </View>
+          <Text style={styles.contentTitle} numberOfLines={1}>
+            {activeCat.name}
+          </Text>
+          <Pressable onPress={() => openCategory(activeCat)} accessibilityRole="link">
+            <Text style={styles.viewAll}>Shop all {activeCat.name} ›</Text>
+          </Pressable>
+
           <View style={styles.grid}>
             {tiles.map((t, i) => (
               <Pressable
@@ -149,7 +165,7 @@ export function CategoriesScreen() {
                 <View style={[styles.tileIcon, { backgroundColor: PASTELS[i % PASTELS.length] }]}>
                   <MaterialCommunityIcons
                     name={iconForCategory(t.name)}
-                    size={24}
+                    size={26}
                     color={theme.colors.primaryStrong}
                   />
                 </View>
@@ -181,14 +197,14 @@ const styles = StyleSheet.create({
   loading: { padding: theme.spacing.lg },
   panes: { flex: 1, flexDirection: 'row' },
   rail: {
-    width: 96,
+    width: 100,
     backgroundColor: theme.colors.surface2,
     borderRightWidth: 1,
     borderRightColor: theme.colors.border,
   },
   railItem: {
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
     paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.xs,
     borderLeftWidth: 3,
@@ -196,36 +212,34 @@ const styles = StyleSheet.create({
   },
   railItemOn: { backgroundColor: theme.colors.surface, borderLeftColor: theme.colors.primaryStrong },
   railIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border2,
   },
+  railIconOn: { backgroundColor: theme.colors.primaryBg, borderColor: theme.colors.primaryBg },
   railText: { ...theme.typography.caption, color: theme.colors.muted, textAlign: 'center' },
   railTextOn: { color: theme.colors.inkStrong, fontWeight: '700' },
   content: { flex: 1 },
-  contentInner: { padding: theme.spacing.lg },
-  contentHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  contentInner: { paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.lg },
+  contentTitle: { ...theme.typography.title, color: theme.colors.inkStrong },
+  viewAll: {
+    ...theme.typography.caption,
+    color: theme.colors.primaryStrong,
+    fontWeight: '700',
+    marginTop: 2,
     marginBottom: theme.spacing.md,
   },
-  contentTitle: {
-    ...theme.typography.bodyLg,
-    fontWeight: '700',
-    color: theme.colors.inkStrong,
-    flexShrink: 1,
-    marginRight: theme.spacing.sm,
-  },
-  viewAll: { ...theme.typography.caption, color: theme.colors.primaryStrong, fontWeight: '700' },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   tile: { width: '33.33%', alignItems: 'center', paddingVertical: theme.spacing.md, gap: 6 },
   tileIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: theme.radius.lg,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     alignItems: 'center',
     justifyContent: 'center',
   },

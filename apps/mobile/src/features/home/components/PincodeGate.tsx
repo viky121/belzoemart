@@ -1,8 +1,7 @@
 import { pincodeSchema } from '@belzo/shared';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { usePincodeStore } from '@/store/pincode';
 import { theme } from '@/theme';
@@ -12,14 +11,13 @@ import { BelzoLogo } from '@/ui/brand/BelzoLogo';
 import { useServiceabilityCheck } from '../hooks';
 
 /**
- * Mandatory first-run delivery-PIN gate (mirrors the web PIN gate): a blocking
- * full-screen overlay shown until a 6-digit PIN is entered. Mounted inside the
- * main tabs so it only appears once the storefront is reached.
+ * Mandatory first-run delivery-PIN gate (mirrors the web PIN gate): a blocking,
+ * centered dialog shown until a 6-digit PIN is entered. Centered + inside a
+ * Modal with KeyboardAvoidingView so the input stays visible above the keyboard.
  */
 export function PincodeGate() {
   const pincode = usePincodeStore((s) => s.pincode);
   const setPincode = usePincodeStore((s) => s.setPincode);
-  const insets = useSafeAreaInsets();
   const [pin, setPin] = useState('');
   const check = useServiceabilityCheck();
   const valid = pincodeSchema.safeParse(pin).success;
@@ -28,8 +26,6 @@ export function PincodeGate() {
     if (valid) check.mutate(pin);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pin]);
-
-  if (pincode) return null;
 
   let status = '';
   let serviceable = true;
@@ -43,69 +39,79 @@ export function PincodeGate() {
   }
 
   return (
-    <View style={styles.overlay}>
-      <View style={[styles.card, { paddingBottom: insets.bottom + theme.spacing.lg }]}>
-        <View style={styles.brand}>
-          <BelzoLogo size={44} />
-        </View>
-        <Text style={styles.title} accessibilityRole="header">
-          Enter your delivery PIN code
-        </Text>
-        <Text style={styles.sub}>
-          We check delivery availability before you shop. Please enter a 6-digit PIN code to
-          continue.
-        </Text>
+    <Modal
+      visible={!pincode}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={() => undefined}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.overlay}
+      >
+        <View style={styles.card}>
+          <View style={styles.brand}>
+            <BelzoLogo size={56} />
+          </View>
+          <Text style={styles.title} accessibilityRole="header">
+            Enter your delivery PIN code
+          </Text>
+          <Text style={styles.sub}>
+            We check delivery availability before you shop. Please enter a 6-digit PIN code to
+            continue.
+          </Text>
 
-        <View style={styles.inputRow}>
-          <MaterialCommunityIcons
-            name="map-marker-outline"
-            size={20}
-            color={theme.colors.primaryStrong}
+          <View style={styles.inputRow}>
+            <MaterialCommunityIcons
+              name="map-marker-outline"
+              size={20}
+              color={theme.colors.primaryStrong}
+            />
+            <TextInput
+              value={pin}
+              onChangeText={(t) => setPin(t.replace(/\D/g, '').slice(0, 6))}
+              keyboardType="number-pad"
+              placeholder="e.g. 110001"
+              placeholderTextColor={theme.colors.muted}
+              style={styles.input}
+              accessibilityLabel="Delivery PIN code"
+              autoFocus
+              returnKeyType="done"
+            />
+          </View>
+
+          {status ? (
+            <Text style={[styles.status, !serviceable && styles.statusBad]}>{status}</Text>
+          ) : null}
+
+          <Button
+            title="Continue"
+            fullWidth
+            disabled={!valid}
+            onPress={() => setPincode(pin)}
+            testID="pincode-gate-continue"
+            style={styles.cta}
           />
-          <TextInput
-            value={pin}
-            onChangeText={(t) => setPin(t.replace(/\D/g, '').slice(0, 6))}
-            keyboardType="number-pad"
-            placeholder="e.g. 110001"
-            placeholderTextColor={theme.colors.muted}
-            style={styles.input}
-            accessibilityLabel="Delivery PIN code"
-            autoFocus
-          />
         </View>
-
-        {status ? (
-          <Text style={[styles.status, !serviceable && styles.statusBad]}>{status}</Text>
-        ) : null}
-
-        <Button
-          title="Continue"
-          fullWidth
-          disabled={!valid}
-          onPress={() => setPincode(pin)}
-          testID="pincode-gate-continue"
-          style={styles.cta}
-        />
-      </View>
-    </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
+    flex: 1,
     backgroundColor: theme.colors.overlay,
-    justifyContent: 'flex-end',
-    zIndex: 500,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.lg,
   },
   card: {
+    width: '100%',
+    maxWidth: 420,
     backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 20,
     padding: theme.spacing.xl,
     gap: theme.spacing.sm,
   },
