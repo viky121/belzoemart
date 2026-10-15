@@ -8,14 +8,14 @@
       "distribution": "internal",
       "environment": "development",
       "android": { "buildType": "apk" },
-      "env": { "APP_VARIANT": "development", "EXPO_PUBLIC_API_BASE_URL": "http://13.48.85.9" }
+      "env": { "APP_VARIANT": "development", "EXPO_PUBLIC_API_BASE_URL": "https://belzoemart.com" }
     },
     "preview": {
       "extends": "base",
       "distribution": "internal",
       "environment": "preview",
       "android": { "buildType": "apk" },
-      "env": { "APP_VARIANT": "development", "EXPO_PUBLIC_API_BASE_URL": "http://13.48.85.9" }
+      "env": { "APP_VARIANT": "development", "EXPO_PUBLIC_API_BASE_URL": "https://belzoemart.com" }
     },
     "production": {
       "extends": "base",

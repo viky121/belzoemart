@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,6 +12,7 @@ import { RootNavigator } from '@/navigation/RootNavigator';
 import { theme } from '@/theme';
 import { showToast } from '@/ui/Toast';
 
+import { AnimatedSplash } from './AnimatedSplash';
 import { useBoot } from './boot';
 import { ErrorBoundary } from './ErrorBoundary';
 import { AppProviders, NavigationProvider, resetToHome } from './providers';
@@ -36,6 +37,7 @@ function SessionExpiryListener() {
 
 function BootGate() {
   const { ready, onboardingDone } = useBoot(queryClient);
+  const [splashDone, setSplashDone] = useState(false);
   // The native splash stays visible until boot settles, so nothing renders while restoring.
   if (!ready) return null;
   return (
@@ -44,6 +46,7 @@ function BootGate() {
       <ErrorBoundary onReset={resetToHome}>
         <RootNavigator initialRouteName={onboardingDone ? 'Main' : 'Onboarding'} />
       </ErrorBoundary>
+      {!splashDone ? <AnimatedSplash onDone={() => setSplashDone(true)} /> : null}
     </NavigationProvider>
   );
 }

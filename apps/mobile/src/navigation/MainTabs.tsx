@@ -2,11 +2,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { skipToken, useQuery } from '@tanstack/react-query';
 import type { ComponentProps } from 'react';
+import { View } from 'react-native';
 
 import { qk } from '@/api/query-keys';
 import type { CartView } from '@/api/types';
 import { CartScreen } from '@/features/cart/screens/CartScreen';
 import { CategoriesScreen } from '@/features/categories/screens/CategoriesScreen';
+import { PincodeGate } from '@/features/home/components/PincodeGate';
 import { HomeScreen } from '@/features/home/screens/HomeScreen';
 import { AccountScreen } from '@/features/profile/screens/AccountScreen';
 import { useCartIdentity } from '@/store/session';
@@ -40,6 +42,7 @@ function useCartBadge(): number | undefined {
 export function MainTabs() {
   const badge = useCartBadge();
   return (
+    <View style={{ flex: 1 }}>
     <Tab.Navigator
       backBehavior="firstRoute"
       screenOptions={({ route }) => ({
@@ -82,5 +85,7 @@ export function MainTabs() {
       />
       <Tab.Screen name="AccountTab" component={AccountScreen} options={{ title: 'Account' }} />
     </Tab.Navigator>
+      <PincodeGate />
+    </View>
   );
 }

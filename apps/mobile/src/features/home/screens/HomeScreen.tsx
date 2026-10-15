@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useCategories } from '@/features/categories/hooks';
 import { useUnreadCount } from '@/features/notifications/hooks';
+import { useProducts } from '@/features/products/hooks';
 import { IconButton } from '@/ui/IconButton';
 import type { RootStackParamList } from '@/navigation/types';
 import { qk } from '@/api/query-keys';
@@ -63,6 +64,8 @@ export function HomeScreen() {
   const cartCount = (cartView?.items ?? [])
     .filter((l) => !l.savedForLater)
     .reduce((n, l) => n + l.quantity, 0);
+  const deals = useProducts({ sort: 'discount' });
+  const dealItems = deals.data?.pages[0]?.items ?? [];
 
   const [pinSheet, setPinSheet] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -168,6 +171,14 @@ export function HomeScreen() {
           categories={topCategories}
           onPressCategory={onPressCategory}
           onMore={() => navigation.navigate('Main', { screen: 'CategoriesTab' })}
+        />
+        <ProductRail
+          title="Deals for you"
+          products={dealItems}
+          onPressProduct={onPressProduct}
+          onViewAll={() =>
+            navigation.navigate('ProductList', { sort: 'discount', title: 'Deals for you' })
+          }
         />
         <PromoGrid promos={content.promos} onOpenHref={openHref} />
         {sections.map((section) => (
