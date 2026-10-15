@@ -216,8 +216,8 @@ export function HomeScreen() {
                 <View style={styles.catIcon}>
                   <MaterialCommunityIcons
                     name={iconForCategory(c.name)}
-                    size={22}
-                    color={theme.colors.white}
+                    size={24}
+                    color={theme.colors.primaryStrong}
                   />
                 </View>
                 <Text style={styles.catLabel} numberOfLines={1}>
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: theme.colors.white,
   },
   catLabel: { ...theme.typography.caption, fontSize: 11, color: theme.colors.white, textAlign: 'center' },
   body: { paddingBottom: theme.spacing.xl },
