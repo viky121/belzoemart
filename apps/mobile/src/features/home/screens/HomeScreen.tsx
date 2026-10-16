@@ -199,34 +199,6 @@ export function HomeScreen() {
           <MaterialCommunityIcons name="line-scan" size={20} color={theme.colors.muted} />
         </Pressable>
 
-        {topCategories.length > 0 ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.catStrip}
-          >
-            {topCategories.slice(0, 10).map((c) => (
-              <Pressable
-                key={c.id}
-                style={styles.catItem}
-                onPress={() => openCategory(c)}
-                accessibilityRole="button"
-                accessibilityLabel={c.name}
-              >
-                <View style={styles.catIcon}>
-                  <MaterialCommunityIcons
-                    name={iconForCategory(c.name)}
-                    size={24}
-                    color={theme.colors.primaryStrong}
-                  />
-                </View>
-                <Text style={styles.catLabel} numberOfLines={1}>
-                  {c.name}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        ) : null}
       </Gradient>
 
       <ScrollView
@@ -234,6 +206,36 @@ export function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.body}
       >
+        {topCategories.length > 0 ? (
+          <View style={styles.catStripWrap}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.catStrip}
+            >
+              {topCategories.slice(0, 10).map((c) => (
+                <Pressable
+                  key={c.id}
+                  style={styles.catItem}
+                  onPress={() => openCategory(c)}
+                  accessibilityRole="button"
+                  accessibilityLabel={c.name}
+                >
+                  <View style={styles.catIcon}>
+                    <MaterialCommunityIcons
+                      name={iconForCategory(c.name)}
+                      size={30}
+                      color={theme.colors.primaryStrong}
+                    />
+                  </View>
+                  <Text style={styles.catLabel} numberOfLines={1}>
+                    {c.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
         <HeroBanner banners={banners.data ?? []} hero={content.hero} onOpenHref={openHref} />
 
         {dealItems.length > 0 ? (
@@ -366,17 +368,29 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   searchPlaceholder: { ...theme.typography.body, color: theme.colors.muted, flex: 1 },
-  catStrip: { gap: theme.spacing.md, paddingTop: theme.spacing.xs, paddingRight: theme.spacing.lg },
-  catItem: { alignItems: 'center', gap: 4, width: 60 },
+  catStripWrap: {
+    backgroundColor: theme.colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border2,
+    paddingVertical: theme.spacing.sm,
+  },
+  catStrip: { gap: theme.spacing.md, paddingHorizontal: theme.spacing.lg },
+  catItem: { alignItems: 'center', gap: 6, width: 68 },
   catIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.white,
+    backgroundColor: theme.colors.primaryBg,
   },
-  catLabel: { ...theme.typography.caption, fontSize: 11, color: theme.colors.white, textAlign: 'center' },
+  catLabel: {
+    ...theme.typography.caption,
+    fontSize: 11,
+    color: theme.colors.ink,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   body: { paddingBottom: theme.spacing.xl },
   dealsCard: {
     backgroundColor: theme.colors.surface,
