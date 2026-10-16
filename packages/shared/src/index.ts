@@ -15,3 +15,4 @@ export * from './attributes';
 export * from './price-breakup';
 export * from './order-view';
 export * from './home';
+export * from './mobile-home';

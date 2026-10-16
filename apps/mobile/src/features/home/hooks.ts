@@ -1,5 +1,12 @@
-import { pincodeSchema, type HomeSection, type ProductCardDto } from '@belzo/shared';
+import {
+  pincodeSchema,
+  sanitizeMobileHome,
+  type HomeSection,
+  type MobileHome,
+  type ProductCardDto,
+} from '@belzo/shared';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
 import { qk, STALE } from '@/api/query-keys';
 import type { Banner, PublicSettings } from '@/api/types';
@@ -19,6 +26,16 @@ export function useSettings() {
     queryFn: fetchSettings,
     staleTime: STALE.settings,
   });
+}
+
+/**
+ * Admin-managed mobile home config (banners, category icons/order, offer rows, deals).
+ * Always complete: an old API, a failed request or an empty config yields defaults,
+ * which leave the app looking exactly as it did before this module existed.
+ */
+export function useMobileHome(): MobileHome {
+  const { data } = useSettings();
+  return useMemo(() => sanitizeMobileHome(data?.mobileHome), [data?.mobileHome]);
 }
 
 export function useHomeBanners() {

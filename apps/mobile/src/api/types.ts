@@ -83,6 +83,8 @@ export interface PublicSettings {
   home: Partial<HomeContent> | null;
   footer: unknown;
   sections: unknown;
+  /** Admin "Mobile" module config. Absent on older API versions; always run it through sanitizeMobileHome. */
+  mobileHome?: unknown;
 }
 
 export interface OrderListItem {

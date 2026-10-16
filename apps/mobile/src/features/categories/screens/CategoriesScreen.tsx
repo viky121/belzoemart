@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
-import type { CategoryNodeDto } from '@belzo/shared';
+import { resolveMobileCategories, type CategoryNodeDto } from '@belzo/shared';
+import { useMemo } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { iconForCategory } from '@/lib/category-icon';
@@ -10,6 +11,8 @@ import { EmptyState, ErrorState, Screen } from '@/ui';
 import { IconButton } from '@/ui/IconButton';
 import { RemoteImage } from '@/ui/RemoteImage';
 import { ListSkeleton } from '@/ui/Skeleton';
+
+import { useMobileHome } from '@/features/home/hooks';
 
 import { useCategories } from '../hooks';
 
@@ -26,6 +29,12 @@ function subtitleFor(node: CategoryNodeDto): string {
 export function CategoriesScreen() {
   const navigation = useNavigation<Nav>();
   const { data, isLoading, isError, error, refetch } = useCategories();
+  const mobileHome = useMobileHome();
+  // Same order / labels / icons / hidden flags as the home screen (admin "Mobile" module).
+  const tiles = useMemo(
+    () => resolveMobileCategories(data ?? [], mobileHome.categories),
+    [data, mobileHome.categories],
+  );
 
   const open = (node: CategoryNodeDto) =>
     navigation.navigate('ProductList', { categoryId: node.id, title: node.name });
@@ -58,8 +67,7 @@ export function CategoriesScreen() {
     );
   }
 
-  const roots = data ?? [];
-  if (roots.length === 0) {
+  if (tiles.length === 0) {
     return (
       <Screen>
         {header}
@@ -72,29 +80,30 @@ export function CategoriesScreen() {
     <Screen>
       {header}
       <FlatList
-        data={roots}
+        data={tiles}
         keyExtractor={(c) => c.id}
         style={styles.list}
         ItemSeparatorComponent={() => <View style={styles.sep} />}
-        renderItem={({ item, index }) => {
+        renderItem={({ item: tile, index }) => {
+          const item = tile.node;
           const sub = subtitleFor(item);
           return (
             <Pressable
               onPress={() => open(item)}
               accessibilityRole="button"
-              accessibilityLabel={`${item.name}. ${sub}`}
+              accessibilityLabel={`${tile.name}. ${sub}`}
               style={({ pressed }) => [styles.row, pressed && styles.pressed]}
             >
               <View style={[styles.thumb, { backgroundColor: PASTELS[index % PASTELS.length] }]}>
-                {item.imageUrl ? (
-                  <RemoteImage uri={item.imageUrl} width={56} height={56} radius={theme.radius.md} fallbackLabel={item.name} />
+                {tile.iconUrl ? (
+                  <RemoteImage uri={tile.iconUrl} width={64} height={64} radius={theme.radius.lg} fallbackLabel={tile.name} />
                 ) : (
-                  <MaterialCommunityIcons name={iconForCategory(item.name)} size={30} color={theme.colors.primaryStrong} />
+                  <MaterialCommunityIcons name={iconForCategory(tile.name)} size={30} color={theme.colors.primaryStrong} />
                 )}
               </View>
               <View style={styles.text}>
                 <Text style={styles.name} numberOfLines={1}>
-                  {item.name}
+                  {tile.name}
                 </Text>
                 <Text style={styles.sub} numberOfLines={1}>
                   {sub}

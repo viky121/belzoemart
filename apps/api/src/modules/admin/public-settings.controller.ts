@@ -1,6 +1,13 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { homeSectionSchema, sanitizeHomeContent, type HomeSection } from '@belzo/shared';
+import {
+  MOBILE_HOME_KEY,
+  homeSectionSchema,
+  sanitizeHomeContent,
+  sanitizeMobileHome,
+  type HomeSection,
+  type MobileHome,
+} from '@belzo/shared';
 import { Public } from '../../common/auth/public.decorator';
 import { SettingsService } from './settings.service';
 
@@ -24,13 +31,15 @@ export class PublicSettingsController {
     home: unknown;
     footer: unknown;
     sections: HomeSection[] | null;
+    mobileHome: MobileHome;
   }> {
-    const [theme, emartHome, classicHome, footer, sections] = await Promise.all([
+    const [theme, emartHome, classicHome, footer, sections, mobileHome] = await Promise.all([
       this.settings.get<string>('theme'),
       this.settings.get<unknown>('home_content'),
       this.settings.get<unknown>('home_content.classic'),
       this.settings.get<object>('footer_content'),
       this.settings.get<unknown>('home.sections'),
+      this.settings.get<unknown>(MOBILE_HOME_KEY),
     ]);
     // Per-section sanitize: drop invalid entries, keep valid ones (with zod
     // defaults applied), cap at 24. Return null only when nothing valid remains
@@ -51,6 +60,8 @@ export class PublicSettingsController {
       home: sanitizeHomeContent(rawHome),
       footer: footer ?? null,
       sections: valid.length > 0 ? valid : null,
+      // Mobile app home config (admin "Mobile" module), sanitized per element.
+      mobileHome: sanitizeMobileHome(mobileHome),
     };
   }
 

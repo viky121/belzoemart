@@ -1,7 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
+  activeBanners,
   getHomeSections,
   mergeHome,
+  offerRowsAt,
+  resolveMobileCategories,
   type CategoryNodeDto,
   type HomeSection,
   type ProductCardDto,
@@ -9,12 +12,12 @@ import {
 } from '@belzo/shared';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { skipToken, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { qk } from '@/api/query-keys';
-import type { CartView } from '@/api/types';
+import type { Banner, CartView } from '@/api/types';
 import { useCategories } from '@/features/categories/hooks';
 import { useUnreadCount } from '@/features/notifications/hooks';
 import { useProducts } from '@/features/products/hooks';
@@ -33,8 +36,9 @@ import { BelzoLogo } from '@/ui/brand/BelzoLogo';
 import { CategoryShortcuts } from '../components/CategoryShortcuts';
 import { HeroBanner } from '../components/HeroBanner';
 import { HomeRail } from '../components/HomeRail';
+import { OfferRows } from '../components/OfferRows';
 import { PincodeSheet } from '../components/PincodeSheet';
-import { useHomeBanners, useRecentlyViewedProducts, useSettings } from '../hooks';
+import { useHomeBanners, useMobileHome, useRecentlyViewedProducts, useSettings } from '../hooks';
 import { useOpenHref } from '../use-open-href';
 
 type Nav = NavigationProp<RootStackParamList>;
@@ -69,6 +73,30 @@ export function HomeScreen() {
   const themeName: ThemeName = settings.data?.theme === 'classic' ? 'classic' : 'emart';
   const content = mergeHome(settings.isError ? 'emart' : themeName, settings.data?.home ?? null);
   const sections = getHomeSections(settings.data?.sections);
+
+  // Admin "Mobile" module. Everything falls back to the previous behaviour when unset.
+  const mobileHome = useMobileHome();
+  const heroBanners = useMemo<Banner[]>(() => {
+    const own = activeBanners(mobileHome.heroBanners);
+    if (own.length === 0) return banners.data ?? []; // legacy Marketing banners
+    return own.map((b, i) => ({
+      id: b.id,
+      imageUrl: b.imageUrl,
+      linkUrl: b.linkUrl === '#' ? null : b.linkUrl,
+      title: b.title || null,
+      displayOrder: i,
+    }));
+  }, [mobileHome.heroBanners, banners.data]);
+  const categoryTiles = useMemo(
+    () => resolveMobileCategories(categories.data ?? [], mobileHome.categories),
+    [categories.data, mobileHome.categories],
+  );
+  const rowsAfterHero = useMemo(() => offerRowsAt(mobileHome.offerRows, 'after_hero'), [mobileHome.offerRows]);
+  const rowsAfterCategories = useMemo(
+    () => offerRowsAt(mobileHome.offerRows, 'after_categories'),
+    [mobileHome.offerRows],
+  );
+  const rowsAfterDeals = useMemo(() => offerRowsAt(mobileHome.offerRows, 'after_deals'), [mobileHome.offerRows]);
 
   const onPressProduct = useCallback(
     (p: ProductCardDto) => navigation.navigate('ProductDetail', { idOrSlug: p.slug }),
@@ -167,19 +195,21 @@ export function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.body}
       >
-        <HeroBanner banners={banners.data ?? []} hero={content.hero} onOpenHref={openHref} />
+        <HeroBanner banners={heroBanners} hero={content.hero} onOpenHref={openHref} />
+        <OfferRows rows={rowsAfterHero} onOpenHref={openHref} />
 
-        <CategoryShortcuts categories={categories.data ?? []} onPressCategory={openCategory} />
+        <CategoryShortcuts tiles={categoryTiles} onPressCategory={openCategory} />
+        <OfferRows rows={rowsAfterCategories} onOpenHref={openHref} />
 
-        {dealItems.length > 0 ? (
+        {mobileHome.dealsEnabled && dealItems.length > 0 ? (
           <View style={styles.section}>
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle} accessibilityRole="header">
-                Deals of the Day
+                {mobileHome.dealsTitle}
               </Text>
               <Pressable
                 onPress={() =>
-                  navigation.navigate('ProductList', { sort: 'discount', title: 'Deals of the Day' })
+                  navigation.navigate('ProductList', { sort: 'discount', title: mobileHome.dealsTitle })
                 }
                 accessibilityRole="link"
                 accessibilityLabel="View all deals"
@@ -202,6 +232,8 @@ export function HomeScreen() {
             </View>
           </View>
         ) : null}
+
+        <OfferRows rows={rowsAfterDeals} onOpenHref={openHref} />
 
         {sections.map((section) => (
           <HomeRail key={section.id} section={section} onPressProduct={onPressProduct} onViewAll={onViewAll} />

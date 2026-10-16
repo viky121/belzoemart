@@ -39,6 +39,7 @@ const GROUPS: NavGroup[] = [
     title: 'Growth',
     items: [
       { href: '/admin/marketing', label: 'Marketing', icon: '📣', testid: 'admin-nav-marketing' },
+      { href: '/admin/mobile', label: 'Mobile app', icon: '📱', testid: 'admin-nav-mobile' },
       { href: '/admin/coupons', label: 'Coupons', icon: '🏷️', testid: 'admin-nav-coupons' },
       { href: '/admin/reports', label: 'Reports', icon: '📈', testid: 'admin-nav-reports' },
     ],

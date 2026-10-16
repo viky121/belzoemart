@@ -1,0 +1,73 @@
+import { DEFAULT_MOBILE_HOME } from '@belzo/shared';
+import type { JwtPrincipal } from '../../common/auth/jwt.types';
+import { AdminMobileHomeController } from './admin-mobile-home.controller';
+import { PublicSettingsController } from './public-settings.controller';
+import type { SettingsService } from './settings.service';
+
+const ADMIN = { sub: 'admin-1' } as unknown as JwtPrincipal;
+
+function fakeSettings(initial: Record<string, unknown> = {}) {
+  const store: Record<string, unknown> = { ...initial };
+  const set = jest.fn(async (_actor: string, key: string, value: unknown) => {
+    store[key] = value;
+  });
+  const svc = {
+    get: async (key: string) => store[key] ?? null,
+    set,
+  } as unknown as SettingsService;
+  return { svc, store, set };
+}
+
+describe('AdminMobileHomeController', () => {
+  it('returns complete defaults when nothing is stored', async () => {
+    const { svc } = fakeSettings();
+    expect(await new AdminMobileHomeController(svc).get()).toEqual(DEFAULT_MOBILE_HOME);
+  });
+
+  it('stores the sanitized config under mobile.home with the acting admin id', async () => {
+    const { svc, set, store } = fakeSettings();
+    const ctrl = new AdminMobileHomeController(svc);
+    const saved = await ctrl.put(ADMIN, {
+      heroBanners: [{ id: 'h1', imageUrl: '/api/uploads/banners/a.jpg', linkUrl: '/category/grocery', title: '', enabled: true }],
+      categories: [],
+      offerRows: [
+        {
+          id: 'r1',
+          title: 'Festive',
+          columns: 3,
+          position: 'after_categories',
+          enabled: true,
+          banners: [{ id: 'b1', imageUrl: '/x.png', linkUrl: '#', title: '', enabled: true }],
+        },
+      ],
+      dealsEnabled: false,
+      dealsTitle: 'Hot Deals',
+    });
+    expect(set).toHaveBeenCalledWith('admin-1', 'mobile.home', saved);
+    expect(store['mobile.home']).toMatchObject({ dealsEnabled: false, dealsTitle: 'Hot Deals' });
+    expect(saved.offerRows[0]?.columns).toBe(3);
+    expect(await ctrl.get()).toEqual(saved);
+  });
+});
+
+describe('GET /settings/public → mobileHome', () => {
+  it('exposes the sanitized config, dropping bad elements', async () => {
+    const { svc } = fakeSettings({
+      'mobile.home': {
+        heroBanners: [{ id: 'ok', imageUrl: '/a.png' }, { id: 'bad', imageUrl: '' }],
+        offerRows: [{ id: 'r', columns: 7, banners: [] }],
+        dealsEnabled: false,
+      },
+    });
+    const res = await new PublicSettingsController(svc).publicSettings();
+    expect(res.mobileHome.heroBanners.map((b) => b.id)).toEqual(['ok']);
+    expect(res.mobileHome.offerRows).toEqual([]);
+    expect(res.mobileHome.dealsEnabled).toBe(false);
+  });
+
+  it('always returns defaults (never null) when unset, so the app needs no null checks', async () => {
+    const { svc } = fakeSettings();
+    const res = await new PublicSettingsController(svc).publicSettings();
+    expect(res.mobileHome).toEqual(DEFAULT_MOBILE_HOME);
+  });
+});

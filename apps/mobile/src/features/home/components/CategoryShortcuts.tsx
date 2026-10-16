@@ -1,4 +1,4 @@
-import type { CategoryNodeDto } from '@belzo/shared';
+import type { CategoryNodeDto, MobileCategoryTile } from '@belzo/shared';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -7,7 +7,8 @@ import { theme } from '@/theme';
 import { RemoteImage } from '@/ui/RemoteImage';
 
 export interface CategoryShortcutsProps {
-  categories: CategoryNodeDto[];
+  /** Categories in display order, with admin label/icon overrides applied. */
+  tiles: MobileCategoryTile[];
   onPressCategory: (node: CategoryNodeDto) => void;
 }
 
@@ -23,34 +24,34 @@ const PASTELS = [
 ] as const;
 
 /**
- * Home category tiles: every top-level category in a 4-per-row grid of circular
- * pastel icons. New categories added in admin simply wrap onto the next row.
+ * Home category tiles: every visible top-level category in a 4-per-row grid of
+ * circles. A new category added in admin simply wraps onto the next row.
  */
-export function CategoryShortcuts({ categories, onPressCategory }: CategoryShortcutsProps) {
-  if (categories.length === 0) return null;
+export function CategoryShortcuts({ tiles, onPressCategory }: CategoryShortcutsProps) {
+  if (tiles.length === 0) return null;
   return (
     <View style={styles.grid}>
-      {categories.map((c, i) => (
+      {tiles.map((t, i) => (
         <Pressable
-          key={c.id}
+          key={t.id}
           style={styles.tile}
-          onPress={() => onPressCategory(c)}
+          onPress={() => onPressCategory(t.node)}
           accessibilityRole="button"
-          accessibilityLabel={c.name}
+          accessibilityLabel={t.name}
         >
           <View style={[styles.circle, { backgroundColor: PASTELS[i % PASTELS.length] }]}>
-            {c.imageUrl ? (
-              <RemoteImage uri={c.imageUrl} width={48} height={48} radius={24} fallbackLabel={c.name} />
+            {t.iconUrl ? (
+              <RemoteImage uri={t.iconUrl} width={64} height={64} radius={32} fallbackLabel={t.name} />
             ) : (
               <MaterialCommunityIcons
-                name={iconForCategory(c.name)}
+                name={iconForCategory(t.name)}
                 size={30}
                 color={theme.colors.primaryStrong}
               />
             )}
           </View>
           <Text style={styles.label} numberOfLines={2}>
-            {c.name}
+            {t.name}
           </Text>
         </Pressable>
       ))}
@@ -78,6 +79,7 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   label: {
     ...theme.typography.caption,

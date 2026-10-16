@@ -9,6 +9,10 @@ interface ImageDropProps {
   value: string;
   onChange: (url: string) => void;
   label?: string;
+  /** Media-library folder to upload into / browse. Defaults to 'banners'. */
+  folder?: 'banners' | 'categories';
+  /** Max preview height in px (icons want a small square preview). */
+  previewHeight?: number;
 }
 
 /**
@@ -17,7 +21,7 @@ interface ImageDropProps {
  * shows an uploading state, accepts image MIME types only, and surfaces upload
  * errors. On success calls `onChange(url)`.
  */
-export function ImageDrop({ value, onChange, label }: ImageDropProps) {
+export function ImageDrop({ value, onChange, label, folder = 'banners', previewHeight = 90 }: ImageDropProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
   const [uploading, setUploading] = useState(false);
@@ -30,7 +34,7 @@ export function ImageDrop({ value, onChange, label }: ImageDropProps) {
     setUploading(true);
     setError(null);
     try {
-      const { url } = await adminUpload(file, 'banners');
+      const { url } = await adminUpload(file, folder);
       onChange(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
@@ -98,11 +102,11 @@ export function ImageDrop({ value, onChange, label }: ImageDropProps) {
       {error && <p className="prod-form__msg">{error}</p>}
       {isUsableImageUrl(value) && value !== '#' && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={value} alt="" style={{ marginTop: 8, maxHeight: 90, borderRadius: 8 }} />
+        <img src={value} alt="" style={{ marginTop: 8, maxHeight: previewHeight, borderRadius: 8 }} />
       )}
       {pickerOpen && (
         <MediaPicker
-          folder="banners"
+          folder={folder}
           title="Choose image"
           onSelect={(url) => onChange(url)}
           onClose={() => setPickerOpen(false)}
