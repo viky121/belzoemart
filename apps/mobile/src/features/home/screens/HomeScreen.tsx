@@ -169,11 +169,7 @@ export function HomeScreen() {
       >
         <HeroBanner banners={banners.data ?? []} hero={content.hero} onOpenHref={openHref} />
 
-        <CategoryShortcuts
-          categories={categories.data ?? []}
-          onPressCategory={openCategory}
-          onMore={() => navigation.navigate('Main', { screen: 'CategoriesTab' })}
-        />
+        <CategoryShortcuts categories={categories.data ?? []} onPressCategory={openCategory} />
 
         {dealItems.length > 0 ? (
           <View style={styles.section}>

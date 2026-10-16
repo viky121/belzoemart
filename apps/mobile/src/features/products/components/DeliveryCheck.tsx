@@ -28,6 +28,8 @@ export function DeliveryCheck() {
     staleTime: STALE.settings,
   });
 
+  const deliverable = query.isSuccess && (!query.data.configured || query.data.serviceable);
+
   let status = '';
   let tone: string = theme.colors.muted;
   if (valid && query.isSuccess) {
@@ -60,9 +62,10 @@ export function DeliveryCheck() {
           accessibilityLabel="Delivery PIN code"
         />
         <Button
-          title="Check"
+          title="Save"
           variant="secondary"
-          disabled={!valid}
+          // Only a PIN we deliver to can become the shopper's delivery PIN.
+          disabled={!valid || !deliverable || input === storePin}
           onPress={() => setPincode(input)}
           testID="delivery-check"
         />

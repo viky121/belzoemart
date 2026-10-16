@@ -55,7 +55,14 @@ export async function completeLogin(
     try {
       const addresses = await apiRequest<Address[]>('/me/addresses', { auth: 'required' });
       const def = addresses.find((a) => a.isDefault) ?? addresses[0];
-      if (def?.pincode) usePincodeStore.getState().setPincode(def.pincode);
+      if (def?.pincode) {
+        // Only adopt the address PIN if we actually deliver there.
+        const s = await apiRequest<{ serviceable: boolean; configured: boolean }>(
+          '/settings/serviceability',
+          { query: { pincode: def.pincode } },
+        );
+        if (!s.configured || s.serviceable) usePincodeStore.getState().setPincode(def.pincode);
+      }
     } catch (e) {
       logger.warn('default-address PIN adoption failed', e);
     }

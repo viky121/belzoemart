@@ -9,8 +9,6 @@ import { RemoteImage } from '@/ui/RemoteImage';
 export interface CategoryShortcutsProps {
   categories: CategoryNodeDto[];
   onPressCategory: (node: CategoryNodeDto) => void;
-  /** Renders a trailing "More" tile that opens the Categories tab. */
-  onMore?: () => void;
 }
 
 const PASTELS = [
@@ -24,13 +22,15 @@ const PASTELS = [
   '#e9fbf3',
 ] as const;
 
-/** Home category tiles: 4-per-row grid of circular pastel icons (design §11 Home). */
-export function CategoryShortcuts({ categories, onPressCategory, onMore }: CategoryShortcutsProps) {
+/**
+ * Home category tiles: every top-level category in a 4-per-row grid of circular
+ * pastel icons. New categories added in admin simply wrap onto the next row.
+ */
+export function CategoryShortcuts({ categories, onPressCategory }: CategoryShortcutsProps) {
   if (categories.length === 0) return null;
-  const shown = categories.slice(0, onMore ? 7 : 8);
   return (
     <View style={styles.grid}>
-      {shown.map((c, i) => (
+      {categories.map((c, i) => (
         <Pressable
           key={c.id}
           style={styles.tile}
@@ -49,24 +49,11 @@ export function CategoryShortcuts({ categories, onPressCategory, onMore }: Categ
               />
             )}
           </View>
-          <Text style={styles.label} numberOfLines={1}>
+          <Text style={styles.label} numberOfLines={2}>
             {c.name}
           </Text>
         </Pressable>
       ))}
-      {onMore ? (
-        <Pressable
-          style={styles.tile}
-          onPress={onMore}
-          accessibilityRole="button"
-          accessibilityLabel="More categories"
-        >
-          <View style={[styles.circle, styles.moreCircle]}>
-            <MaterialCommunityIcons name="dots-horizontal" size={26} color={theme.colors.muted} />
-          </View>
-          <Text style={styles.label}>More</Text>
-        </Pressable>
-      ) : null}
     </View>
   );
 }
@@ -82,6 +69,7 @@ const styles = StyleSheet.create({
     width: '25%',
     alignItems: 'center',
     paddingVertical: theme.spacing.sm,
+    paddingHorizontal: 2,
     gap: theme.spacing.xs,
   },
   circle: {
@@ -91,7 +79,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  moreCircle: { backgroundColor: theme.colors.surface2 },
   label: {
     ...theme.typography.caption,
     fontSize: 12,
