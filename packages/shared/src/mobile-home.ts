@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { CategoryNodeDto } from './catalogue';
-import { MOBILE_FESTIVALS } from './festivals';
+import { MOBILE_FESTIVALS, isValidDateKey } from './festivals';
 import { safeHrefSchema } from './schemas';
 
 /**
@@ -78,6 +78,13 @@ export const mobileOfferRowSchema = z.object({
 });
 export type MobileOfferRow = z.infer<typeof mobileOfferRowSchema>;
 
+/** `YYYY-MM-DD` (India date) or '' for "no limit". */
+const festivalDateSchema = z
+  .string()
+  .trim()
+  .refine((v) => v === '' || isValidDateKey(v), 'Use a valid date')
+  .default('');
+
 /** Strict schema: used by the admin editor and PUT /admin/mobile-home to reject bad input. */
 export const mobileHomeSchema = z.object({
   heroBanners: z.array(mobileBannerSchema).max(MOBILE_LIMITS.heroBanners).default([]),
@@ -91,6 +98,10 @@ export const mobileHomeSchema = z.object({
   festivalGreeting: z.string().trim().max(60).default(''),
   /** Falling decorations in the festival banner (the app also honours "reduce motion"). */
   festivalDecor: z.boolean().default(true),
+  /** First day the theme shows (India date, inclusive). '' = no start limit. */
+  festivalStart: festivalDateSchema,
+  /** Last day the theme shows (India date, inclusive). '' = no end limit. */
+  festivalEnd: festivalDateSchema,
 });
 export type MobileHome = z.infer<typeof mobileHomeSchema>;
 
@@ -103,6 +114,8 @@ export const DEFAULT_MOBILE_HOME: MobileHome = {
   festival: 'none',
   festivalGreeting: '',
   festivalDecor: true,
+  festivalStart: '',
+  festivalEnd: '',
 };
 
 /** Parse each array entry on its own, keep the valid ones (defaults applied), cap at `max`. */
@@ -145,6 +158,9 @@ export function sanitizeMobileHome(value: unknown): MobileHome {
     festival: mobileHomeSchema.shape.festival.catch('none').parse(v.festival),
     festivalGreeting: mobileHomeSchema.shape.festivalGreeting.catch('').parse(v.festivalGreeting),
     festivalDecor: typeof v.festivalDecor === 'boolean' ? v.festivalDecor : true,
+    // A malformed date is dropped (= no limit on that side) rather than breaking the config.
+    festivalStart: mobileHomeSchema.shape.festivalStart.catch('').parse(v.festivalStart),
+    festivalEnd: mobileHomeSchema.shape.festivalEnd.catch('').parse(v.festivalEnd),
   };
 }
 

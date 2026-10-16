@@ -5,7 +5,14 @@ import {
   MOTIF_EMOJI,
   contrastRatio,
   festivalGreeting,
+  festivalScheduleError,
+  festivalScheduleStatus,
   getFestivalTheme,
+  isFestivalActive,
+  isFestivalActiveOnDay,
+  isValidDateKey,
+  istDateKey,
+  msUntilNextIstDay,
 } from './festivals';
 import { DEFAULT_MOBILE_HOME, mobileHomeSchema, sanitizeMobileHome } from './mobile-home';
 
@@ -107,5 +114,95 @@ describe('festival fields in the mobile home config', () => {
   it('rejects an over-long greeting on save but trims it on read', () => {
     expect(mobileHomeSchema.safeParse({ festivalGreeting: 'x'.repeat(61) }).success).toBe(false);
     expect(sanitizeMobileHome({ festivalGreeting: 'x'.repeat(61) }).festivalGreeting).toBe('');
+  });
+});
+
+describe('festival schedule (India dates)', () => {
+  // 2026-11-08 10:00 IST (= 04:30 UTC)
+  const at = (iso: string) => new Date(iso).getTime();
+  const s = (festivalStart: string, festivalEnd: string, festival: 'diwali' | 'none' = 'diwali') => ({
+    festival,
+    festivalStart,
+    festivalEnd,
+  });
+
+  it('istDateKey follows India time, not UTC', () => {
+    // 23:00 UTC on the 7th is already 04:30 IST on the 8th.
+    expect(istDateKey(at('2026-11-07T23:00:00Z'))).toBe('2026-11-08');
+    // 18:29 UTC is 23:59 IST: still the 7th. 18:30 UTC is midnight IST: the 8th.
+    expect(istDateKey(at('2026-11-07T18:29:00Z'))).toBe('2026-11-07');
+    expect(istDateKey(at('2026-11-07T18:30:00Z'))).toBe('2026-11-08');
+  });
+
+  it('isValidDateKey accepts real dates only', () => {
+    expect(isValidDateKey('2026-11-08')).toBe(true);
+    expect(isValidDateKey('2028-02-29')).toBe(true);
+    for (const bad of ['2026-02-30', '2026-13-01', '2026-1-1', '08-11-2026', '', 'abc', null, 20261108]) {
+      expect(isValidDateKey(bad)).toBe(false);
+    }
+  });
+
+  it('with no dates a chosen festival stays on (the pre-scheduling behaviour)', () => {
+    expect(festivalScheduleStatus(s('', ''), at('2030-01-01T00:00:00Z'))).toBe('always');
+    expect(isFestivalActive(s('', ''))).toBe(true);
+  });
+
+  it('"none" is never active, whatever the dates', () => {
+    expect(isFestivalActive(s('2026-01-01', '2026-12-31', 'none'), at('2026-06-01T00:00:00Z'))).toBe(false);
+    expect(festivalScheduleStatus(s('', '', 'none'))).toBe('off');
+  });
+
+  it('is upcoming before the start, active on both boundary days, ended after the end', () => {
+    const sch = s('2026-11-08', '2026-11-12');
+    expect(festivalScheduleStatus(sch, at('2026-11-07T18:29:00Z'))).toBe('upcoming'); // 7th 23:59 IST
+    expect(festivalScheduleStatus(sch, at('2026-11-07T18:30:00Z'))).toBe('active'); // 8th 00:00 IST
+    expect(festivalScheduleStatus(sch, at('2026-11-12T18:29:00Z'))).toBe('active'); // 12th 23:59 IST
+    expect(festivalScheduleStatus(sch, at('2026-11-12T18:30:00Z'))).toBe('ended'); // 13th 00:00 IST
+    expect(isFestivalActive(sch, at('2026-11-10T06:00:00Z'))).toBe(true);
+    expect(isFestivalActive(sch, at('2026-11-20T06:00:00Z'))).toBe(false);
+  });
+
+  it('supports an open start (ends on a date) and an open end (starts on a date)', () => {
+    expect(isFestivalActive(s('', '2026-11-12'), at('2026-01-01T00:00:00Z'))).toBe(true);
+    expect(isFestivalActive(s('', '2026-11-12'), at('2026-11-20T00:00:00Z'))).toBe(false);
+    expect(isFestivalActive(s('2026-11-08', ''), at('2026-11-01T00:00:00Z'))).toBe(false);
+    expect(isFestivalActive(s('2026-11-08', ''), at('2030-01-01T00:00:00Z'))).toBe(true);
+  });
+
+  it('evaluates against an explicit India date and reports the time until the next IST midnight', () => {
+    const sch = s('2026-11-08', '2026-11-12');
+    expect(isFestivalActiveOnDay(sch, '2026-11-07')).toBe(false);
+    expect(isFestivalActiveOnDay(sch, '2026-11-08')).toBe(true);
+    expect(isFestivalActiveOnDay(sch, '2026-11-12')).toBe(true);
+    expect(isFestivalActiveOnDay(sch, '2026-11-13')).toBe(false);
+    // 18:00 UTC = 23:30 IST → 30 minutes to midnight.
+    expect(msUntilNextIstDay(at('2026-11-07T18:00:00Z'))).toBe(30 * 60 * 1000);
+    // Exactly at IST midnight a full day remains.
+    expect(msUntilNextIstDay(at('2026-11-07T18:30:00Z'))).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it('treats a corrupt stored date as "no limit" instead of hiding the festival', () => {
+    expect(isFestivalActive(s('garbage', ''), at('2026-11-01T00:00:00Z'))).toBe(true);
+  });
+
+  it('festivalScheduleError rejects bad or reversed dates', () => {
+    expect(festivalScheduleError('', '')).toBeNull();
+    expect(festivalScheduleError('2026-11-08', '2026-11-08')).toBeNull();
+    expect(festivalScheduleError('2026-11-08', '')).toBeNull();
+    expect(festivalScheduleError('2026-11-12', '2026-11-08')).toMatch(/on or after/);
+    expect(festivalScheduleError('2026-02-30', '')).toMatch(/Start date/);
+    expect(festivalScheduleError('', 'nope')).toMatch(/End date/);
+  });
+
+  it('the config schema stores the dates, defaults them to empty, and sanitize drops bad ones', () => {
+    expect(mobileHomeSchema.parse({}).festivalStart).toBe('');
+    expect(mobileHomeSchema.parse({ festivalStart: ' 2026-11-08 ', festivalEnd: '2026-11-12' })).toMatchObject({
+      festivalStart: '2026-11-08',
+      festivalEnd: '2026-11-12',
+    });
+    expect(mobileHomeSchema.safeParse({ festivalStart: '2026-02-30' }).success).toBe(false);
+    const clean = sanitizeMobileHome({ festival: 'holi', festivalStart: 'x', festivalEnd: '2026-03-05' });
+    expect(clean).toMatchObject({ festival: 'holi', festivalStart: '', festivalEnd: '2026-03-05' });
+    expect(DEFAULT_MOBILE_HOME).toMatchObject({ festivalStart: '', festivalEnd: '' });
   });
 });

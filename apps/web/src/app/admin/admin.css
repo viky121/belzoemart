@@ -2032,3 +2032,13 @@
 .fp-chips { display: flex; gap: 8px; margin-top: 10px; }
 .fp-chip { padding: 5px 12px; border-radius: 999px; font-size: .75rem; font-weight: 700; }
 .fp-chip--on { color: #fff; }
+
+.fp-schedule { margin: 12px 0 0; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 10px; max-width: 520px; }
+.fp-schedule legend { padding: 0 6px; font-size: .8rem; font-weight: 700; color: #334155; }
+.fp-dates { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.fp-dates label { display: flex; flex-direction: column; gap: 4px; font-size: .8rem; color: #334155; font-weight: 600; }
+.fp-dates .auth-input { min-width: 160px; }
+.fp-status { margin: 10px 0 0; padding: 8px 10px; border-radius: 8px; font-size: .85rem; font-weight: 600; }
+.fp-status--ok { background: #ecfdf5; color: #065f46; }
+.fp-status--warn { background: #fffbeb; color: #92400e; }
+.fp-status--bad { background: #fef2f2; color: #991b1b; }

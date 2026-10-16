@@ -1,6 +1,7 @@
 import {
   festivalGreeting,
   getFestivalTheme,
+  isFestivalActiveOnDay,
   type FestivalMotif,
   type MobileFestival,
 } from '@belzo/shared';
@@ -47,11 +48,22 @@ const DEFAULT_TINTS = [
  * festival palette. Components read colours from here instead of hard-wiring them.
  */
 export function useBrand(): Brand {
-  const festival = useFestivalStore((s) => s.festival);
+  const chosen = useFestivalStore((s) => s.festival);
   const customGreeting = useFestivalStore((s) => s.greeting);
   const decor = useFestivalStore((s) => s.decor);
+  const start = useFestivalStore((s) => s.start);
+  const end = useFestivalStore((s) => s.end);
+  // Changes when the India date rolls over, so the schedule is re-evaluated.
+  const day = useFestivalStore((s) => s.day);
 
   return useMemo<Brand>(() => {
+    // Outside its start/end dates the festival is simply off: the normal look.
+    const festival: MobileFestival = isFestivalActiveOnDay(
+      { festival: chosen, festivalStart: start, festivalEnd: end },
+      day,
+    )
+      ? chosen
+      : 'none';
     if (festival === 'none') {
       return {
         active: false,
@@ -83,5 +95,5 @@ export function useBrand(): Brand {
       greetingLocal: t.greetingLocal,
       decor,
     };
-  }, [festival, customGreeting, decor]);
+  }, [chosen, customGreeting, decor, start, end, day]);
 }

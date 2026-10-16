@@ -45,6 +45,8 @@ describe('AdminMobileHomeController', () => {
       festival: 'none',
       festivalGreeting: '',
       festivalDecor: true,
+      festivalStart: '',
+      festivalEnd: '',
     });
     expect(set).toHaveBeenCalledWith('admin-1', 'mobile.home', saved);
     expect(store['mobile.home']).toMatchObject({ dealsEnabled: false, dealsTitle: 'Hot Deals' });
@@ -60,7 +62,45 @@ describe('festival theme', () => {
     offerRows: [],
     dealsEnabled: true,
     dealsTitle: 'Deals of the Day',
+    festivalStart: '',
+    festivalEnd: '',
   };
+
+  it('stores the start/end dates, and serves them publicly', async () => {
+    const { svc } = fakeSettings();
+    const saved = await new AdminMobileHomeController(svc).put(ADMIN, {
+      ...base,
+      festival: 'diwali',
+      festivalGreeting: '',
+      festivalDecor: true,
+      festivalStart: '2026-11-05',
+      festivalEnd: '2026-11-12',
+    });
+    expect(saved).toMatchObject({ festivalStart: '2026-11-05', festivalEnd: '2026-11-12' });
+    const pub = await new PublicSettingsController(svc).publicSettings();
+    expect(pub.mobileHome).toMatchObject({ festivalStart: '2026-11-05', festivalEnd: '2026-11-12' });
+  });
+
+  it('rejects an end date before the start date and stores nothing', async () => {
+    const { svc, set } = fakeSettings();
+    await expect(
+      new AdminMobileHomeController(svc).put(ADMIN, {
+        ...base,
+        festival: 'holi',
+        festivalGreeting: '',
+        festivalDecor: true,
+        festivalStart: '2026-03-10',
+        festivalEnd: '2026-03-02',
+      }),
+    ).rejects.toThrow(/on or after/);
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it('old stored configs without dates read back as "no limit"', async () => {
+    const { svc } = fakeSettings({ 'mobile.home': { festival: 'diwali' } });
+    const pub = await new PublicSettingsController(svc).publicSettings();
+    expect(pub.mobileHome).toMatchObject({ festival: 'diwali', festivalStart: '', festivalEnd: '' });
+  });
 
   it('persists the chosen festival, greeting and decor flag and serves them publicly', async () => {
     const { svc, set } = fakeSettings();

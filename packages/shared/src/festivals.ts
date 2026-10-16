@@ -300,3 +300,79 @@ export function contrastRatio(a: string, b: string): number {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
   return (hi + 0.05) / (lo + 0.05);
 }
+
+// ───────────────────────── Scheduling (start / end dates) ─────────────────────────
+
+/** India Standard Time is UTC+05:30 with no daylight saving. */
+const IST_OFFSET_MS = 330 * 60 * 1000;
+
+/** Today's date in India as `YYYY-MM-DD`, independent of the device's time zone. */
+export function istDateKey(nowMs: number = Date.now()): string {
+  return new Date(nowMs + IST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/** True for a real calendar date written as `YYYY-MM-DD` (rejects 2026-02-30, 2026-13-01 …). */
+export function isValidDateKey(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const t = new Date(Date.UTC(y, mo - 1, d));
+  return t.getUTCFullYear() === y && t.getUTCMonth() === mo - 1 && t.getUTCDate() === d;
+}
+
+/** What decides whether a festival theme is showing right now. */
+export interface FestivalSchedule {
+  festival: MobileFestival;
+  /** First day the theme shows (inclusive, IST). '' = no start limit. */
+  festivalStart: string;
+  /** Last day the theme shows (inclusive, IST). '' = no end limit. */
+  festivalEnd: string;
+}
+
+export type FestivalScheduleStatus = 'off' | 'always' | 'upcoming' | 'active' | 'ended';
+
+/**
+ * Where the schedule stands today. With no dates the festival simply stays on until the
+ * admin switches it off (this is how it worked before scheduling existed).
+ */
+export function festivalScheduleStatus(s: FestivalSchedule, nowMs: number = Date.now()): FestivalScheduleStatus {
+  return festivalStatusOnDay(s, istDateKey(nowMs));
+}
+
+/** Same as {@link festivalScheduleStatus} for an explicit India date key (`YYYY-MM-DD`). */
+export function festivalStatusOnDay(s: FestivalSchedule, today: string): FestivalScheduleStatus {
+  if (s.festival === 'none') return 'off';
+  const start = isValidDateKey(s.festivalStart) ? s.festivalStart : '';
+  const end = isValidDateKey(s.festivalEnd) ? s.festivalEnd : '';
+  if (start === '' && end === '') return 'always';
+  if (start !== '' && today < start) return 'upcoming';
+  if (end !== '' && today > end) return 'ended';
+  return 'active';
+}
+
+/** Whether the festival look should be shown right now (or on the given India date). */
+export function isFestivalActive(s: FestivalSchedule, nowMs: number = Date.now()): boolean {
+  const st = festivalScheduleStatus(s, nowMs);
+  return st === 'always' || st === 'active';
+}
+
+/** Whether the festival look is shown on an explicit India date key. */
+export function isFestivalActiveOnDay(s: FestivalSchedule, today: string): boolean {
+  const st = festivalStatusOnDay(s, today);
+  return st === 'always' || st === 'active';
+}
+
+/** Message when the dates can't be saved, or null when fine. */
+export function festivalScheduleError(start: string, end: string): string | null {
+  if (start !== '' && !isValidDateKey(start)) return 'Start date is not a valid date';
+  if (end !== '' && !isValidDateKey(end)) return 'End date is not a valid date';
+  if (start !== '' && end !== '' && end < start) return 'End date must be on or after the start date';
+  return null;
+}
+
+/** Milliseconds until the next midnight in India (so a running app can re-check the schedule). */
+export function msUntilNextIstDay(nowMs: number = Date.now()): number {
+  const DAY = 24 * 60 * 60 * 1000;
+  return DAY - ((nowMs + IST_OFFSET_MS) % DAY);
+}

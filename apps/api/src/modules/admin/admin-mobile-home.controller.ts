@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Put } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Put } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
+  festivalScheduleError,
   MOBILE_HOME_KEY,
   mobileHomeSchema,
   sanitizeMobileHome,
@@ -36,6 +37,8 @@ export class AdminMobileHomeController {
   @Put()
   async put(@CurrentUser() user: JwtPrincipal, @Body() dto: MobileHomeDto): Promise<MobileHome> {
     // The DTO is validated (strict) by the global zod pipe; store the sanitized form.
+    const scheduleError = festivalScheduleError(dto.festivalStart, dto.festivalEnd);
+    if (scheduleError) throw new BadRequestException(scheduleError);
     const value = sanitizeMobileHome(dto);
     await this.settings.set(user.sub, MOBILE_HOME_KEY, value);
     return value;

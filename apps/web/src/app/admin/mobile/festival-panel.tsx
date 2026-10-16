@@ -6,10 +6,8 @@ import {
   MOTIF_EMOJI,
   festivalGreeting,
   type MobileFestival,
-  type MobileHome,
 } from '@belzo/shared';
-
-type FestivalFields = Pick<MobileHome, 'festival' | 'festivalGreeting' | 'festivalDecor'>;
+import { scheduleSummary, type FestivalFields } from './festival-schedule';
 
 /** Phone-style mock of the app header in the chosen festival colours. */
 function Preview({ festival, greeting }: { festival: MobileFestival; greeting: string }) {
@@ -61,12 +59,14 @@ export function FestivalPanel({
 }) {
   const t = FESTIVAL_THEMES[value.festival];
   const greeting = festivalGreeting(value.festival, value.festivalGreeting);
+  const summary = scheduleSummary(value);
 
   return (
     <div>
       <p className="prod-form__hint">
         Choose a festival and the app recolours its header, buttons, tabs and category circles, and shows a festive
-        greeting with falling decorations. Switch back to “No festival” afterwards to return to the normal look.
+        greeting with falling decorations. Set a start and end date and the app switches the theme on and off by
+        itself, or leave the dates empty and switch back to “No festival” yourself.
       </p>
 
       <div className="fp-grid" role="radiogroup" aria-label="Festival theme">
@@ -118,6 +118,47 @@ export function FestivalPanel({
                 style={{ maxWidth: 360 }}
               />
               <span className="prod-form__hint">Leave empty to use “{t.greeting}”.</span>
+
+              <fieldset className="fp-schedule">
+                <legend>Schedule (optional, India time)</legend>
+                <div className="fp-dates">
+                  <label htmlFor="fp-start">
+                    Start date
+                    <input
+                      id="fp-start"
+                      type="date"
+                      className="auth-input"
+                      value={value.festivalStart}
+                      max={value.festivalEnd || undefined}
+                      onChange={(e) => onChange({ festivalStart: e.target.value })}
+                    />
+                  </label>
+                  <label htmlFor="fp-end">
+                    End date (last day shown)
+                    <input
+                      id="fp-end"
+                      type="date"
+                      className="auth-input"
+                      value={value.festivalEnd}
+                      min={value.festivalStart || undefined}
+                      onChange={(e) => onChange({ festivalEnd: e.target.value })}
+                    />
+                  </label>
+                  {(value.festivalStart || value.festivalEnd) && (
+                    <button
+                      type="button"
+                      className="mh-link-btn"
+                      onClick={() => onChange({ festivalStart: '', festivalEnd: '' })}
+                    >
+                      Clear dates
+                    </button>
+                  )}
+                </div>
+                <p className={`fp-status fp-status--${summary.tone}`} role="status" data-testid="festival-schedule-status">
+                  {summary.text}
+                </p>
+              </fieldset>
+
               <label className="mh-check" style={{ marginTop: 10 }}>
                 <input
                   type="checkbox"

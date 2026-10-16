@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   DEFAULT_MOBILE_HOME,
   MOBILE_LIMITS,
+  festivalScheduleError,
   mobileHomeSchema,
   type CategoryNodeDto,
   type MobileBanner,
@@ -116,6 +117,12 @@ export default function AdminMobilePage() {
   async function save() {
     if (!cfg) return;
     setMsg(null);
+    const scheduleError = festivalScheduleError(cfg.festivalStart, cfg.festivalEnd);
+    if (scheduleError) {
+      setTab('festival');
+      setMsg({ text: `Cannot save: ${scheduleError}.`, ok: false });
+      return;
+    }
     const parsed = mobileHomeSchema.safeParse(cfg);
     if (!parsed.success) {
       const i = parsed.error.issues[0];
@@ -201,6 +208,8 @@ export default function AdminMobilePage() {
                 festival: cfg.festival,
                 festivalGreeting: cfg.festivalGreeting,
                 festivalDecor: cfg.festivalDecor,
+                festivalStart: cfg.festivalStart,
+                festivalEnd: cfg.festivalEnd,
               }}
               onChange={patch}
             />

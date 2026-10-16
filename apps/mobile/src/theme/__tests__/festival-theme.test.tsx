@@ -1,4 +1,10 @@
-import { FESTIVAL_MOTIFS, FESTIVAL_THEMES, MOBILE_FESTIVALS, sanitizeMobileHome } from '@belzo/shared';
+import {
+  FESTIVAL_MOTIFS,
+  FESTIVAL_THEMES,
+  MOBILE_FESTIVALS,
+  istDateKey,
+  sanitizeMobileHome,
+} from '@belzo/shared';
 import { act, renderHook, screen } from '@testing-library/react-native';
 import { StyleSheet } from 'react-native';
 
@@ -15,9 +21,9 @@ import { FestivalGlyph, MOTIF_ICON } from '@/ui/festival/FestivalGlyph';
 
 type FestivalId = (typeof MOBILE_FESTIVALS)[number];
 
-async function setFestival(festival: FestivalId, greeting = '', decor = true) {
+async function setFestival(festival: FestivalId, greeting = '', decor = true, start = '', end = '') {
   await act(async () => {
-    useFestivalStore.getState().apply({ festival, greeting, decor });
+    useFestivalStore.getState().apply({ festival, greeting, decor, start, end });
   });
 }
 
@@ -59,16 +65,92 @@ describe('useBrand', () => {
 
   it('the store rejects an unknown festival', async () => {
     await act(async () => {
-      useFestivalStore.getState().apply({ festival: 'christmas' as never, greeting: '', decor: true });
+      useFestivalStore
+        .getState()
+        .apply({ festival: 'christmas' as never, greeting: '', decor: true, start: '', end: '' });
     });
     expect(useFestivalStore.getState().festival).toBe('none');
+  });
+
+  it('the store drops a malformed date instead of hiding the festival', async () => {
+    await act(async () => {
+      useFestivalStore
+        .getState()
+        .apply({ festival: 'holi', greeting: '', decor: true, start: '2026-02-30', end: 'x' });
+    });
+    expect(useFestivalStore.getState()).toMatchObject({ festival: 'holi', start: '', end: '' });
+  });
+});
+
+describe('useBrand schedule', () => {
+  const day = (offset: number) => istDateKey(Date.now() + offset * 86_400_000);
+
+  it('shows the festival inside its date window', async () => {
+    await setFestival('diwali', '', true, day(-1), day(1));
+    const { result } = await renderHook(() => useBrand());
+    expect(result.current.active).toBe(true);
+    expect(result.current.primary).toBe(FESTIVAL_THEMES.diwali.primary);
+  });
+
+  it('shows the normal look before the start date', async () => {
+    await setFestival('diwali', '', true, day(2), day(5));
+    const { result } = await renderHook(() => useBrand());
+    expect(result.current.active).toBe(false);
+    expect(result.current.primary).toBe(colors.primaryStrong);
+  });
+
+  it('goes back to the normal look after the end date', async () => {
+    await setFestival('diwali', '', true, day(-5), day(-1));
+    const { result } = await renderHook(() => useBrand());
+    expect(result.current.active).toBe(false);
+    expect(result.current.greeting).toBe('');
+  });
+
+  it('with no dates the festival stays on', async () => {
+    await setFestival('holi');
+    const { result } = await renderHook(() => useBrand());
+    expect(result.current.active).toBe(true);
+  });
+
+  it('the last day is included', async () => {
+    await setFestival('holi', '', true, day(-3), day(0));
+    const { result } = await renderHook(() => useBrand());
+    expect(result.current.active).toBe(true);
+  });
+
+  it('a festival ending today stops being shown once the day rolls over', async () => {
+    // Window is "today only"; move the clock a full day forward and tick.
+    await setFestival('holi', '', true, day(0), day(0));
+    const { result } = await renderHook(() => useBrand());
+    expect(result.current.active).toBe(true);
+    const spy = jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 86_400_000);
+    try {
+      await act(async () => {
+        useFestivalStore.getState().tick();
+      });
+      expect(result.current.active).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 
 describe('festivalValuesFrom (settings → store)', () => {
   it('maps the admin config fields', () => {
-    const home = sanitizeMobileHome({ festival: 'holi', festivalGreeting: 'Holi Hai', festivalDecor: false });
-    expect(festivalValuesFrom(home)).toEqual({ festival: 'holi', greeting: 'Holi Hai', decor: false });
+    const home = sanitizeMobileHome({
+      festival: 'holi',
+      festivalGreeting: 'Holi Hai',
+      festivalDecor: false,
+      festivalStart: '2026-03-01',
+      festivalEnd: '2026-03-05',
+    });
+    expect(festivalValuesFrom(home)).toEqual({
+      festival: 'holi',
+      greeting: 'Holi Hai',
+      decor: false,
+      start: '2026-03-01',
+      end: '2026-03-05',
+    });
   });
   it('an old API without mobileHome means no festival', () => {
     expect(festivalValuesFrom(sanitizeMobileHome(undefined)).festival).toBe('none');
