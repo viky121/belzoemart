@@ -8,6 +8,7 @@
       "distribution": "internal",
       "environment": "development",
       "android": { "buildType": "apk" },
+      "channel": "development",
       "env": { "APP_VARIANT": "development", "EXPO_PUBLIC_API_BASE_URL": "https://belzoemart.com" }
     },
     "preview": {
@@ -15,6 +16,7 @@
       "distribution": "internal",
       "environment": "preview",
       "android": { "buildType": "apk" },
+      "channel": "preview",
       "env": { "APP_VARIANT": "development", "EXPO_PUBLIC_API_BASE_URL": "https://belzoemart.com" }
     },
     "production": {

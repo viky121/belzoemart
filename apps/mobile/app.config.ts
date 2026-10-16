@@ -79,6 +79,12 @@ export function buildConfig(env: BuildEnv): ExpoConfig {
     orientation: 'portrait',
     scheme: isProd ? 'belzoemart' : 'belzoemart-dev',
     userInterfaceStyle: 'light',
+    // Over-the-air (EAS Update): JS/UI changes reach installed builds without a
+    // reinstall, as long as the native runtime is unchanged.
+    runtimeVersion: { policy: 'appVersion' },
+    ...(env.EAS_PROJECT_ID
+      ? { updates: { url: `https://u.expo.dev/${env.EAS_PROJECT_ID}` } }
+      : {}),
     icon: './assets/placeholder/icon-PLACEHOLDER.png',
     android: {
       package: isProd ? 'in.belzo.emart' : 'in.belzo.emart.dev',
