@@ -16,7 +16,17 @@ export function DiscountBadge({ pct }: { pct: number }) {
 
 const styles = StyleSheet.create({
   badge: {
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
+    backgroundColor: theme.colors.successBg,
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
-  text: { ...theme.typography.caption, color: theme.colors.brandStrong, fontWeight: '700' },
+  text: {
+    ...theme.typography.caption,
+    fontSize: 11,
+    lineHeight: 14,
+    color: theme.colors.brandStrong,
+    fontWeight: '800',
+  },
 });

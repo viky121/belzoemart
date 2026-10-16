@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Animated, StyleSheet, Text } from 'react-native';
+import { Animated, Dimensions, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { theme } from '@/theme';
 import { BelzoLogo } from '@/ui/brand/BelzoLogo';
+import { BrandSplash } from '@/ui/brand/BrandSplash';
 
-/** Branded launch animation: logo springs in, holds, then the whole screen fades out. */
+const LOGO = Math.min(240, Dimensions.get('window').width * 0.6);
+
+/** Branded launch animation: the logo springs in over the brand splash, then the screen fades out. */
 export function AnimatedSplash({ onDone }: { onDone: () => void }) {
+  const insets = useSafeAreaInsets();
   const [scale] = useState(() => new Animated.Value(0.6));
   const [opacity] = useState(() => new Animated.Value(0));
   const [fade] = useState(() => new Animated.Value(1));
@@ -16,7 +20,7 @@ export function AnimatedSplash({ onDone }: { onDone: () => void }) {
         Animated.spring(scale, { toValue: 1, friction: 6, tension: 60, useNativeDriver: true }),
         Animated.timing(opacity, { toValue: 1, duration: 420, useNativeDriver: true }),
       ]),
-      Animated.delay(650),
+      Animated.delay(900),
       Animated.timing(fade, { toValue: 0, duration: 350, useNativeDriver: true }),
     ]).start(() => onDone());
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -24,13 +28,14 @@ export function AnimatedSplash({ onDone }: { onDone: () => void }) {
 
   return (
     <Animated.View style={[styles.root, { opacity: fade }]}>
-      <Animated.View style={[styles.inner, { opacity, transform: [{ scale }] }]}>
-        <BelzoLogo size={100} />
-        <Text style={styles.word}>
-          Belzo <Text style={styles.accent}>Mart</Text>
-        </Text>
-        <Text style={styles.tag}>Shop More. Live Better.</Text>
-      </Animated.View>
+      <BrandSplash
+        bottomInset={insets.bottom}
+        logo={
+          <Animated.View style={{ opacity, transform: [{ scale }] }}>
+            <BelzoLogo size={LOGO} />
+          </Animated.View>
+        }
+      />
     </Animated.View>
   );
 }
@@ -42,13 +47,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: theme.colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
     zIndex: 1000,
   },
-  inner: { alignItems: 'center', gap: theme.spacing.md },
-  word: { ...theme.typography.display, fontSize: 30, lineHeight: 36, color: theme.colors.ink },
-  accent: { color: theme.colors.primaryStrong },
-  tag: { ...theme.typography.bodyLg, color: theme.colors.muted },
 });

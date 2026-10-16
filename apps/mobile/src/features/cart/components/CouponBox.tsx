@@ -26,7 +26,7 @@ export function CouponBox({ subtotal }: CouponBoxProps) {
 
   function apply() {
     if (!isCustomer) {
-      requireAuth(navigation, { name: 'Main', params: { screen: 'CartTab' } });
+      requireAuth(navigation, { name: 'Cart' });
       return;
     }
     const trimmed = code.trim();

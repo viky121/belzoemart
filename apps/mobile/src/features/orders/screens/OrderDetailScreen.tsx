@@ -200,7 +200,7 @@ export function OrderDetailScreen({ navigation, route }: RootScreenProps<'OrderD
               reorder.mutate(id, {
                 onSuccess: () => {
                   toast.show({ message: 'Items added to your cart' });
-                  navigation.navigate('Main', { screen: 'CartTab' });
+                  navigation.navigate('Cart');
                 },
               })
             }

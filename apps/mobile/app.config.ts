@@ -85,11 +85,11 @@ export function buildConfig(env: BuildEnv): ExpoConfig {
     ...(env.EAS_PROJECT_ID
       ? { updates: { url: `https://u.expo.dev/${env.EAS_PROJECT_ID}` } }
       : {}),
-    icon: './assets/placeholder/icon-PLACEHOLDER.png',
+    icon: './assets/brand/icon.png',
     android: {
       package: isProd ? 'in.belzo.emart' : 'in.belzo.emart.dev',
       adaptiveIcon: {
-        foregroundImage: './assets/placeholder/adaptive-foreground-PLACEHOLDER.png',
+        foregroundImage: './assets/brand/adaptive-foreground.png',
         backgroundColor: '#ffffff',
       },
       allowBackup: false,
@@ -99,7 +99,7 @@ export function buildConfig(env: BuildEnv): ExpoConfig {
       [
         'expo-splash-screen',
         {
-          image: './assets/placeholder/splash-icon-PLACEHOLDER.png',
+          image: './assets/brand/splash-icon.png',
           imageWidth: 200,
           backgroundColor: '#ffffff',
         },

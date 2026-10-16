@@ -90,32 +90,48 @@ export function OrdersListScreen({ navigation }: RootScreenProps<'Orders'>) {
           <Text style={styles.emptyFilter}>No {filter === 'all' ? '' : filter} orders.</Text>
         ) : null}
         {visible.map((o) => {
-          const first = o.items[0];
-          const img = o.imageUrl ?? first?.imageUrl ?? null;
+          const thumbs = o.items.slice(0, 3);
+          const extra = o.items.length - thumbs.length;
           return (
             <Pressable
               key={o.id}
-              style={styles.row}
+              style={styles.card}
               onPress={() => navigation.navigate('OrderDetail', { id: o.id })}
               accessibilityRole="button"
-              accessibilityLabel={`Order ${shortOrderId(o.id)}, ${o.status}`}
+              accessibilityLabel={`Order ${shortOrderId(o.id)}, ${o.status}, ${formatInr(o.grandTotal)}`}
             >
-              <RemoteImage uri={img} width={64} height={64} radius={theme.radius.md} fallbackLabel={first?.title} />
-              <View style={styles.info}>
-                <View style={styles.topRow}>
-                  <Text style={styles.id}>{shortOrderId(o.id)}</Text>
-                  <OrderStatusBadge status={o.status} />
+              <View style={styles.topRow}>
+                <View style={styles.idCol}>
+                  <Text style={styles.id}>Order #{shortOrderId(o.id)}</Text>
+                  <Text style={styles.meta}>{formatDate(o.createdAt)}</Text>
                 </View>
-                <Text style={styles.meta}>{formatDate(o.createdAt)}</Text>
-                <Text style={styles.meta}>
-                  {o.itemCount} item{o.itemCount === 1 ? '' : 's'} · {formatInr(o.grandTotal)}
-                </Text>
-                {first ? (
-                  <Text style={styles.title} numberOfLines={1}>
-                    {first.title}
-                    {o.items.length > 1 ? ` +${o.items.length - 1} more` : ''}
-                  </Text>
+                <OrderStatusBadge status={o.status} />
+              </View>
+
+              <View style={styles.thumbs}>
+                {thumbs.length > 0 ? (
+                  thumbs.map((it, i) => (
+                    <View key={`${it.title}-${i}`} style={styles.thumb}>
+                      <RemoteImage uri={it.imageUrl ?? null} width={56} height={56} radius={theme.radius.sm} contentFit="contain" fallbackLabel={it.title} />
+                    </View>
+                  ))
+                ) : (
+                  <View style={styles.thumb}>
+                    <RemoteImage uri={o.imageUrl ?? null} width={56} height={56} radius={theme.radius.sm} contentFit="contain" />
+                  </View>
+                )}
+                {extra > 0 ? (
+                  <View style={[styles.thumb, styles.more]}>
+                    <Text style={styles.moreText}>+{extra}</Text>
+                  </View>
                 ) : null}
+              </View>
+
+              <View style={styles.bottomRow}>
+                <Text style={styles.total}>
+                  {o.itemCount} Item{o.itemCount === 1 ? '' : 's'} • {formatInr(o.grandTotal)}
+                </Text>
+                <Text style={styles.details}>View Details ›</Text>
               </View>
             </Pressable>
           );
@@ -134,18 +150,31 @@ const styles = StyleSheet.create({
   tabs: { flexDirection: 'row', gap: theme.spacing.sm, padding: theme.spacing.md },
   emptyFilter: { ...theme.typography.body, color: theme.colors.muted, textAlign: 'center', paddingVertical: theme.spacing.xl },
   body: { padding: theme.spacing.lg, gap: theme.spacing.md },
-  row: {
-    flexDirection: 'row',
-    gap: theme.spacing.md,
+  card: {
     padding: theme.spacing.md,
+    gap: theme.spacing.md,
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.md,
+    borderRadius: theme.radius.lg,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.border2,
   },
-  info: { flex: 1, gap: 2 },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  id: { ...theme.typography.body, color: theme.colors.inkStrong, fontWeight: '700' },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  idCol: { gap: 2, flex: 1 },
+  id: { ...theme.typography.body, color: theme.colors.inkStrong, fontWeight: '800' },
   meta: { ...theme.typography.caption, color: theme.colors.muted },
-  title: { ...theme.typography.body, color: theme.colors.ink },
+  thumbs: { flexDirection: 'row', gap: theme.spacing.sm },
+  thumb: {
+    width: 64,
+    height: 64,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  more: { borderWidth: 1, borderColor: theme.colors.border },
+  moreText: { ...theme.typography.body, color: theme.colors.muted, fontWeight: '700' },
+  bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  total: { ...theme.typography.body, color: theme.colors.inkStrong, fontWeight: '700' },
+  details: { ...theme.typography.body, color: theme.colors.primaryStrong, fontWeight: '700' },
 });

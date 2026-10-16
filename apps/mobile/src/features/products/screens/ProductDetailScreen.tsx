@@ -1,10 +1,11 @@
 import { resolveSlabPrice, type ProductCardDto } from '@belzo/shared';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useEffect, useLayoutEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { isApiError } from '@/api/errors';
+import { env } from '@/config/env';
 import { useAddToCart } from '@/features/cart/hooks';
 import { useToggleWishlist, useWishlist } from '@/features/wishlist/hooks';
 import { requireAuth } from '@/navigation/RequireAuth';
@@ -12,7 +13,7 @@ import type { RootScreenProps } from '@/navigation/types';
 import { useRecentlyViewedStore } from '@/store/recently-viewed';
 import { useSessionStore } from '@/store/session';
 import { theme } from '@/theme';
-import { Button, EmptyState, ErrorState, IconButton, PriceDisplay, QuantitySelector, Rating, Screen } from '@/ui';
+import { Button, EmptyState, ErrorState, PriceDisplay, QuantitySelector, Rating, Screen } from '@/ui';
 import { ProductRail } from '@/ui/ProductRail';
 import { DetailSkeleton } from '@/ui/Skeleton';
 
@@ -48,14 +49,22 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
     if (p?.id) pushRecent(p.id);
   }, [p?.id, pushRecent]);
 
-  useLayoutEffect(() => {
-    if (p?.title) navigation.setOptions({ title: p.title });
-  }, [navigation, p?.title]);
+  const backBtn = (
+    <Pressable
+      onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Main'))}
+      accessibilityRole="button"
+      accessibilityLabel="Go back"
+      style={[styles.floatBtn, { top: insets.top + 8, left: theme.spacing.md }]}
+    >
+      <MaterialCommunityIcons name="chevron-left" size={26} color={theme.colors.inkStrong} />
+    </Pressable>
+  );
 
   if (product.isLoading) {
     return (
       <Screen>
         <DetailSkeleton />
+        {backBtn}
       </Screen>
     );
   }
@@ -63,6 +72,7 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
     const notFound = isApiError(product.error) && product.error.status === 404;
     return (
       <Screen>
+        {backBtn}
         {notFound ? (
           <EmptyState icon="package-variant" title="This product is no longer available" />
         ) : (
@@ -116,23 +126,9 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
         <Gallery images={images} fallbackLabel={p.title} onOpenImage={(i) => navigation.navigate('ImageViewer', { images, index: i })} />
 
         <View style={styles.section}>
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>{p.title}</Text>
-            <IconButton
-              icon={isWishlisted ? 'heart' : 'heart-outline'}
-              label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-              color={isWishlisted ? theme.colors.danger : theme.colors.ink}
-              onPress={onHeart}
-            />
-          </View>
           {p.brand ? <Text style={styles.brand}>{p.brand}</Text> : null}
+          <Text style={styles.title}>{p.title}</Text>
           <Rating value={p.ratingAvg} count={p.ratingCount} />
-
-          {variants.length > 1 ? (
-            <View style={styles.block}>
-              <VariantPicker variants={variants} selectedId={variant?.id ?? ''} onSelect={setSelectedId} />
-            </View>
-          ) : null}
 
           <View style={styles.block}>
             <PriceDisplay price={price} mrp={variant?.mrp ?? p.mrp} size="lg" />
@@ -140,6 +136,12 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
               {inStock ? 'In stock' : 'Out of stock'}
             </Text>
           </View>
+
+          {variants.length > 1 ? (
+            <View style={styles.block}>
+              <VariantPicker variants={variants} selectedId={variant?.id ?? ''} onSelect={setSelectedId} />
+            </View>
+          ) : null}
 
           {variant && variant.priceSlabs.length > 0 ? (
             <View style={styles.block}>
@@ -201,7 +203,7 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
       {added ? (
         <Pressable
           style={styles.addedBar}
-          onPress={() => navigation.navigate('Main', { screen: 'CartTab' })}
+          onPress={() => navigation.navigate('Cart')}
           accessibilityRole="button"
           accessibilityLabel="Added to cart. View cart"
         >
@@ -210,9 +212,35 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
           <Text style={styles.addedLink}>VIEW CART ›</Text>
         </Pressable>
       ) : null}
+      {backBtn}
+      <View style={[styles.floatRight, { top: insets.top + 8 }]}>
+        <Pressable
+          onPress={onHeart}
+          accessibilityRole="button"
+          accessibilityLabel={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+          style={styles.floatBtnStatic}
+        >
+          <MaterialCommunityIcons
+            name={isWishlisted ? 'heart' : 'heart-outline'}
+            size={22}
+            color={isWishlisted ? theme.colors.danger : theme.colors.inkStrong}
+          />
+        </Pressable>
+        <Pressable
+          onPress={() =>
+            void Share.share({ message: `${p.title} — ${env.apiBaseUrl}/product/${p.slug}` })
+          }
+          accessibilityRole="button"
+          accessibilityLabel="Share product"
+          style={styles.floatBtnStatic}
+        >
+          <MaterialCommunityIcons name="share-variant-outline" size={21} color={theme.colors.inkStrong} />
+        </Pressable>
+      </View>
+
       <View style={[styles.footer, { paddingBottom: insets.bottom + theme.spacing.sm }]}>
         <Button
-          title={added ? 'Add more' : 'Add to cart'}
+          title={added ? 'Add more' : 'Add to Cart'}
           variant={added ? 'secondary' : 'primary'}
           style={styles.footerBtn}
           disabled={!inStock}
@@ -221,11 +249,11 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
           testID="pdp-add"
         />
         <Button
-          title={added ? 'Go to cart' : 'Buy now'}
+          title={added ? 'Go to Cart' : 'Buy Now'}
           variant={added ? 'primary' : 'secondary'}
           style={styles.footerBtn}
           disabled={!inStock && !added}
-          onPress={added ? () => navigation.navigate('Main', { screen: 'CartTab' }) : onBuyNow}
+          onPress={added ? () => navigation.navigate('Cart') : onBuyNow}
           testID="pdp-buy"
         />
       </View>
@@ -236,10 +264,46 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.bg },
   body: { paddingBottom: theme.spacing.xl },
-  section: { padding: theme.spacing.lg, gap: theme.spacing.xs },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: theme.spacing.sm },
-  title: { ...theme.typography.heading, color: theme.colors.inkStrong, flex: 1 },
-  brand: { ...theme.typography.body, color: theme.colors.muted },
+  section: {
+    padding: theme.spacing.lg,
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.surface,
+  },
+  title: { fontSize: 20, lineHeight: 26, fontWeight: '800', color: theme.colors.inkStrong },
+  brand: { ...theme.typography.caption, color: theme.colors.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  floatBtn: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  floatRight: {
+    position: 'absolute',
+    right: theme.spacing.md,
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  floatBtnStatic: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
   block: { marginTop: theme.spacing.md, gap: theme.spacing.sm },
   stock: { ...theme.typography.body, fontWeight: '700' },
   qtyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -251,7 +315,6 @@ const styles = StyleSheet.create({
   attrVal: { ...theme.typography.body, color: theme.colors.ink, flexShrink: 1, textAlign: 'right' },
   notReturnable: { ...theme.typography.caption, color: theme.colors.danger, marginTop: theme.spacing.md },
   footer: {
-    flexDirection: 'row',
     gap: theme.spacing.sm,
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.sm,
@@ -259,7 +322,7 @@ const styles = StyleSheet.create({
     borderTopColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
   },
-  footerBtn: { flex: 1 },
+  footerBtn: { width: '100%', minHeight: 48 },
   addedBar: {
     flexDirection: 'row',
     alignItems: 'center',

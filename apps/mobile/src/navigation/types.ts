@@ -8,7 +8,7 @@ export type RedirectTarget = { name: keyof RootStackParamList; params?: object }
 export type MainTabParamList = {
   HomeTab: undefined;
   CategoriesTab: undefined;
-  CartTab: undefined;
+  OffersTab: undefined;
   AccountTab: undefined;
 };
 
@@ -32,6 +32,7 @@ export type RootStackParamList = {
     | undefined;
   ProductDetail: { idOrSlug: string };
   Search: { q?: string; sort?: ProductSort } | undefined;
+  Cart: undefined;
   Checkout: { addressId?: string } | undefined;
   OrderConfirmation: { orderId: string; provider: string; notice?: OrderConfirmationNotice };
   Orders: undefined;

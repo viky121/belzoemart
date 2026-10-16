@@ -47,7 +47,7 @@ describe('hrefToRoute (design §2.7)', () => {
       '/page/privacy-policy',
       { kind: 'route', name: 'CmsPage', params: { slug: 'privacy-policy' } },
     ],
-    ['/cart', { kind: 'route', name: 'Main', params: { screen: 'CartTab' } }],
+    ['/cart', { kind: 'route', name: 'Cart' }],
     ['/wishlist', { kind: 'route', name: 'Wishlist' }],
     ['/orders', { kind: 'route', name: 'Orders' }],
     ['/orders/abc-123', { kind: 'route', name: 'OrderDetail', params: { id: 'abc-123' } }],
@@ -82,8 +82,7 @@ describe('hrefToRoute (design §2.7)', () => {
   it('matches the host of the configured base URL including the port', () => {
     expect(hrefToRoute('http://10.0.2.2:4000/cart', 'http://10.0.2.2:4000')).toEqual({
       kind: 'route',
-      name: 'Main',
-      params: { screen: 'CartTab' },
+      name: 'Cart',
     });
     expect(hrefToRoute('http://10.0.2.2/cart', 'http://10.0.2.2:4000')).toEqual({
       kind: 'external',

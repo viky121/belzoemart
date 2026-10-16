@@ -10,8 +10,9 @@ import type { RootStackParamList } from './types';
 export const linkingConfig: LinkingOptions<RootStackParamList>['config'] = {
   screens: {
     Main: {
-      screens: { HomeTab: '', CategoriesTab: 'categories', CartTab: 'cart', AccountTab: 'account' },
+      screens: { HomeTab: '', CategoriesTab: 'categories', OffersTab: 'offers', AccountTab: 'account' },
     },
+    Cart: 'cart',
     ProductDetail: 'product/:idOrSlug',
     ProductList: 'category/:categorySlug',
     Search: 'search', // ?q=&sort=

@@ -1,15 +1,15 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import type { CategoryNodeDto } from '@belzo/shared';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { iconForCategory } from '@/lib/category-icon';
 import type { RootStackParamList } from '@/navigation/types';
 import { theme } from '@/theme';
 import { EmptyState, ErrorState, Screen } from '@/ui';
 import { IconButton } from '@/ui/IconButton';
+import { RemoteImage } from '@/ui/RemoteImage';
 import { ListSkeleton } from '@/ui/Skeleton';
-import { iconForCategory } from '@/lib/category-icon';
 
 import { useCategories } from '../hooks';
 
@@ -17,19 +17,23 @@ type Nav = NavigationProp<RootStackParamList>;
 
 const PASTELS = ['#e4f3ec', '#fdeee4', '#e7f0ff', '#f3e8ff', '#e2f7ff', '#fff2d9', '#ffe3ec'] as const;
 
-/** Categories (Flipkart-style): left category rail + right subcategory grid. */
+function subtitleFor(node: CategoryNodeDto): string {
+  const kids = node.children.slice(0, 3).map((c) => c.name);
+  return kids.length > 0 ? kids.join(', ') : 'Shop all products';
+}
+
+/** Categories (Belzo Mart design): list of categories with thumbnail, subcategories and chevron. */
 export function CategoriesScreen() {
   const navigation = useNavigation<Nav>();
   const { data, isLoading, isError, error, refetch } = useCategories();
-  const [active, setActive] = useState(0);
 
-  const openCategory = (node: CategoryNodeDto) =>
+  const open = (node: CategoryNodeDto) =>
     navigation.navigate('ProductList', { categoryId: node.id, title: node.name });
 
   const header = (
     <View style={styles.header}>
       <Text style={styles.headerTitle} accessibilityRole="header">
-        All Categories
+        Categories
       </Text>
       <IconButton icon="magnify" label="Search" onPress={() => navigation.navigate('Search')} />
     </View>
@@ -39,7 +43,7 @@ export function CategoriesScreen() {
     return (
       <Screen>
         {header}
-        <View style={styles.loading}>
+        <View style={styles.pad}>
           <ListSkeleton rows={8} />
         </View>
       </Screen>
@@ -64,76 +68,43 @@ export function CategoriesScreen() {
     );
   }
 
-  const activeCat = roots[Math.min(active, roots.length - 1)]!;
-  const tiles = activeCat.children.length > 0 ? activeCat.children : [activeCat];
-
   return (
     <Screen>
       {header}
-      <View style={styles.panes}>
-        <ScrollView style={styles.rail} showsVerticalScrollIndicator={false}>
-          {roots.map((c, i) => {
-            const on = i === active;
-            return (
-              <Pressable
-                key={c.id}
-                onPress={() => setActive(i)}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: on }}
-                accessibilityLabel={c.name}
-                style={[styles.railItem, on && styles.railItemOn]}
-              >
-                <View style={[styles.railIcon, on && styles.railIconOn]}>
-                  <MaterialCommunityIcons
-                    name={iconForCategory(c.name)}
-                    size={24}
-                    color={on ? theme.colors.primaryStrong : theme.colors.muted}
-                  />
-                </View>
-                <Text style={[styles.railText, on && styles.railTextOn]} numberOfLines={2}>
-                  {c.name}
+      <FlatList
+        data={roots}
+        keyExtractor={(c) => c.id}
+        style={styles.list}
+        ItemSeparatorComponent={() => <View style={styles.sep} />}
+        renderItem={({ item, index }) => {
+          const sub = subtitleFor(item);
+          return (
+            <Pressable
+              onPress={() => open(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.name}. ${sub}`}
+              style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+            >
+              <View style={[styles.thumb, { backgroundColor: PASTELS[index % PASTELS.length] }]}>
+                {item.imageUrl ? (
+                  <RemoteImage uri={item.imageUrl} width={56} height={56} radius={theme.radius.md} fallbackLabel={item.name} />
+                ) : (
+                  <MaterialCommunityIcons name={iconForCategory(item.name)} size={30} color={theme.colors.primaryStrong} />
+                )}
+              </View>
+              <View style={styles.text}>
+                <Text style={styles.name} numberOfLines={1}>
+                  {item.name}
                 </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
-        <ScrollView
-          style={styles.content}
-          contentContainerStyle={styles.contentInner}
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={styles.contentTitle} numberOfLines={1}>
-            {activeCat.name}
-          </Text>
-          <Pressable onPress={() => openCategory(activeCat)} accessibilityRole="link">
-            <Text style={styles.viewAll}>Shop all {activeCat.name} ›</Text>
-          </Pressable>
-
-          <View style={styles.grid}>
-            {tiles.map((t, i) => (
-              <Pressable
-                key={t.id}
-                style={styles.tile}
-                onPress={() => openCategory(t)}
-                accessibilityRole="button"
-                accessibilityLabel={t.name}
-              >
-                <View style={[styles.tileIcon, { backgroundColor: PASTELS[i % PASTELS.length] }]}>
-                  <MaterialCommunityIcons
-                    name={iconForCategory(t.name)}
-                    size={26}
-                    color={theme.colors.primaryStrong}
-                  />
-                </View>
-                <Text style={styles.tileName} numberOfLines={2}>
-                  {t.name}
+                <Text style={styles.sub} numberOfLines={1}>
+                  {sub}
                 </Text>
-              </Pressable>
-            ))}
-          </View>
-        </ScrollView>
-      </View>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={theme.colors.mutedSoft} />
+            </Pressable>
+          );
+        }}
+      />
     </Screen>
   );
 }
@@ -145,66 +116,33 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingLeft: theme.spacing.lg,
     paddingRight: theme.spacing.sm,
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
+  },
+  headerTitle: { fontSize: 20, lineHeight: 26, fontWeight: '800', color: theme.colors.inkStrong },
+  pad: { padding: theme.spacing.lg },
+  list: { backgroundColor: theme.colors.surface },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
     backgroundColor: theme.colors.surface,
   },
-  headerTitle: { ...theme.typography.heading, color: theme.colors.inkStrong },
-  loading: { padding: theme.spacing.lg },
-  panes: { flex: 1, flexDirection: 'row' },
-  rail: {
-    width: 76,
-    backgroundColor: theme.colors.surface2,
-    borderRightWidth: 1,
-    borderRightColor: theme.colors.border,
-  },
-  railItem: {
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: 4,
-    borderLeftWidth: 3,
-    borderLeftColor: 'transparent',
-  },
-  railItemOn: { backgroundColor: theme.colors.surface, borderLeftColor: theme.colors.primaryStrong },
-  railIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  pressed: { backgroundColor: theme.colors.surface2 },
+  sep: { height: 1, backgroundColor: theme.colors.border2, marginLeft: theme.spacing.lg + 64 + theme.spacing.md },
+  thumb: {
+    width: 64,
+    height: 64,
+    borderRadius: theme.radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border2,
+    overflow: 'hidden',
   },
-  railIconOn: { backgroundColor: theme.colors.primaryBg, borderColor: theme.colors.primaryBg },
-  railText: { ...theme.typography.caption, color: theme.colors.muted, textAlign: 'center' },
-  railTextOn: { color: theme.colors.inkStrong, fontWeight: '700' },
-  content: { flex: 1 },
-  contentInner: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.md },
-  contentTitle: { ...theme.typography.title, color: theme.colors.inkStrong },
-  viewAll: {
-    ...theme.typography.caption,
-    color: theme.colors.primaryStrong,
-    fontWeight: '700',
-    marginTop: 2,
-    marginBottom: theme.spacing.md,
-  },
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  tile: { width: '33.33%', alignItems: 'center', paddingVertical: theme.spacing.sm, gap: 6 },
-  tileIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tileName: {
-    ...theme.typography.caption,
-    fontSize: 11,
-    lineHeight: 14,
-    color: theme.colors.ink,
-    textAlign: 'center',
-  },
+  text: { flex: 1, gap: 2 },
+  name: { fontSize: 16, lineHeight: 22, fontWeight: '700', color: theme.colors.inkStrong },
+  sub: { ...theme.typography.caption, color: theme.colors.muted },
 });

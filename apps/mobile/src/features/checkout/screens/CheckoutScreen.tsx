@@ -1,8 +1,9 @@
 import { breakupView, formatInr, snapshotFromBreakup } from '@belzo/shared';
 import { usePreventRemove } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { toApiError, userMessage } from '@/api/errors';
@@ -15,7 +16,7 @@ import { useCheckoutDraft } from '@/store/checkout-draft';
 import { useSessionStore } from '@/store/session';
 import { env } from '@/config/env';
 import { theme } from '@/theme';
-import { AddressCard, Button, EmptyState, ErrorState, Screen } from '@/ui';
+import { addressLines, Button, EmptyState, ErrorState, RadioRow, Screen } from '@/ui';
 import { useToast } from '@/ui/Toast';
 
 import { cancelOrder, placeOrder } from '../api';
@@ -150,32 +151,73 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
 
   const noMethod = preview.isSuccess && methods.length === 0;
   const view = preview.data ? breakupView(snapshotFromBreakup(preview.data.breakup)) : null;
+  const shipping = view ? (view.rows.find((r) => r.key === 'shipping')?.amount ?? 0) : null;
   const canPlace =
     Boolean(address) && methods.length > 0 && preview.isSuccess && Boolean(preview.data?.serviceable) && !placing;
 
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.body}>
-        <Text style={styles.section}>Delivery address</Text>
+        <Text style={styles.section}>Delivery Address</Text>
         {address ? (
-          <AddressCard
-            address={address}
-            actions={
-              <Button title="Change" variant="ghost" onPress={() => navigation.navigate('Addresses', { selectForCheckout: true })} />
-            }
-          />
+          <View style={styles.card}>
+            <View style={styles.addrRow}>
+              <MaterialCommunityIcons name="account-outline" size={22} color={theme.colors.inkStrong} />
+              <View style={styles.addrText}>
+                <Text style={styles.addrName}>{address.fullName}</Text>
+                {addressLines(address).map((l, i) => (
+                  <Text key={i} style={styles.addrLine}>
+                    {l}
+                  </Text>
+                ))}
+                <Text style={styles.addrLine}>{address.phone}</Text>
+              </View>
+              <Pressable
+                onPress={() => navigation.navigate('Addresses', { selectForCheckout: true })}
+                accessibilityRole="button"
+                accessibilityLabel="Change delivery address"
+                hitSlop={8}
+              >
+                <Text style={styles.edit}>Edit</Text>
+              </Pressable>
+            </View>
+          </View>
         ) : null}
 
-        <Text style={styles.section}>Payment method</Text>
+        <Text style={styles.section}>Delivery Method</Text>
+        <View style={[styles.card, styles.methodCard]}>
+          <View style={styles.radioOn}>
+            <View style={styles.radioDot} />
+          </View>
+          <View style={styles.addrText}>
+            <Text style={styles.methodTitle}>Standard Delivery</Text>
+            <Text style={styles.addrLine}>Delivery in 3–5 days</Text>
+          </View>
+          <Text style={styles.methodPrice}>
+            {shipping === null ? '' : shipping === 0 ? 'Free' : formatInr(shipping)}
+          </Text>
+        </View>
+
+        <Text style={styles.section}>Payment Method</Text>
         {noMethod ? (
           <Text style={styles.banner}>No payment method is available right now. Please try again later.</Text>
         ) : (
-          <View style={styles.methods}>
-            {methods.includes('cod') ? (
-              <Button title="Cash on Delivery" variant={method === 'cod' ? 'primary' : 'secondary'} onPress={() => setMethod('cod')} testID="method-cod" />
-            ) : null}
+          <View style={[styles.card, styles.methods]}>
             {methods.includes('upi') ? (
-              <Button title="UPI / Card / Netbanking" variant={method === 'upi' ? 'primary' : 'secondary'} onPress={() => setMethod('upi')} testID="method-upi" />
+              <RadioRow
+                label="UPI / Card / Net Banking"
+                description="Pay online securely"
+                selected={method === 'upi'}
+                onPress={() => setMethod('upi')}
+              />
+            ) : null}
+            {methods.includes('cod') ? (
+              <RadioRow
+                label="Cash on Delivery"
+                description="Pay when your order arrives"
+                selected={method === 'cod'}
+                onPress={() => setMethod('cod')}
+              />
             ) : null}
           </View>
         )}
@@ -208,7 +250,7 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + theme.spacing.sm }]}>
         <Button
-          title={method === 'cod' ? 'Place order' : 'Pay & place order'}
+          title={method === 'cod' ? 'Place Order' : 'Pay & Place Order'}
           fullWidth
           loading={placing}
           disabled={!canPlace}
@@ -224,8 +266,33 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.bg },
   body: { padding: theme.spacing.lg, gap: theme.spacing.sm },
   muted: { ...theme.typography.body, color: theme.colors.muted },
-  section: { ...theme.typography.title, color: theme.colors.inkStrong, marginTop: theme.spacing.md },
-  methods: { gap: theme.spacing.sm },
+  section: { fontSize: 16, lineHeight: 22, fontWeight: '800', color: theme.colors.inkStrong, marginTop: theme.spacing.md },
+  methods: { paddingVertical: theme.spacing.xs },
+  card: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border2,
+    padding: theme.spacing.md,
+  },
+  addrRow: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing.md },
+  addrText: { flex: 1, gap: 2 },
+  addrName: { ...theme.typography.body, color: theme.colors.inkStrong, fontWeight: '800' },
+  addrLine: { ...theme.typography.caption, color: theme.colors.muted },
+  edit: { ...theme.typography.body, color: theme.colors.primaryStrong, fontWeight: '800' },
+  methodCard: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
+  methodTitle: { ...theme.typography.body, color: theme.colors.inkStrong, fontWeight: '700' },
+  methodPrice: { ...theme.typography.body, color: theme.colors.brandStrong, fontWeight: '800' },
+  radioOn: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: theme.colors.primaryStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: theme.colors.primaryStrong },
   banner: { ...theme.typography.body, color: theme.colors.danger, backgroundColor: theme.colors.surface, padding: theme.spacing.md, borderRadius: theme.radius.md },
   summary: { marginTop: theme.spacing.md, gap: theme.spacing.xs },
   row: { flexDirection: 'row', justifyContent: 'space-between' },

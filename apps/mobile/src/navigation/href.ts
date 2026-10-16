@@ -87,7 +87,7 @@ function mapPath(pathAndQuery: string): HrefTarget | null {
         ? { kind: 'route', name: 'OrderDetail', params: { id: slug } }
         : { kind: 'route', name: 'Orders' };
     case 'cart':
-      return slug ? null : { kind: 'route', name: 'Main', params: { screen: 'CartTab' } };
+      return slug ? null : { kind: 'route', name: 'Cart' };
     case 'account':
       return slug ? null : { kind: 'route', name: 'Main', params: { screen: 'AccountTab' } };
     case 'wishlist':

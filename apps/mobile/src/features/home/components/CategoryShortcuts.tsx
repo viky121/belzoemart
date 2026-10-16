@@ -2,6 +2,7 @@ import type { CategoryNodeDto } from '@belzo/shared';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { iconForCategory } from '@/lib/category-icon';
 import { theme } from '@/theme';
 import { RemoteImage } from '@/ui/RemoteImage';
 
@@ -38,7 +39,15 @@ export function CategoryShortcuts({ categories, onPressCategory, onMore }: Categ
           accessibilityLabel={c.name}
         >
           <View style={[styles.circle, { backgroundColor: PASTELS[i % PASTELS.length] }]}>
-            <RemoteImage uri={c.imageUrl} width={44} height={44} radius={22} fallbackLabel={c.name} />
+            {c.imageUrl ? (
+              <RemoteImage uri={c.imageUrl} width={48} height={48} radius={24} fallbackLabel={c.name} />
+            ) : (
+              <MaterialCommunityIcons
+                name={iconForCategory(c.name)}
+                size={30}
+                color={theme.colors.primaryStrong}
+              />
+            )}
           </View>
           <Text style={styles.label} numberOfLines={1}>
             {c.name}
@@ -83,5 +92,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   moreCircle: { backgroundColor: theme.colors.surface2 },
-  label: { ...theme.typography.caption, color: theme.colors.ink, textAlign: 'center' },
+  label: {
+    ...theme.typography.caption,
+    fontSize: 12,
+    color: theme.colors.inkStrong,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
 });

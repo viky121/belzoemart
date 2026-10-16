@@ -63,11 +63,7 @@ export function CartScreen() {
 
   return (
     <Screen>
-      <ScrollView style={styles.scroll} testID="cart-scroll">
-        <Text style={styles.heading} accessibilityRole="header">
-          My Cart
-        </Text>
-
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollBody} testID="cart-scroll">
         {active.length > 0 ? (
           <View style={styles.freeDelivery}>
             <MaterialCommunityIcons
@@ -75,7 +71,7 @@ export function CartScreen() {
               size={18}
               color={theme.colors.brandStrong}
             />
-            <Text style={styles.freeDeliveryText}>Free delivery on eligible orders</Text>
+            <Text style={styles.freeDeliveryText}>Free delivery available on eligible orders</Text>
           </View>
         ) : null}
 
@@ -100,16 +96,40 @@ export function CartScreen() {
           </View>
         ) : null}
 
-        <Text style={styles.note}>Final amount, delivery and GST are shown at checkout.</Text>
+        {active.length > 0 ? (
+          <View style={styles.priceCard}>
+            <Text style={styles.priceTitle}>Price Details</Text>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Item Total</Text>
+              <Text style={styles.priceValue}>{formatInr(mrpTotal)}</Text>
+            </View>
+            {savings > 0 ? (
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Discount</Text>
+                <Text style={[styles.priceValue, styles.saveValue]}>-{formatInr(savings)}</Text>
+              </View>
+            ) : null}
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Delivery Charges</Text>
+              <Text style={styles.priceValue}>At checkout</Text>
+            </View>
+            <View style={[styles.priceRow, styles.totalRow]}>
+              <Text style={styles.totalLabel}>Total Amount</Text>
+              <Text style={styles.totalValue}>{formatInr(subtotal)}</Text>
+            </View>
+            {savings > 0 ? (
+              <Text style={styles.savings}>You save {formatInr(savings)} on this order</Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        <Text style={styles.note}>GST is included; final delivery charges are shown at checkout.</Text>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + theme.spacing.sm }]}>
-        <View style={styles.totals}>
-          <Text style={styles.subtotal}>{formatInr(subtotal)}</Text>
-          {savings > 0 ? <Text style={styles.savings}>You save {formatInr(savings)}</Text> : null}
-        </View>
         <Button
-          title="Checkout"
+          title="Proceed to Checkout"
+          fullWidth
           style={styles.checkout}
           disabled={active.length === 0 || blocked}
           onPress={() => requireAuth(navigation, { name: 'Checkout' })}
@@ -127,13 +147,31 @@ export function CartScreen() {
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
-  heading: { ...theme.typography.heading, color: theme.colors.inkStrong, padding: theme.spacing.lg, paddingBottom: theme.spacing.sm },
+  scrollBody: { paddingTop: theme.spacing.md },
+  priceCard: {
+    marginHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.md,
+    padding: theme.spacing.lg,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border2,
+    gap: theme.spacing.sm,
+  },
+  priceTitle: { ...theme.typography.bodyLg, fontWeight: '800', color: theme.colors.inkStrong },
+  priceRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  priceLabel: { ...theme.typography.body, color: theme.colors.muted },
+  priceValue: { ...theme.typography.body, color: theme.colors.ink, fontWeight: '600' },
+  saveValue: { color: theme.colors.brandStrong },
+  totalRow: { borderTopWidth: 1, borderTopColor: theme.colors.border, paddingTop: theme.spacing.sm },
+  totalLabel: { fontSize: 16, lineHeight: 22, fontWeight: '800', color: theme.colors.inkStrong },
+  totalValue: { fontSize: 18, lineHeight: 24, fontWeight: '800', color: theme.colors.inkStrong },
   freeDelivery: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
     marginHorizontal: theme.spacing.lg,
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     backgroundColor: theme.colors.successBg,
@@ -148,18 +186,13 @@ const styles = StyleSheet.create({
   sectionTitle: { ...theme.typography.title, color: theme.colors.inkStrong, paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.lg },
   note: { ...theme.typography.caption, color: theme.colors.muted, padding: theme.spacing.lg },
   footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.sm,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
   },
-  totals: { flex: 1 },
-  subtotal: { ...theme.typography.title, color: theme.colors.inkStrong, fontWeight: '700' },
-  savings: { ...theme.typography.caption, color: theme.colors.brandStrong },
-  checkout: { minWidth: 140 },
+  savings: { ...theme.typography.caption, color: theme.colors.brandStrong, fontWeight: '700' },
+  checkout: { minHeight: 50 },
   blockedNote: { position: 'absolute', alignSelf: 'center', ...theme.typography.caption, color: theme.colors.danger },
 });

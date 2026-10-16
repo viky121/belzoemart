@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AddressesScreen } from '@/features/addresses/screens/AddressesScreen';
 import { AddressFormScreen } from '@/features/addresses/screens/AddressFormScreen';
 import { LoginScreen } from '@/features/auth/screens/LoginScreen';
+import { CartScreen } from '@/features/cart/screens/CartScreen';
 import { CheckoutScreen } from '@/features/checkout/screens/CheckoutScreen';
 import { OrderConfirmationScreen } from '@/features/checkout/screens/OrderConfirmationScreen';
 import { CmsPageScreen } from '@/features/content/screens/CmsPageScreen';
@@ -55,6 +56,9 @@ export function RootNavigator({ initialRouteName }: RootNavigatorProps) {
       screenOptions={{
         headerTintColor: theme.colors.inkStrong,
         headerStyle: { backgroundColor: theme.colors.surface },
+        headerTitleAlign: 'left',
+        headerTitleStyle: { fontSize: 18, fontWeight: '700', color: theme.colors.inkStrong },
+        headerShadowVisible: true,
         contentStyle: { backgroundColor: theme.colors.bg },
       }}
     >
@@ -69,8 +73,13 @@ export function RootNavigator({ initialRouteName }: RootNavigatorProps) {
         component={ProductListScreen}
         options={{ title: 'Products' }}
       />
-      <Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ title: '' }} />
+      <Stack.Screen
+        name="ProductDetail"
+        component={ProductDetailScreen}
+        options={{ headerShown: false }}
+      />
       <Stack.Screen name="Search" component={SearchScreen} options={{ title: 'Search' }} />
+      <Stack.Screen name="Cart" component={CartScreen} options={{ title: 'My Cart' }} />
       <Stack.Screen
         name="Checkout"
         component={ProtectedCheckout}
@@ -84,7 +93,7 @@ export function RootNavigator({ initialRouteName }: RootNavigatorProps) {
       <Stack.Screen
         name="Orders"
         component={ProtectedOrders}
-        options={{ title: 'My orders' }}
+        options={{ title: 'My Orders' }}
       />
       <Stack.Screen
         name="OrderDetail"

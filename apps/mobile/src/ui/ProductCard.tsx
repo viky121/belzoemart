@@ -66,7 +66,7 @@ export function ProductCard({
               <MaterialCommunityIcons
                 name={wishlisted ? 'heart' : 'heart-outline'}
                 size={18}
-                color={wishlisted ? theme.colors.price : theme.colors.muted}
+                color={wishlisted ? theme.colors.danger : theme.colors.ink}
               />
             </Pressable>
           ) : null}
@@ -118,21 +118,21 @@ const styles = StyleSheet.create({
   },
   heart: {
     position: 'absolute',
-    top: theme.spacing.sm,
-    right: theme.spacing.sm,
+    top: 6,
+    right: 6,
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.9)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0f172a',
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
   },
-  title: { ...theme.typography.body, color: theme.colors.ink, marginTop: theme.spacing.xs },
+  title: {
+    ...theme.typography.body,
+    color: theme.colors.inkStrong,
+    fontWeight: '600',
+    marginTop: theme.spacing.xs,
+  },
   unit: { ...theme.typography.caption, color: theme.colors.muted },
   add: { marginTop: theme.spacing.xs },
 });

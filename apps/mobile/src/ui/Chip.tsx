@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
   },
-  selected: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primaryBg },
+  selected: { borderColor: theme.colors.primaryStrong, backgroundColor: theme.colors.primaryStrong },
   text: { ...theme.typography.body, color: theme.colors.ink },
-  selectedText: { color: theme.colors.inkStrong, fontWeight: '700' },
+  selectedText: { color: theme.colors.white, fontWeight: '700' },
 });
