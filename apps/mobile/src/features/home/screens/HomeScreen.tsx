@@ -224,7 +224,7 @@ export function HomeScreen() {
                   <View style={styles.catIcon}>
                     <MaterialCommunityIcons
                       name={iconForCategory(c.name)}
-                      size={30}
+                      size={34}
                       color={theme.colors.primaryStrong}
                     />
                   </View>
@@ -375,20 +375,20 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
   },
   catStrip: { gap: theme.spacing.md, paddingHorizontal: theme.spacing.lg },
-  catItem: { alignItems: 'center', gap: 6, width: 68 },
+  catItem: { alignItems: 'center', gap: 6, width: 76 },
   catIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.primaryBg,
   },
   catLabel: {
     ...theme.typography.caption,
-    fontSize: 11,
+    fontSize: 12,
     color: theme.colors.ink,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
   },
   body: { paddingBottom: theme.spacing.xl },
