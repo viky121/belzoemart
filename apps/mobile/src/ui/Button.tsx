@@ -3,6 +3,7 @@ import type { ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
 import { theme } from '@/theme';
+import { useBrand } from '@/theme/use-brand';
 
 export type ButtonVariant = 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger';
 
@@ -22,16 +23,17 @@ export interface ButtonProps {
 
 const { colors, button, spacing, radius, touch, typography } = theme;
 
-function palette(variant: ButtonVariant): { bg: string; fg: string; border: string } {
+/** `main` is the brand colour: the normal green, or the active festival's primary. */
+function palette(variant: ButtonVariant, main: string): { bg: string; fg: string; border: string } {
   switch (variant) {
     case 'primary':
-      return { bg: button.primaryFill, fg: colors.white, border: button.primaryFill };
+      return { bg: main, fg: colors.white, border: main };
     case 'accent':
       return { bg: button.accentFill, fg: colors.white, border: button.accentFill };
     case 'secondary':
-      return { bg: colors.surface, fg: colors.primaryStrong, border: colors.primaryStrong };
+      return { bg: colors.surface, fg: main, border: main };
     case 'ghost':
-      return { bg: 'transparent', fg: colors.primaryStrong, border: 'transparent' };
+      return { bg: 'transparent', fg: main, border: 'transparent' };
     case 'danger':
       return { bg: colors.danger, fg: colors.white, border: colors.danger };
   }
@@ -50,7 +52,8 @@ export function Button({
   fullWidth,
   testID,
 }: ButtonProps) {
-  const p = palette(variant);
+  const brand = useBrand();
+  const p = palette(variant, brand.primary);
   const inactive = disabled || loading;
   return (
     <Pressable

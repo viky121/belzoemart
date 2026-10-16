@@ -49,7 +49,18 @@ jest.mock('expo-image', () => {
 
 jest.mock('react-native-svg', () => {
   const { View } = require('react-native') as typeof import('react-native');
-  return { __esModule: true, default: View, Svg: View, SvgXml: View };
+  return {
+    __esModule: true,
+    default: View,
+    Svg: View,
+    SvgXml: View,
+    // Shapes used by Gradient and the festival diya glyph.
+    Path: View,
+    Rect: View,
+    Defs: View,
+    Stop: View,
+    LinearGradient: View,
+  };
 });
 
 jest.mock('expo-web-browser', () => ({

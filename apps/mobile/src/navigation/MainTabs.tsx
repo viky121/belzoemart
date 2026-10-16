@@ -10,6 +10,7 @@ import { HomeScreen } from '@/features/home/screens/HomeScreen';
 import { OffersScreen } from '@/features/offers/screens/OffersScreen';
 import { AccountScreen } from '@/features/profile/screens/AccountScreen';
 import { theme } from '@/theme';
+import { useBrand } from '@/theme/use-brand';
 
 import type { MainTabParamList } from './types';
 
@@ -31,13 +32,14 @@ export function cartUnits(view: CartView | undefined): number {
 
 /** Bottom tabs per the Belzo Mart design: Home / Categories / Offers / Account. Cart lives in the header. */
 export function MainTabs() {
+  const brand = useBrand();
   return (
     <View style={{ flex: 1 }}>
       <Tab.Navigator
         backBehavior="firstRoute"
         screenOptions={({ route }) => ({
           headerShown: false,
-          tabBarActiveTintColor: theme.colors.primaryStrong,
+          tabBarActiveTintColor: brand.primary,
           tabBarInactiveTintColor: theme.colors.mutedSoft,
           tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
           tabBarStyle: {

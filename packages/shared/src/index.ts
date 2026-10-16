@@ -15,4 +15,5 @@ export * from './attributes';
 export * from './price-breakup';
 export * from './order-view';
 export * from './home';
+export * from './festivals';
 export * from './mobile-home';

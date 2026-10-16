@@ -2,6 +2,7 @@ import { variantText, type VariantDto } from '@belzo/shared';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { theme } from '@/theme';
+import { useBrand } from '@/theme/use-brand';
 
 export interface VariantPickerProps {
   variants: VariantDto[];
@@ -21,6 +22,7 @@ function fallbackLabel(v: VariantDto): string {
  * attribute, the attribute name becomes the heading and the pills show just values.
  */
 export function VariantPicker({ variants, selectedId, onSelect }: VariantPickerProps) {
+  const brand = useBrand(); // hooks must run before the early return below
   if (variants.length <= 1) return null;
   const keys = Array.from(new Set(variants.flatMap((v) => Object.keys(v.attributes))));
   const single = keys.length === 1 ? keys[0]! : null;
@@ -44,9 +46,16 @@ export function VariantPicker({ variants, selectedId, onSelect }: VariantPickerP
               accessibilityRole="button"
               accessibilityLabel={label}
               accessibilityState={{ selected: on, disabled: !v.inStock }}
-              style={[styles.pill, on && styles.pillOn, !v.inStock && styles.pillOut]}
+              style={[
+                styles.pill,
+                on && styles.pillOn,
+                on && { borderColor: brand.primary, backgroundColor: brand.primaryBg },
+                !v.inStock && styles.pillOut,
+              ]}
             >
-              <Text style={[styles.pillText, on && styles.pillTextOn]}>{label}</Text>
+              <Text style={[styles.pillText, on && styles.pillTextOn, on && { color: brand.primary }]}>
+                {label}
+              </Text>
             </Pressable>
           );
         })}

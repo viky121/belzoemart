@@ -2007,3 +2007,28 @@
   .mh-cat { grid-template-columns: 48px 1fr; }
   .mh-cat__side { grid-column: 1 / -1; flex-direction: row; align-items: center; }
 }
+
+/* ===== Festival theme picker (Mobile module) ===== */
+.fp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 12px 0 18px; }
+.fp-card { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 2px solid #e2e8f0; border-radius: 12px; background: #fff; cursor: pointer; text-align: left; }
+.fp-card:hover { border-color: #94a3b8; }
+.fp-card--on { border-color: #15674f; box-shadow: 0 0 0 3px #d1fae5; }
+.fp-swatch { height: 56px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.fp-emoji { font-size: 1.7rem; }
+.fp-label { font-weight: 600; font-size: .85rem; color: #0f172a; }
+.fp-tick { position: absolute; top: 12px; right: 12px; width: 22px; height: 22px; border-radius: 50%; background: #15674f; color: #fff; display: flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 800; }
+.fp-detail { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.fp-opts { flex: 1; min-width: 260px; display: flex; flex-direction: column; gap: 6px; }
+.fp-phone { width: 250px; border: 1px solid #e2e8f0; border-radius: 22px; padding: 10px; background: #f8fafc; box-shadow: 0 4px 14px rgba(15,23,42,.08); }
+.fp-head { border-radius: 14px; padding: 12px; color: #fff; min-height: 70px; }
+.fp-brand { font-weight: 800; font-size: .95rem; }
+.fp-greet { margin-top: 10px; display: flex; flex-direction: column; gap: 2px; }
+.fp-greet strong { font-size: 1.05rem; }
+.fp-greet span { font-size: .75rem; opacity: .9; }
+.fp-motifs { display: flex; gap: 8px; margin-top: 6px; font-size: 1.1rem; }
+.fp-cats { display: flex; gap: 8px; margin: 12px 4px; }
+.fp-cat { width: 40px; height: 40px; border-radius: 50%; }
+.fp-btn { color: #fff; text-align: center; font-weight: 700; padding: 10px; border-radius: 10px; font-size: .85rem; }
+.fp-chips { display: flex; gap: 8px; margin-top: 10px; }
+.fp-chip { padding: 5px 12px; border-radius: 999px; font-size: .75rem; font-weight: 700; }
+.fp-chip--on { color: #fff; }

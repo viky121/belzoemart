@@ -8,6 +8,7 @@ import { MESSAGES } from '@/api/errors';
 import { queryClient, setupQueryManagers } from '@/api/query-client';
 import { sessionEvents } from '@/api/token-manager';
 import { envResult } from '@/config/env';
+import { FestivalSync } from '@/features/home/FestivalSync';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { theme } from '@/theme';
 import { showToast } from '@/ui/Toast';
@@ -43,6 +44,7 @@ function BootGate() {
   return (
     <NavigationProvider>
       <SessionExpiryListener />
+      <FestivalSync />
       <ErrorBoundary onReset={resetToHome}>
         <RootNavigator initialRouteName={onboardingDone ? 'Main' : 'Onboarding'} />
       </ErrorBoundary>

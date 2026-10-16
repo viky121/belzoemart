@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { theme } from '@/theme';
+import { useBrand } from '@/theme/use-brand';
 
 export interface ChipProps {
   label: string;
@@ -10,6 +11,7 @@ export interface ChipProps {
 
 /** Pill chip; selected chips use the primary tint with dark text. */
 export function Chip({ label, selected = false, onPress }: ChipProps) {
+  const brand = useBrand();
   return (
     <Pressable
       onPress={onPress}
@@ -18,7 +20,11 @@ export function Chip({ label, selected = false, onPress }: ChipProps) {
       accessibilityLabel={label}
       accessibilityState={{ selected }}
       hitSlop={{ top: 6, bottom: 6 }}
-      style={[styles.chip, selected && styles.selected]}
+      style={[
+        styles.chip,
+        selected && styles.selected,
+        selected && { borderColor: brand.primary, backgroundColor: brand.primary },
+      ]}
     >
       <Text
         style={[styles.text, selected && styles.selectedText]}

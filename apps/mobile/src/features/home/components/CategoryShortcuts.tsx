@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { iconForCategory } from '@/lib/category-icon';
 import { theme } from '@/theme';
+import { useBrand } from '@/theme/use-brand';
 import { RemoteImage } from '@/ui/RemoteImage';
 
 export interface CategoryShortcutsProps {
@@ -12,22 +13,12 @@ export interface CategoryShortcutsProps {
   onPressCategory: (node: CategoryNodeDto) => void;
 }
 
-const PASTELS = [
-  '#e4f3ec',
-  '#fdeee4',
-  '#e7f0ff',
-  '#f3e8ff',
-  '#e2f7ff',
-  '#fff2d9',
-  '#ffe3ec',
-  '#e9fbf3',
-] as const;
-
 /**
  * Home category tiles: every visible top-level category in a 4-per-row grid of
  * circles. A new category added in admin simply wraps onto the next row.
  */
 export function CategoryShortcuts({ tiles, onPressCategory }: CategoryShortcutsProps) {
+  const brand = useBrand();
   if (tiles.length === 0) return null;
   return (
     <View style={styles.grid}>
@@ -39,14 +30,14 @@ export function CategoryShortcuts({ tiles, onPressCategory }: CategoryShortcutsP
           accessibilityRole="button"
           accessibilityLabel={t.name}
         >
-          <View style={[styles.circle, { backgroundColor: PASTELS[i % PASTELS.length] }]}>
+          <View style={[styles.circle, { backgroundColor: brand.tints[i % brand.tints.length] }]}>
             {t.iconUrl ? (
               <RemoteImage uri={t.iconUrl} width={64} height={64} radius={32} fallbackLabel={t.name} />
             ) : (
               <MaterialCommunityIcons
                 name={iconForCategory(t.name)}
                 size={30}
-                color={theme.colors.primaryStrong}
+                color={brand.primary}
               />
             )}
           </View>

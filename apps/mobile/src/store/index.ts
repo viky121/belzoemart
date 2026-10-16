@@ -1,3 +1,4 @@
+import { useFestivalStore } from './festival';
 import { usePincodeStore } from './pincode';
 import { useRecentSearchesStore } from './recent-searches';
 import { useRecentlyViewedStore } from './recently-viewed';
@@ -6,6 +7,7 @@ import { useRecentlyViewedStore } from './recently-viewed';
 export async function hydrateStores(): Promise<void> {
   await Promise.all([
     usePincodeStore.persist.rehydrate(),
+    useFestivalStore.persist.rehydrate(),
     useRecentlyViewedStore.persist.rehydrate(),
     useRecentSearchesStore.persist.rehydrate(),
   ]);

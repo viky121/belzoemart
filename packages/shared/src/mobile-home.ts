@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { CategoryNodeDto } from './catalogue';
+import { MOBILE_FESTIVALS } from './festivals';
 import { safeHrefSchema } from './schemas';
 
 /**
@@ -84,6 +85,12 @@ export const mobileHomeSchema = z.object({
   offerRows: z.array(mobileOfferRowSchema).max(MOBILE_LIMITS.offerRows).default([]),
   dealsEnabled: z.boolean().default(true),
   dealsTitle: z.string().trim().min(1).max(60).default('Deals of the Day'),
+  /** Active festival theme ('none' = normal Belzo look). */
+  festival: z.enum(MOBILE_FESTIVALS).default('none'),
+  /** Custom greeting for the festival banner ('' = the festival's default greeting). */
+  festivalGreeting: z.string().trim().max(60).default(''),
+  /** Falling decorations in the festival banner (the app also honours "reduce motion"). */
+  festivalDecor: z.boolean().default(true),
 });
 export type MobileHome = z.infer<typeof mobileHomeSchema>;
 
@@ -93,6 +100,9 @@ export const DEFAULT_MOBILE_HOME: MobileHome = {
   offerRows: [],
   dealsEnabled: true,
   dealsTitle: 'Deals of the Day',
+  festival: 'none',
+  festivalGreeting: '',
+  festivalDecor: true,
 };
 
 /** Parse each array entry on its own, keep the valid ones (defaults applied), cap at `max`. */
@@ -131,6 +141,10 @@ export function sanitizeMobileHome(value: unknown): MobileHome {
     offerRows,
     dealsEnabled: typeof v.dealsEnabled === 'boolean' ? v.dealsEnabled : true,
     dealsTitle: dealsTitle.success ? dealsTitle.data : DEFAULT_MOBILE_HOME.dealsTitle,
+    // An unknown / malformed festival never breaks the app: it falls back to the normal look.
+    festival: mobileHomeSchema.shape.festival.catch('none').parse(v.festival),
+    festivalGreeting: mobileHomeSchema.shape.festivalGreeting.catch('').parse(v.festivalGreeting),
+    festivalDecor: typeof v.festivalDecor === 'boolean' ? v.festivalDecor : true,
   };
 }
 

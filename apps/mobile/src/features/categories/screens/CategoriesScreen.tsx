@@ -13,12 +13,11 @@ import { RemoteImage } from '@/ui/RemoteImage';
 import { ListSkeleton } from '@/ui/Skeleton';
 
 import { useMobileHome } from '@/features/home/hooks';
+import { useBrand } from '@/theme/use-brand';
 
 import { useCategories } from '../hooks';
 
 type Nav = NavigationProp<RootStackParamList>;
-
-const PASTELS = ['#e4f3ec', '#fdeee4', '#e7f0ff', '#f3e8ff', '#e2f7ff', '#fff2d9', '#ffe3ec'] as const;
 
 function subtitleFor(node: CategoryNodeDto): string {
   const kids = node.children.slice(0, 3).map((c) => c.name);
@@ -30,6 +29,7 @@ export function CategoriesScreen() {
   const navigation = useNavigation<Nav>();
   const { data, isLoading, isError, error, refetch } = useCategories();
   const mobileHome = useMobileHome();
+  const brand = useBrand();
   // Same order / labels / icons / hidden flags as the home screen (admin "Mobile" module).
   const tiles = useMemo(
     () => resolveMobileCategories(data ?? [], mobileHome.categories),
@@ -94,11 +94,11 @@ export function CategoriesScreen() {
               accessibilityLabel={`${tile.name}. ${sub}`}
               style={({ pressed }) => [styles.row, pressed && styles.pressed]}
             >
-              <View style={[styles.thumb, { backgroundColor: PASTELS[index % PASTELS.length] }]}>
+              <View style={[styles.thumb, { backgroundColor: brand.tints[index % brand.tints.length] }]}>
                 {tile.iconUrl ? (
                   <RemoteImage uri={tile.iconUrl} width={64} height={64} radius={theme.radius.lg} fallbackLabel={tile.name} />
                 ) : (
-                  <MaterialCommunityIcons name={iconForCategory(tile.name)} size={30} color={theme.colors.primaryStrong} />
+                  <MaterialCommunityIcons name={iconForCategory(tile.name)} size={30} color={brand.primary} />
                 )}
               </View>
               <View style={styles.text}>

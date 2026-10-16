@@ -14,11 +14,13 @@ import { safeUuid } from '@/lib/uuid';
 import { BannerList } from './banner-list';
 import { CategoriesPanel, fullCategoryList } from './categories-panel';
 import type { LinkCategory } from './link-field';
+import { FestivalPanel } from './festival-panel';
 import { OfferRowsPanel } from './offer-rows-panel';
 
-type Tab = 'hero' | 'categories' | 'offers' | 'deals';
+type Tab = 'festival' | 'hero' | 'categories' | 'offers' | 'deals';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: 'festival', label: 'Festival theme', icon: '🪔' },
   { id: 'hero', label: 'Main banners', icon: '🖼️' },
   { id: 'categories', label: 'Categories', icon: '🗂️' },
   { id: 'offers', label: 'Offer rows', icon: '🏷️' },
@@ -44,7 +46,7 @@ export default function AdminMobilePage() {
   const [cfg, setCfg] = useState<MobileHome | null>(null);
   const [saved, setSaved] = useState('');
   const [tree, setTree] = useState<CategoryNodeDto[]>([]);
-  const [tab, setTab] = useState<Tab>('hero');
+  const [tab, setTab] = useState<Tab>('festival');
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -191,6 +193,20 @@ export default function AdminMobilePage() {
       </div>
 
       <section className="ce-card">
+        {tab === 'festival' && (
+          <>
+            <h2>🪔 Festival theme</h2>
+            <FestivalPanel
+              value={{
+                festival: cfg.festival,
+                festivalGreeting: cfg.festivalGreeting,
+                festivalDecor: cfg.festivalDecor,
+              }}
+              onChange={patch}
+            />
+          </>
+        )}
+
         {tab === 'hero' && (
           <>
             <h2>🖼️ Main banners (top slider)</h2>

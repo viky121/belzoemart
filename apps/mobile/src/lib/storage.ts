@@ -44,4 +44,5 @@ export const STORAGE_KEYS = {
   recentSearches: 'belzo.recentSearches',
   onboarding: 'belzo.onboarding.v1',
   checkoutAttempt: 'belzo.checkout.attempt',
+  festival: 'belzo.festival',
 } as const;

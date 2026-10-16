@@ -1,4 +1,3 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   activeBanners,
   getHomeSections,
@@ -10,7 +9,7 @@ import {
   type ProductCardDto,
   type ThemeName,
 } from '@belzo/shared';
-import { useNavigation, type NavigationProp } from '@react-navigation/native';
+import { useIsFocused, useNavigation, type NavigationProp } from '@react-navigation/native';
 import { skipToken, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -27,14 +26,14 @@ import { usePincodeStore } from '@/store/pincode';
 import { useRecentlyViewedStore } from '@/store/recently-viewed';
 import { useCartIdentity, useSessionStore } from '@/store/session';
 import { theme } from '@/theme';
-import { IconButton } from '@/ui/IconButton';
+import { useBrand } from '@/theme/use-brand';
 import { OfflineBanner } from '@/ui/OfflineBanner';
 import { ProductCard } from '@/ui/ProductCard';
 import { ProductRail } from '@/ui/ProductRail';
-import { BelzoLogo } from '@/ui/brand/BelzoLogo';
 
 import { CategoryShortcuts } from '../components/CategoryShortcuts';
 import { HeroBanner } from '../components/HeroBanner';
+import { HomeHeader } from '../components/HomeHeader';
 import { HomeRail } from '../components/HomeRail';
 import { OfferRows } from '../components/OfferRows';
 import { PincodeSheet } from '../components/PincodeSheet';
@@ -48,6 +47,8 @@ export function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const queryClient = useQueryClient();
   const openHref = useOpenHref();
+  const brand = useBrand();
+  const focused = useIsFocused();
 
   const settings = useSettings();
   const banners = useHomeBanners();
@@ -134,63 +135,25 @@ export function HomeScreen() {
   }, [settings, banners, categories, deals, queryClient, recent, recentIds.length]);
 
   return (
-    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+    // The top safe-area strip takes the festival gradient's colour so the status bar blends in.
+    <SafeAreaView
+      style={[styles.root, brand.active && { backgroundColor: brand.headerFrom }]}
+      edges={['top', 'left', 'right']}
+    >
       <OfflineBanner />
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <View style={styles.brand}>
-            <BelzoLogo size={38} />
-            <Text style={styles.wordmark}>
-              Belzo <Text style={styles.wordmarkAccent}>Mart</Text>
-            </Text>
-          </View>
-          <View style={styles.headerIcons}>
-            <IconButton
-              icon="bell-outline"
-              label="Notifications"
-              color={theme.colors.inkStrong}
-              badge={isCustomer ? unread : undefined}
-              onPress={() =>
-                isCustomer ? navigation.navigate('Notifications') : navigation.navigate('Login')
-              }
-            />
-            <IconButton
-              icon="shopping-outline"
-              label={cartCount ? `Cart, ${cartCount} items` : 'Cart'}
-              color={theme.colors.inkStrong}
-              badge={cartCount || undefined}
-              onPress={() => navigation.navigate('Cart')}
-            />
-          </View>
-        </View>
-
-        <Pressable
-          style={styles.search}
-          onPress={() => navigation.navigate('Search')}
-          accessibilityRole="search"
-          accessibilityLabel="Search for products, brands and more"
-        >
-          <MaterialCommunityIcons name="magnify" size={20} color={theme.colors.muted} />
-          <Text style={styles.searchText} numberOfLines={1}>
-            Search for products, brands and more...
-          </Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.pinRow}
-          onPress={() => setPinSheet(true)}
-          accessibilityRole="button"
-          accessibilityLabel={pincode ? `Delivering to ${pincode}. Change PIN` : 'Set delivery PIN'}
-        >
-          <MaterialCommunityIcons name="map-marker-outline" size={15} color={theme.colors.primaryStrong} />
-          <Text style={styles.pinText} numberOfLines={1}>
-            {pincode ? `Deliver to ${pincode}` : 'Set delivery PIN'}
-          </Text>
-          <MaterialCommunityIcons name="chevron-down" size={16} color={theme.colors.muted} />
-        </Pressable>
-      </View>
+      <HomeHeader
+        unread={isCustomer ? unread : undefined}
+        cartCount={cartCount}
+        pincode={pincode}
+        onBell={() => (isCustomer ? navigation.navigate('Notifications') : navigation.navigate('Login'))}
+        onCart={() => navigation.navigate('Cart')}
+        onSearch={() => navigation.navigate('Search')}
+        onPin={() => setPinSheet(true)}
+        focused={focused}
+      />
 
       <ScrollView
+        style={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.body}
@@ -215,7 +178,7 @@ export function HomeScreen() {
                 accessibilityLabel="View all deals"
                 hitSlop={8}
               >
-                <Text style={styles.viewAll}>View All ›</Text>
+                <Text style={[styles.viewAll, { color: brand.primary }]}>View All ›</Text>
               </Pressable>
             </View>
             <View style={styles.grid}>
@@ -251,32 +214,7 @@ export function HomeScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.surface },
-  header: {
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.xs,
-    paddingBottom: theme.spacing.sm,
-    gap: theme.spacing.sm,
-  },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  wordmark: { fontSize: 22, lineHeight: 28, fontWeight: '800', color: theme.colors.inkStrong },
-  wordmarkAccent: { color: theme.colors.primaryStrong },
-  headerIcons: { flexDirection: 'row', alignItems: 'center' },
-  search: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    minHeight: 46,
-    paddingHorizontal: theme.spacing.md,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface2,
-  },
-  searchText: { ...theme.typography.body, color: theme.colors.muted, flex: 1 },
-  pinRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  pinText: { ...theme.typography.caption, color: theme.colors.ink, flexShrink: 1, fontWeight: '600' },
+  scroll: { flex: 1, backgroundColor: theme.colors.surface },
   body: { paddingTop: theme.spacing.xs, paddingBottom: theme.spacing.xl },
   section: { marginTop: theme.spacing.sm },
   sectionHead: {

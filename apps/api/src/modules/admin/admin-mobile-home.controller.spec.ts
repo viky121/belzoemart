@@ -42,11 +42,50 @@ describe('AdminMobileHomeController', () => {
       ],
       dealsEnabled: false,
       dealsTitle: 'Hot Deals',
+      festival: 'none',
+      festivalGreeting: '',
+      festivalDecor: true,
     });
     expect(set).toHaveBeenCalledWith('admin-1', 'mobile.home', saved);
     expect(store['mobile.home']).toMatchObject({ dealsEnabled: false, dealsTitle: 'Hot Deals' });
     expect(saved.offerRows[0]?.columns).toBe(3);
     expect(await ctrl.get()).toEqual(saved);
+  });
+});
+
+describe('festival theme', () => {
+  const base = {
+    heroBanners: [],
+    categories: [],
+    offerRows: [],
+    dealsEnabled: true,
+    dealsTitle: 'Deals of the Day',
+  };
+
+  it('persists the chosen festival, greeting and decor flag and serves them publicly', async () => {
+    const { svc, set } = fakeSettings();
+    const admin = new AdminMobileHomeController(svc);
+    const saved = await admin.put(ADMIN, {
+      ...base,
+      festival: 'diwali',
+      festivalGreeting: 'Shubh Deepawali',
+      festivalDecor: false,
+    });
+    expect(saved).toMatchObject({ festival: 'diwali', festivalGreeting: 'Shubh Deepawali', festivalDecor: false });
+    expect(set).toHaveBeenCalledWith('admin-1', 'mobile.home', expect.objectContaining({ festival: 'diwali' }));
+
+    const pub = await new PublicSettingsController(svc).publicSettings();
+    expect(pub.mobileHome).toMatchObject({ festival: 'diwali', festivalGreeting: 'Shubh Deepawali', festivalDecor: false });
+  });
+
+  it('serves "none" when nothing is stored, and degrades a corrupt festival without dropping other settings', async () => {
+    const empty = fakeSettings();
+    expect((await new PublicSettingsController(empty.svc).publicSettings()).mobileHome.festival).toBe('none');
+
+    const corrupt = fakeSettings({ 'mobile.home': { festival: 'christmas', dealsTitle: 'Hot Deals' } });
+    const pub = await new PublicSettingsController(corrupt.svc).publicSettings();
+    expect(pub.mobileHome.festival).toBe('none');
+    expect(pub.mobileHome.dealsTitle).toBe('Hot Deals');
   });
 });
 
