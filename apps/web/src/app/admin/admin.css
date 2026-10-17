@@ -2042,3 +2042,14 @@
 .fp-status--ok { background: #ecfdf5; color: #065f46; }
 .fp-status--warn { background: #fffbeb; color: #92400e; }
 .fp-status--bad { background: #fef2f2; color: #991b1b; }
+
+.pg-card { margin: 16px 0; max-width: 720px; }
+.pg-card h2 { margin: 0 0 10px; font-size: 1.05rem; }
+.pg-row { display: flex; justify-content: space-between; gap: 16px; padding: 7px 0; border-bottom: 1px solid #eef2f1; font-size: .9rem; }
+.pg-row__label { color: #475569; }
+.pg-row__value { font-weight: 700; text-align: right; }
+.pg-row__value--ok { color: #065f46; }
+.pg-row__value--warn { color: #92400e; }
+.pg-row__value--bad { color: #991b1b; }
+.pg-url { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; margin-top: 12px; }
+.pg-url code { background: #f1f5f9; padding: 6px 8px; border-radius: 6px; font-size: .8rem; word-break: break-all; }

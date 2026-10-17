@@ -2,6 +2,7 @@
 
 import { useAdminData } from '../use-admin-page';
 import { formatInr } from '@/lib/catalogue-api';
+import { GatewayStatusCard } from './gateway-status';
 
 interface Payment {
   id: string;
@@ -38,6 +39,8 @@ export default function AdminPaymentsPage() {
     <div data-testid="admin-payments">
       <h1>Payments &amp; Settlements</h1>
       <p className="admin-subtitle">Payment ledger across orders and net settlement.</p>
+
+      <GatewayStatusCard />
 
       <div className="dash-kpis">
         <div className="dash-kpi dash-kpi--b" data-testid="pay-captured">
