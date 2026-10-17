@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { ResilientHttpService } from '../../common/http/resilient-http.service';
+import { GatewayCredentials } from './gateway-credentials';
 import type {
   PaymentProvider,
   ProviderOrder,
@@ -31,14 +32,17 @@ export class RazorpayPaymentProvider implements PaymentProvider {
   readonly kind = 'razorpay' as const;
   private readonly logger = new Logger('RazorpayPaymentProvider');
 
-  constructor(private readonly http: ResilientHttpService) {}
+  constructor(
+    private readonly http: ResilientHttpService,
+    private readonly creds: GatewayCredentials,
+  ) {}
 
   private get keyId(): string {
-    return process.env.RAZORPAY_KEY_ID ?? '';
+    return this.creds.get().keyId;
   }
 
   private get keySecret(): string {
-    return process.env.RAZORPAY_KEY_SECRET ?? '';
+    return this.creds.get().keySecret;
   }
 
   private authHeader(): Record<string, string> {
@@ -66,7 +70,7 @@ export class RazorpayPaymentProvider implements PaymentProvider {
   }
 
   verifyWebhook(rawBody: Buffer, signature: string, eventIdHeader?: string): WebhookVerification {
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET ?? '';
+    const secret = this.creds.get().webhookSecret;
     const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
     const valid = secret !== '' && this.safeEqual(expected, signature);
 

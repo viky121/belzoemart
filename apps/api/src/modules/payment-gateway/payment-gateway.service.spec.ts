@@ -1,6 +1,8 @@
 import { BadRequestException, ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { PaymentService } from '../checkout/payment.service';
+import { GatewayCredentials } from '../../integrations/payment/gateway-credentials';
+import type { GatewaySettingsService } from './gateway-settings.service';
 import { signHostedToken, verifyHostedToken } from './hosted-token';
 import { PaymentGatewayService } from './payment-gateway.service';
 
@@ -26,8 +28,15 @@ function make(cfgOver: Record<string, unknown> = {}) {
     webhookEvent: { findFirst: jest.fn(async () => null) },
     payment: { count: jest.fn(async () => 0) },
   };
-  const svc = new PaymentGatewayService(prisma as unknown as PrismaService, payments as unknown as PaymentService);
-  return { svc, payments, prisma };
+  const creds = new GatewayCredentials();
+  const gatewaySettings = { lastUpdatedAt: null as string | null, isUnreadable: false };
+  const svc = new PaymentGatewayService(
+    prisma as unknown as PrismaService,
+    payments as unknown as PaymentService,
+    creds,
+    gatewaySettings as unknown as GatewaySettingsService,
+  );
+  return { svc, payments, prisma, creds, gatewaySettings };
 }
 
 const tokenFor = (over: Partial<{ o: string; c: string; r: string; e: number }> = {}) =>
@@ -176,6 +185,20 @@ describe('PaymentGatewayService', () => {
       expect(JSON.stringify(s)).not.toContain('super-secret');
       expect(JSON.stringify(s)).not.toContain('whsec');
       expect(s.keyHint).not.toBe('rzp_live_Torv2igXd3g2jv');
+    });
+
+    it('says where each credential comes from, and shows admin-entered keys without exposing them', async () => {
+      process.env.RAZORPAY_KEY_ID = 'rzp_live_ENVKEY123';
+      process.env.RAZORPAY_KEY_SECRET = 'env-secret';
+      process.env.RAZORPAY_WEBHOOK_SECRET = 'env-webhook';
+      const { svc, creds, gatewaySettings } = make();
+      creds.setOverride({ keyId: 'rzp_live_AdminKey9999', keySecret: 'admin-secret-value' });
+      gatewaySettings.lastUpdatedAt = '2026-10-17T09:00:00.000Z';
+      const s = await svc.status();
+      expect(s.source).toEqual({ keyId: 'admin', keySecret: 'admin', webhookSecret: 'env' });
+      expect(s.keyHint).toBe('rzp_live_Adm…999');
+      expect(s.credentialsUpdatedAt).toBe('2026-10-17T09:00:00.000Z');
+      expect(JSON.stringify(s)).not.toContain('admin-secret-value');
     });
 
     it('says the webhook was never received and flags a test key', async () => {

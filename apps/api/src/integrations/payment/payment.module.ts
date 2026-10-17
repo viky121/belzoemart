@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { HttpModule } from '../../common/http/http.module';
 import { PAYMENT_PROVIDER } from './payment.provider';
 import { MockPaymentProvider } from './mock-payment.provider';
+import { GatewayCredentials } from './gateway-credentials';
 import { RazorpayPaymentProvider } from './razorpay-payment.provider';
 
 /**
@@ -12,6 +13,7 @@ import { RazorpayPaymentProvider } from './razorpay-payment.provider';
 @Module({
   imports: [HttpModule],
   providers: [
+    GatewayCredentials,
     MockPaymentProvider,
     RazorpayPaymentProvider,
     {
@@ -21,6 +23,6 @@ import { RazorpayPaymentProvider } from './razorpay-payment.provider';
         process.env.PAYMENT_PROVIDER === 'live' ? razorpay : mock,
     },
   ],
-  exports: [PAYMENT_PROVIDER],
+  exports: [PAYMENT_PROVIDER, GatewayCredentials],
 })
 export class PaymentModule {}

@@ -1,5 +1,6 @@
 import { createHmac } from 'node:crypto';
 import type { ResilientHttpService } from '../../common/http/resilient-http.service';
+import { GatewayCredentials } from './gateway-credentials';
 import { RazorpayPaymentProvider } from './razorpay-payment.provider';
 
 const KEY_ID = 'rzp_live_TESTKEYID00000';
@@ -8,8 +9,9 @@ const WEBHOOK_SECRET = 'test_webhook_secret';
 
 function make() {
   const request = jest.fn();
-  const provider = new RazorpayPaymentProvider({ request } as unknown as ResilientHttpService);
-  return { provider, request };
+  const creds = new GatewayCredentials();
+  const provider = new RazorpayPaymentProvider({ request } as unknown as ResilientHttpService, creds);
+  return { provider, request, creds };
 }
 
 const hmac = (secret: string, data: string | Buffer) => createHmac('sha256', secret).update(data).digest('hex');

@@ -2,12 +2,14 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   Res,
 } from '@nestjs/common';
@@ -21,6 +23,7 @@ import { Public } from '../../common/auth/public.decorator';
 import { Roles } from '../../common/auth/roles.decorator';
 import { createZodDto } from '../identity/zod-dto';
 import { PaymentService } from '../checkout/payment.service';
+import { GatewaySettingsService } from './gateway-settings.service';
 import { PaymentGatewayService } from './payment-gateway.service';
 
 const verifySchema = z.object({
@@ -174,15 +177,54 @@ export class PaymentGatewayController {
 }
 
 /** Admin: is the live gateway configured, and is Razorpay's webhook reaching us? */
+const credentialsSchema = z
+  .object({
+    keyId: z.string().trim().max(100).optional(),
+    keySecret: z.string().trim().max(200).optional(),
+    webhookSecret: z.string().trim().max(200).optional(),
+  })
+  .strict();
+class CredentialsDto extends createZodDto(credentialsSchema) {}
+
 @ApiTags('payment-gateway')
 @ApiBearerAuth()
 @Controller('admin/payment-gateway')
 export class AdminPaymentGatewayController {
-  constructor(private readonly gateway: PaymentGatewayService) {}
+  constructor(
+    private readonly gateway: PaymentGatewayService,
+    private readonly settings: GatewaySettingsService,
+  ) {}
 
   @Roles('super_admin')
   @Get('status')
   status() {
     return this.gateway.status();
+  }
+
+  /**
+   * Save new credentials. Secrets are encrypted at rest and never returned; a new key
+   * pair is verified with Razorpay first. Omitted fields keep their current value.
+   */
+  @Roles('super_admin')
+  @Put('credentials')
+  async save(@CurrentUser() user: JwtPrincipal, @Body() dto: CredentialsDto) {
+    await this.settings.save(user.sub, dto);
+    return this.gateway.status();
+  }
+
+  /** Forget the admin-entered credentials and use the server environment's. */
+  @Roles('super_admin')
+  @Delete('credentials')
+  async reset(@CurrentUser() user: JwtPrincipal) {
+    await this.settings.reset(user.sub);
+    return this.gateway.status();
+  }
+
+  /** Check the keys currently in use with Razorpay (read-only). */
+  @Roles('super_admin')
+  @Post('test')
+  @HttpCode(200)
+  test() {
+    return this.settings.testCurrent();
   }
 }

@@ -8,7 +8,9 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { GatewayCredentials } from '../../integrations/payment/gateway-credentials';
 import { PaymentService, type PaymentProgress } from '../checkout/payment.service';
+import { GatewaySettingsService } from './gateway-settings.service';
 import { HOSTED_TOKEN_TTL_SECONDS, isAllowedReturnUrl, signHostedToken, verifyHostedToken, type HostedTokenPayload } from './hosted-token';
 import { renderHostedPage } from './hosted-page';
 
@@ -27,6 +29,12 @@ export interface GatewayStatus {
   /** When the gateway last called our webhook; null = never (webhook not set up in the dashboard yet). */
   lastWebhookAt: string | null;
   openOnlineOrders: number;
+  /** Where each credential in use comes from: entered in the admin panel, or the server environment. */
+  source: { keyId: 'admin' | 'env'; keySecret: 'admin' | 'env'; webhookSecret: 'admin' | 'env' };
+  /** When the admin last saved credentials; null = never. */
+  credentialsUpdatedAt: string | null;
+  /** True when saved credentials exist but cannot be read (the server then uses its environment keys). */
+  overrideUnreadable: boolean;
 }
 
 /**
@@ -42,6 +50,8 @@ export class PaymentGatewayService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly payments: PaymentService,
+    private readonly creds: GatewayCredentials,
+    private readonly gatewaySettings: GatewaySettingsService,
   ) {}
 
   onModuleInit(): void {
@@ -183,7 +193,9 @@ export class PaymentGatewayService implements OnModuleInit, OnModuleDestroy {
   // ───────────────────────── admin status ─────────────────────────
 
   async status(): Promise<GatewayStatus> {
-    const keyId = process.env.RAZORPAY_KEY_ID ?? '';
+    const c = this.creds.get();
+    const o = this.creds.overridden();
+    const keyId = c.keyId;
     const [last, open] = await Promise.all([
       this.prisma.webhookEvent.findFirst({ where: { provider: 'razorpay' }, orderBy: { createdAt: 'desc' } }),
       this.prisma.payment.count({
@@ -194,11 +206,18 @@ export class PaymentGatewayService implements OnModuleInit, OnModuleDestroy {
       mode: this.payments.onlinePaymentEnabled ? 'live' : 'mock',
       keyType: keyId.startsWith('rzp_live_') ? 'live' : keyId.startsWith('rzp_test_') ? 'test' : 'none',
       keyHint: keyId ? `${keyId.slice(0, 12)}…${keyId.slice(-3)}` : '',
-      secretConfigured: Boolean(process.env.RAZORPAY_KEY_SECRET),
-      webhookSecretConfigured: Boolean(process.env.RAZORPAY_WEBHOOK_SECRET),
+      secretConfigured: Boolean(c.keySecret),
+      webhookSecretConfigured: Boolean(c.webhookSecret),
       webhookUrl: `${(process.env.PUBLIC_BASE_URL ?? '').replace(/\/+$/, '')}/api/v1/payments/webhook`,
       lastWebhookAt: last?.createdAt.toISOString() ?? null,
       openOnlineOrders: open,
+      source: {
+        keyId: o.keyId ? 'admin' : 'env',
+        keySecret: o.keySecret ? 'admin' : 'env',
+        webhookSecret: o.webhookSecret ? 'admin' : 'env',
+      },
+      credentialsUpdatedAt: this.gatewaySettings.lastUpdatedAt,
+      overrideUnreadable: this.gatewaySettings.isUnreadable,
     };
   }
 }
