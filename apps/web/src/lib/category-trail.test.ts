@@ -1,5 +1,5 @@
 import type { CategoryNodeDto } from '@belzo/shared';
-import { categoryNav, categoryTrail } from './category-trail';
+import { categoryNav, categoryTrail, categoryTrailById } from './category-trail';
 
 const node = (slug: string, children: CategoryNodeDto[] = []): CategoryNodeDto => ({
   id: `id-${slug}`,
@@ -29,6 +29,18 @@ describe('categoryTrail', () => {
   it('returns null for an unknown category', () => {
     expect(categoryTrail(tree, 'nope')).toBeNull();
     expect(categoryTrail([], 'x')).toBeNull();
+  });
+});
+
+describe('categoryTrailById', () => {
+  it('finds the same path by category id, which is what a product carries', () => {
+    expect(categoryTrailById(tree, 'id-sona')!.map((n) => n.slug)).toEqual(['grocery', 'rice', 'sona']);
+    expect(categoryTrailById(tree, 'id-toys')!.map((n) => n.slug)).toEqual(['toys']);
+  });
+
+  it('returns null for an unknown or deleted category', () => {
+    expect(categoryTrailById(tree, 'id-gone')).toBeNull();
+    expect(categoryTrailById([], 'x')).toBeNull();
   });
 });
 

@@ -6,7 +6,9 @@ import { ProductRail } from '@/components/product-rail';
 import { ProductVariants } from './product-variants';
 import { ReviewsPanel } from './reviews-panel';
 import { DeliveryCheck } from '@/components/delivery-check';
-import type { ProductCardDto } from '@belzo/shared';
+import { Breadcrumbs, type Crumb } from '@/components/breadcrumbs';
+import { categoryTrailById } from '@/lib/category-trail';
+import type { CategoryNodeDto, ProductCardDto } from '@belzo/shared';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +37,17 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 export default async function ProductPage({ params }: { params: { slug: string } }) {
   const product = await catalogueApi.product(params.slug).catch(() => null);
   if (!product) notFound();
+
+  // Breadcrumb: Home › Category › Sub-category … › Product. If the category can't be
+  // found (deleted/unlisted) the trail is just Home › Product.
+  const categories = await catalogueApi.categories().catch(() => [] as CategoryNodeDto[]);
+  const crumbs: Crumb[] = [
+    ...(categoryTrailById(categories, product.categoryId) ?? []).map((c) => ({
+      label: c.name,
+      href: `/category/${c.slug}`,
+    })),
+    { label: product.title },
+  ];
 
   // Related products: prefer same-category items; if the category has none
   // besides this product, fall back to other catalogue products so the section
@@ -65,6 +78,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
   return (
     <section style={{ padding: '1.5rem 0' }} data-testid="product-detail">
+      <Breadcrumbs items={crumbs} testId="pdp-breadcrumb" />
       <div className="pdp">
         <ProductGallery images={product.images} fallback={fallback} title={product.title} />
 

@@ -1,13 +1,25 @@
 import type { CategoryNodeDto } from '@belzo/shared';
 
-/** Path from a top-level category down to `slug` (inclusive), or null when it isn't in the tree. */
-export function categoryTrail(nodes: CategoryNodeDto[], slug: string): CategoryNodeDto[] | null {
+function trailBy(
+  nodes: CategoryNodeDto[],
+  match: (n: CategoryNodeDto) => boolean,
+): CategoryNodeDto[] | null {
   for (const n of nodes) {
-    if (n.slug === slug) return [n];
-    const below = categoryTrail(n.children, slug);
+    if (match(n)) return [n];
+    const below = trailBy(n.children, match);
     if (below) return [n, ...below];
   }
   return null;
+}
+
+/** Path from a top-level category down to `slug` (inclusive), or null when it isn't in the tree. */
+export function categoryTrail(nodes: CategoryNodeDto[], slug: string): CategoryNodeDto[] | null {
+  return trailBy(nodes, (n) => n.slug === slug);
+}
+
+/** Same as {@link categoryTrail}, looked up by category id (a product only knows its category id). */
+export function categoryTrailById(nodes: CategoryNodeDto[], id: string): CategoryNodeDto[] | null {
+  return trailBy(nodes, (n) => n.id === id);
 }
 
 export interface CategoryNav {

@@ -6677,3 +6677,19 @@ body.pingate-locked { overflow: hidden; }
 .cms-page p { margin: 0 0 0.85rem; overflow-wrap: anywhere; }
 .cms-page ul { margin: 0 0 0.85rem; padding-left: 1.25rem; }
 .cms-page li { margin: 0.25rem 0; }
+
+/* Breadcrumb above the product page */
+.pdp-crumbs {
+  margin: 0 0 12px;
+  padding: 0 2px;
+}
+.pdp-crumbs a {
+  color: var(--muted);
+}
+.pdp-crumbs a:hover {
+  color: var(--fk-green, #16a34a);
+  text-decoration: underline;
+}
+.pdp-crumbs .plp-breadcrumb__current {
+  overflow-wrap: anywhere;
+}
