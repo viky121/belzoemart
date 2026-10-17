@@ -87,7 +87,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
       <ProfilePrompt />
 
       {theme === 'emart' ? (
-        <EmartFooter categories={simpleCats} content={footer} activePages={activePages} />
+        <EmartFooter content={footer} activePages={activePages} />
       ) : (
       <footer className="site-footer">
         <div className="footer-brand">

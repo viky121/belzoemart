@@ -1,25 +1,21 @@
 import Link from 'next/link';
 import { DEFAULT_FOOTER, type FooterContent } from '@/lib/site-content';
-import { FOOTER_PAGE_LINKS, visibleLinks } from '@/lib/cms-links';
+import { footerColumn } from '@/lib/cms-links';
 
-interface Cat {
-  id: string;
-  name: string;
-  slug: string;
-}
-
-/** eMart storefront footer — content (description, support, social, newsletter) is admin-editable. */
+/**
+ * eMart storefront footer — content (description, support, social, newsletter) is admin-editable.
+ * Columns: brand, Quick Links, Policies, Customer Support, newsletter.
+ */
 export function EmartFooter({
-  categories,
   content = DEFAULT_FOOTER,
   activePages = null,
 }: {
-  categories: Cat[];
   content?: FooterContent;
   /** Slugs of the enabled CMS pages; links to disabled pages are left out. `null` = show all. */
   activePages?: string[] | null;
 }) {
-  const pageLinks = visibleLinks(FOOTER_PAGE_LINKS, activePages);
+  const companyLinks = footerColumn('company', activePages);
+  const policyLinks = footerColumn('policy', activePages);
   const socials: { label: string; href: string }[] = [
     { label: 'f', href: content.facebook || '#' },
     { label: '◎', href: content.instagram || '#' },
@@ -48,21 +44,23 @@ export function EmartFooter({
         <div className="em-footer__col">
           <h4>Quick Links</h4>
           <Link href="/">Home</Link>
-          {pageLinks.map((l) => (
+          {companyLinks.map((l) => (
             <Link key={l.slug} href={`/page/${l.slug}`}>
               {l.label}
             </Link>
           ))}
         </div>
 
-        <div className="em-footer__col">
-          <h4>Shop by Category</h4>
-          {categories.slice(0, 6).map((c) => (
-            <Link key={c.id} href={`/category/${c.slug}`}>
-              {c.name}
-            </Link>
-          ))}
-        </div>
+        {policyLinks.length > 0 && (
+          <div className="em-footer__col" data-testid="footer-policies">
+            <h4>Policies</h4>
+            {policyLinks.map((l) => (
+              <Link key={l.slug} href={`/page/${l.slug}`}>
+                {l.label}
+              </Link>
+            ))}
+          </div>
+        )}
 
         <div className="em-footer__col">
           <h4>Customer Support</h4>

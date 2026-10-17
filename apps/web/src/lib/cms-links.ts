@@ -2,19 +2,21 @@
 export interface PageLink {
   slug: string;
   label: string;
+  /** Which footer column it belongs to: general links, or the legal policies. */
+  group: 'company' | 'policy';
 }
 
 /** Company and policy pages linked from the storefront footer, in display order. */
 export const FOOTER_PAGE_LINKS: PageLink[] = [
-  { slug: 'about', label: 'About Us' },
-  { slug: 'contact', label: 'Contact Us' },
-  { slug: 'terms', label: 'Terms & Conditions' },
-  { slug: 'privacy', label: 'Privacy Policy' },
-  { slug: 'returns-policy', label: 'Return & Refund Policy' },
-  { slug: 'shipping-policy', label: 'Shipping & Delivery Policy' },
-  { slug: 'cancellation-policy', label: 'Cancellation Policy' },
-  { slug: 'payment-policy', label: 'Payment Policy' },
-  { slug: 'grievance-support', label: 'Grievance & Support' },
+  { slug: 'about', label: 'About Us', group: 'company' },
+  { slug: 'contact', label: 'Contact Us', group: 'company' },
+  { slug: 'grievance-support', label: 'Grievance & Support', group: 'company' },
+  { slug: 'terms', label: 'Terms & Conditions', group: 'policy' },
+  { slug: 'privacy', label: 'Privacy Policy', group: 'policy' },
+  { slug: 'returns-policy', label: 'Return & Refund Policy', group: 'policy' },
+  { slug: 'shipping-policy', label: 'Shipping & Delivery Policy', group: 'policy' },
+  { slug: 'cancellation-policy', label: 'Cancellation Policy', group: 'policy' },
+  { slug: 'payment-policy', label: 'Payment Policy', group: 'policy' },
 ];
 
 /**
@@ -26,4 +28,12 @@ export function visibleLinks<T extends { slug: string }>(links: T[], active: rea
   if (!active) return links;
   const on = new Set(active);
   return links.filter((l) => on.has(l.slug));
+}
+
+/** The visible footer links of one column, in display order. */
+export function footerColumn(group: PageLink['group'], active: readonly string[] | null | undefined): PageLink[] {
+  return visibleLinks(
+    FOOTER_PAGE_LINKS.filter((l) => l.group === group),
+    active,
+  );
 }
