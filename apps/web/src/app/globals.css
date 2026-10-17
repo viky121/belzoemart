@@ -6641,3 +6641,11 @@ body.pingate-locked { overflow: hidden; }
     padding: 14px 16px;
   }
 }
+
+/* CMS pages (About, Contact, legal policies) */
+.cms-page { padding: 2rem 0 3rem; max-width: 780px; line-height: 1.7; color: #1f2937; }
+.cms-page h1 { margin: 0 0 1.25rem; font-size: 1.8rem; line-height: 1.25; }
+.cms-page h2 { margin: 1.75rem 0 0.5rem; font-size: 1.15rem; line-height: 1.35; color: #111827; }
+.cms-page p { margin: 0 0 0.85rem; overflow-wrap: anywhere; }
+.cms-page ul { margin: 0 0 0.85rem; padding-left: 1.25rem; }
+.cms-page li { margin: 0.25rem 0; }

@@ -21,13 +21,34 @@ export class CmsService {
     return this.prisma.cmsPage.findMany({ where: { isActive: true }, select: { slug: true, title: true } });
   }
 
+  /** Every page, including disabled ones, for the admin editor. */
+  listAll() {
+    return this.prisma.cmsPage.findMany({ orderBy: [{ title: 'asc' }] });
+  }
+
+  /**
+   * Create or update a page. A save that doesn't say anything about `isActive`
+   * leaves a disabled page disabled (editing text must never re-publish it); a new
+   * page defaults to enabled.
+   */
   upsertPage(input: { slug?: string; title: string; body: string; isActive?: boolean }) {
     const slug = input.slug ?? slugify(input.title);
     return this.prisma.cmsPage.upsert({
       where: { slug },
-      update: { title: input.title, body: input.body, isActive: input.isActive ?? true },
+      update: {
+        title: input.title,
+        body: input.body,
+        ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+      },
       create: { slug, title: input.title, body: input.body, isActive: input.isActive ?? true },
     });
+  }
+
+  /** Show or hide a page on the website and in the app. */
+  async setActive(slug: string, isActive: boolean) {
+    const existing = await this.prisma.cmsPage.findUnique({ where: { slug } });
+    if (!existing) throw new NotFoundException('Page not found');
+    return this.prisma.cmsPage.update({ where: { slug }, data: { isActive } });
   }
 
   activeBanners(placement: string) {

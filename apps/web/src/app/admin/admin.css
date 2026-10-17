@@ -2063,3 +2063,19 @@
 .pg-inline { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .pg-inline .auth-input { flex: 1; min-width: 200px; }
 .pg-actions { display: flex; gap: 14px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+
+/* Admin > Pages */
+.pgs-editor { display: flex; flex-direction: column; gap: 6px; max-width: 860px; }
+.pgs-editor h2 { margin: 0 0 6px; font-size: 1.1rem; }
+.pgs-slug { display: flex; align-items: center; gap: 6px; color: #64748b; }
+.pgs-slug .auth-input { flex: 1; max-width: 360px; }
+.pgs-body { min-height: 380px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; line-height: 1.55; resize: vertical; }
+.pgs-hint { font-size: .78rem; color: #64748b; }
+.pgs-hint code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; }
+.pgs-actions { display: flex; gap: 14px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.pgs-previewbox { margin-top: 14px; padding: 16px; border: 1px dashed #cbd5e1; border-radius: 10px; background: #fff; max-height: 460px; overflow: auto; }
+.pgs-previewbox h3 { margin: 0 0 10px; }
+.pgs-preview h4 { margin: 14px 0 4px; font-size: 1rem; }
+.pgs-preview p { margin: 0 0 8px; font-size: .9rem; line-height: 1.6; }
+.pgs-preview ul { margin: 0 0 8px; padding-left: 20px; font-size: .9rem; }
+.pgs-rowactions { white-space: nowrap; display: flex; gap: 14px; }
