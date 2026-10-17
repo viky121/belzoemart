@@ -3,6 +3,7 @@ import { catalogueApi, type Paginated, type BrandDto } from '@/lib/catalogue-api
 import { ProductCard } from '@/components/product-card';
 import { FilterSidebar } from '@/components/filter-sidebar';
 import { iconFor, gradientFor, isUsableImageUrl } from '@/lib/category-theme';
+import { categoryNav } from '@/lib/category-trail';
 import type { CategoryNodeDto, ProductCardDto } from '@belzo/shared';
 
 export const dynamic = 'force-dynamic';
@@ -45,6 +46,7 @@ export default async function CategoryPage({
     catalogueApi.brands().catch(() => [] as BrandDto[]),
   ]);
   const category = findCategory(categories, params.slug);
+  const nav = categoryNav(categories, params.slug);
   const sort = searchParams.sort ?? 'popularity';
 
   const qs = new URLSearchParams();
@@ -78,10 +80,37 @@ export default async function CategoryPage({
       />
 
       <main className="plp-main">
-        <nav className="plp-breadcrumb" aria-label="Breadcrumb">
+        {nav.parent && (
+          <Link href={`/category/${nav.parent.slug}`} className="plp-back" data-testid="category-back">
+            <span aria-hidden="true">←</span> Back to {nav.parent.name}
+          </Link>
+        )}
+        <nav className="plp-breadcrumb" aria-label="Breadcrumb" data-testid="category-breadcrumb">
           <Link href="/">Home</Link>
-          <span>›</span>
-          <span className="plp-breadcrumb__current">{title}</span>
+          {nav.crumbs.length === 0 ? (
+            <>
+              <span aria-hidden="true">›</span>
+              <span className="plp-breadcrumb__current" aria-current="page">
+                {title}
+              </span>
+            </>
+          ) : (
+            nav.crumbs.map((c, i) => {
+              const last = i === nav.crumbs.length - 1;
+              return (
+                <span key={c.id} className="plp-breadcrumb__item">
+                  <span aria-hidden="true">›</span>
+                  {last ? (
+                    <span className="plp-breadcrumb__current" aria-current="page">
+                      {c.name}
+                    </span>
+                  ) : (
+                    <Link href={`/category/${c.slug}`}>{c.name}</Link>
+                  )}
+                </span>
+              );
+            })
+          )}
         </nav>
 
         <div className="plp-band">
@@ -99,10 +128,15 @@ export default async function CategoryPage({
           </div>
         </div>
 
-        {category?.children && category.children.length > 0 && (
+        {nav.chips.length > 0 && (
           <div className="plp-subcats" data-testid="subcategories">
-            {category.children.map((ch) => (
-              <Link key={ch.id} href={`/category/${ch.slug}`} className="plp-subcat">
+            {nav.chips.map((ch) => (
+              <Link
+                key={ch.id}
+                href={`/category/${ch.slug}`}
+                className={`plp-subcat${ch.slug === params.slug ? ' plp-subcat--active' : ''}`}
+                aria-current={ch.slug === params.slug ? 'page' : undefined}
+              >
                 <span className="plp-subcat__ic">
                   {isUsableImageUrl(ch.imageUrl) ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -138,9 +172,14 @@ export default async function CategoryPage({
         </div>
 
         {data.items.length === 0 ? (
-          <p className="plp-empty" data-testid="category-empty">
-            No products match these filters.
-          </p>
+          <div className="plp-empty" data-testid="category-empty">
+            <p>No products match these filters.</p>
+            {nav.parent && (
+              <p className="plp-empty__hint">
+                <Link href={`/category/${nav.parent.slug}`}>See all of {nav.parent.name}</Link>
+              </p>
+            )}
+          </div>
         ) : (
           <div className="product-grid" data-testid="product-grid">
             {data.items.map((p) => (

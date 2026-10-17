@@ -1804,10 +1804,38 @@ nav.main a:hover {
 
 .plp-breadcrumb {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: center;
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   color: var(--muted);
+}
+.plp-breadcrumb__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.plp-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  padding: 4px 10px 4px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.plp-back:hover {
+  background: #e2e8f0;
+  color: var(--fk-green, #16a34a);
+}
+.plp-subcat.plp-subcat--active {
+  border-color: var(--fk-green, #16a34a);
+  background: #ecfdf5;
+  color: #065f46;
+  box-shadow: 0 0 0 1px var(--fk-green, #16a34a) inset;
 }
 
 .plp-breadcrumb a:hover {
