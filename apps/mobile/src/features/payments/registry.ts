@@ -1,6 +1,6 @@
 import type { PaymentAdapter } from './adapter';
 import { mockAdapter } from './mock-adapter';
-import { razorpayAdapterStub } from './razorpay-adapter.stub';
+import { razorpayAdapter } from './razorpay-adapter';
 
 function unavailableAdapter(provider: string): PaymentAdapter {
   return {
@@ -13,6 +13,6 @@ function unavailableAdapter(provider: string): PaymentAdapter {
 /** Resolve the adapter for a server-chosen provider (design §6.7). */
 export function getPaymentAdapter(provider: string): PaymentAdapter {
   if (provider === 'mock') return mockAdapter;
-  if (provider === 'razorpay') return razorpayAdapterStub;
+  if (provider === 'razorpay') return razorpayAdapter;
   return unavailableAdapter(provider);
 }

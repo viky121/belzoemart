@@ -54,15 +54,16 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
 
   const preview = usePreview(address?.id ?? null, couponCode, method);
 
+  // Pay-online is offered when the server has a live gateway (or the build flag forces it on).
+  const onlineOffered = env.onlinePaymentEnabled || preview.data?.onlinePayment === true;
+
   // Correct an unavailable preselection once the preview tells us what's offered.
   if (preview.isSuccess && method === 'cod' && !preview.data.codEnabled) {
-    const next = preselectMethod(availableMethods(false, env.onlinePaymentEnabled));
+    const next = preselectMethod(availableMethods(false, onlineOffered));
     if (next && next !== method) setMethod(next);
   }
 
-  const methods = preview.data
-    ? availableMethods(preview.data.codEnabled, env.onlinePaymentEnabled)
-    : [];
+  const methods = preview.data ? availableMethods(preview.data.codEnabled, onlineOffered) : [];
 
   usePreventRemove(placing, () => {
     toast.show({ message: 'Placing your order…', tone: 'info' });

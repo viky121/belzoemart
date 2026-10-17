@@ -23,9 +23,10 @@ export class PaymentController {
     @Req() req: Request & { rawBody?: Buffer },
     @Headers('x-razorpay-signature') razorpaySig?: string,
     @Headers('x-webhook-signature') genericSig?: string,
+    @Headers('x-razorpay-event-id') razorpayEventId?: string,
   ) {
     const rawBody = req.rawBody ?? Buffer.from(JSON.stringify(req.body ?? {}));
     const signature = razorpaySig ?? genericSig ?? '';
-    return this.payments.handleWebhook(rawBody, signature);
+    return this.payments.handleWebhook(rawBody, signature, razorpayEventId);
   }
 }

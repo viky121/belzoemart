@@ -33,3 +33,40 @@ describe('validateEnv', () => {
     expect(env.CORS_ORIGINS).toEqual(['https://a.com', 'https://b.com']);
   });
 });
+
+describe('validateEnv — live payments', () => {
+  const live = {
+    ...base,
+    PAYMENT_PROVIDER: 'live',
+    RAZORPAY_KEY_ID: 'rzp_live_abc',
+    RAZORPAY_KEY_SECRET: 'secret',
+    RAZORPAY_WEBHOOK_SECRET: 'whsec',
+  };
+
+  it('accepts a complete live configuration', () => {
+    expect(validateEnv(live).PAYMENT_PROVIDER).toBe('live');
+  });
+
+  it('refuses to boot live without each Razorpay credential', () => {
+    for (const k of ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET']) {
+      expect(() => validateEnv({ ...live, [k]: '' })).toThrow(new RegExp(`${k} is required`));
+    }
+  });
+
+  it('refuses a key id that is not a Razorpay key (e.g. the secret pasted by mistake)', () => {
+    expect(() => validateEnv({ ...live, RAZORPAY_KEY_ID: 'G9dwc5oo' })).toThrow(/starts with rzp_/);
+  });
+
+  it('in production requires an https public URL for live payments', () => {
+    const prod = { ...live, NODE_ENV: 'production' };
+    expect(() => validateEnv({ ...prod, PUBLIC_BASE_URL: 'http://13.48.85.9' })).toThrow(/PUBLIC_BASE_URL/);
+    expect(() => validateEnv({ ...prod })).toThrow(/PUBLIC_BASE_URL/);
+    expect(validateEnv({ ...prod, PUBLIC_BASE_URL: 'https://belzoemart.com' }).PUBLIC_BASE_URL).toBe(
+      'https://belzoemart.com',
+    );
+  });
+
+  it('mock mode needs none of it', () => {
+    expect(validateEnv({ ...base, NODE_ENV: 'production' }).PAYMENT_PROVIDER).toBe('mock');
+  });
+});

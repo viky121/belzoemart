@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import type {
   PaymentProvider,
   ProviderOrder,
+  ProviderPayment,
   ProviderRefund,
   WebhookVerification,
 } from './payment.provider';
@@ -16,13 +17,17 @@ import type {
 export class MockPaymentProvider implements PaymentProvider {
   readonly kind = 'mock' as const;
 
+  clientConfigFor(providerOrderId: string, amountPaise: number): Record<string, unknown> {
+    return { provider: 'mock', providerOrderId, amount: amountPaise };
+  }
+
   async createOrder(amountPaise: number, receipt: string): Promise<ProviderOrder> {
     const providerOrderId = `mock_order_${receipt}`;
     return {
       providerOrderId,
       amount: amountPaise,
       currency: 'INR',
-      clientConfig: { provider: 'mock', providerOrderId, amount: amountPaise },
+      clientConfig: this.clientConfigFor(providerOrderId, amountPaise),
     };
   }
 
@@ -34,6 +39,7 @@ export class MockPaymentProvider implements PaymentProvider {
       providerOrderId?: string;
       providerPaymentId?: string;
       method?: string;
+      amount?: number;
     };
     return {
       valid: signature === expected,
@@ -42,7 +48,21 @@ export class MockPaymentProvider implements PaymentProvider {
       providerOrderId: body.providerOrderId,
       providerPaymentId: body.providerPaymentId ?? `mock_pay_${randomUUID()}`,
       method: body.method ?? 'upi',
+      amount: body.amount,
     };
+  }
+
+  verifyCheckoutSignature(providerOrderId: string, providerPaymentId: string, signature: string): boolean {
+    return signature === createHash('sha256').update(`${providerOrderId}|${providerPaymentId}`).digest('hex');
+  }
+
+  /** The mock auto-captures inside `initiate`, so it has nothing pending to report. */
+  async listOrderPayments(): Promise<ProviderPayment[]> {
+    return [];
+  }
+
+  async capturePayment(providerPaymentId: string, amountPaise: number): Promise<ProviderPayment> {
+    return { id: providerPaymentId, providerOrderId: '', status: 'captured', amount: amountPaise };
   }
 
   async createRefund(_providerPaymentId: string, amountPaise: number): Promise<ProviderRefund> {

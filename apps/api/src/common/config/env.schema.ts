@@ -42,6 +42,9 @@ export const envSchema = z.object({
   RAZORPAY_KEY_SECRET: z.string().optional().default(''),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(''),
 
+  /** Public origin of the site. Payment callbacks and hosted-checkout links are built from it (https for live). */
+  PUBLIC_BASE_URL: z.string().optional().default(''),
+
   // SMTP email (used when EMAIL_PROVIDER=live). Works with Gmail (App Password).
   SMTP_HOST: z.string().optional().default('smtp.gmail.com'),
   SMTP_PORT: z.coerce.number().int().positive().optional().default(465),
@@ -76,6 +79,21 @@ export const envSchema = z.object({
           message: `${key} is required when PAYMENT_PROVIDER=live`,
         });
       }
+    }
+    if (env.RAZORPAY_KEY_ID && !env.RAZORPAY_KEY_ID.startsWith('rzp_')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['RAZORPAY_KEY_ID'],
+        message: 'RAZORPAY_KEY_ID must be a Razorpay key id (starts with rzp_live_ or rzp_test_)',
+      });
+    }
+    // Razorpay live calls back only to https, and the hosted mobile checkout builds its links from this.
+    if (env.NODE_ENV === 'production' && !env.PUBLIC_BASE_URL.startsWith('https://')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['PUBLIC_BASE_URL'],
+        message: 'PUBLIC_BASE_URL must be an https:// URL when PAYMENT_PROVIDER=live in production',
+      });
     }
   }
 });

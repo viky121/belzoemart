@@ -110,3 +110,13 @@ export async function openRazorpayCheckout(
   });
   instance.open();
 }
+
+/** Body for POST /payments/verify, built from the widget's success response. */
+export function verifyBody(orderId: string, r: RazorpaySuccess) {
+  return {
+    orderId,
+    razorpay_order_id: r.razorpay_order_id,
+    razorpay_payment_id: r.razorpay_payment_id,
+    razorpay_signature: r.razorpay_signature,
+  };
+}

@@ -18,6 +18,7 @@ import { CatalogueModule } from './modules/catalogue/catalogue.module';
 import { PaymentModule } from './integrations/payment/payment.module';
 import { ShippingModule } from './integrations/shipping/shipping.module';
 import { CartCheckoutModule } from './modules/checkout/cart-checkout.module';
+import { PaymentGatewayModule } from './modules/payment-gateway/payment-gateway.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { EngagementModule } from './modules/engagement/engagement.module';
 import { NotificationsIntegrationModule } from './integrations/notifications/notifications-integration.module';
@@ -50,6 +51,7 @@ import { MediaModule } from './modules/media/media.module';
     IdentityModule,
     CatalogueModule,
     CartCheckoutModule,
+    PaymentGatewayModule,
     OrdersModule,
     EngagementModule,
     AdminModule,

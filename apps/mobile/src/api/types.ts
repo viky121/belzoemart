@@ -151,6 +151,8 @@ export interface CheckoutPreviewResult {
   items: unknown[];
   serviceable: boolean;
   codEnabled: boolean;
+  /** True when the server has a live payment gateway, so "pay online" can be offered. */
+  onlinePayment?: boolean;
   shippingWaived: boolean;
 }
 
