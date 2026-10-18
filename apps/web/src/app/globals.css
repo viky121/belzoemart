@@ -2357,15 +2357,29 @@ nav.main a:hover {
   cursor: default;
 }
 
-.qty-stepper span {
-  min-width: 46px;
+.qty-stepper .qty-input {
+  width: 56px;
+  min-width: 0;
+  height: 100%;
+  box-sizing: border-box;
   text-align: center;
+  font: inherit;
   font-weight: 700;
+  color: var(--ink);
+  background: #fff;
+  border: 0;
   border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
-  height: 100%;
-  display: grid;
-  place-items: center;
+  border-radius: 0;
+  padding: 0;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.qty-stepper .qty-input:focus-visible,
+.cline__qty .qty-input:focus-visible {
+  background: #eef4ff;
+  box-shadow: inset 0 0 0 2px var(--fk-blue);
 }
 
 .buybox__row {
@@ -4274,7 +4288,7 @@ a.em-promo--image:hover {
 
 .cline__qty {
   display: grid;
-  grid-template-columns: 32px 34px 32px;
+  grid-template-columns: 32px 46px 32px;
   align-items: center;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -4290,10 +4304,21 @@ a.em-promo--image:hover {
   cursor: pointer;
 }
 
-.cline__qty span {
+.cline__qty .qty-input {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  box-sizing: border-box;
   text-align: center;
+  font: inherit;
   font-weight: 700;
   font-size: 0.88rem;
+  color: var(--ink);
+  background: #fff;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  outline: none;
 }
 
 .cline__linetotal {

@@ -357,9 +357,11 @@ export function sanitizeHomeContent(value: unknown): Partial<HomeContent> | null
 // Cart / Checkout
 // ---------------------------------------------------------------------------
 
+/** Most units of one product a single cart line can hold. */
+export const MAX_CART_QTY = 99;
 export const cartItemInputSchema = z.object({
   variantId: uuidSchema,
-  quantity: z.number().int().min(1).max(99),
+  quantity: z.number().int().min(1).max(MAX_CART_QTY),
 });
 export type CartItemInput = z.infer<typeof cartItemInputSchema>;
 

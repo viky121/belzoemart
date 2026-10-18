@@ -6,6 +6,7 @@ import type { VariantDto } from '@belzo/shared';
 import { formatInr } from '@/lib/catalogue-api';
 import { cartApi } from '@/lib/cart-api';
 import { useAuth } from '@/lib/auth-context';
+import { QtyStepper } from '@/components/qty-stepper';
 
 /** Fallback ladder used only when a variant has no admin-authored slabs. */
 const DERIVED_SLABS: { label: string; min: number; step: number }[] = [
@@ -205,24 +206,14 @@ export function ProductVariants({
       </p>
 
       <div className="buybox__row">
-        <div className="qty-stepper" data-testid="pdp-qty">
-          <button
-            type="button"
-            onClick={() => setQty((q) => Math.max(1, q - 1))}
-            aria-label="Decrease quantity"
-            disabled={qty <= 1}
-          >
-            −
-          </button>
-          <span data-testid="pdp-qty-value">{qty}</span>
-          <button
-            type="button"
-            onClick={() => setQty((q) => q + 1)}
-            aria-label="Increase quantity"
-          >
-            +
-          </button>
-        </div>
+        <QtyStepper
+          className="qty-stepper"
+          rootTestId="pdp-qty"
+          testId="pdp-qty-value"
+          value={qty}
+          onCommit={setQty}
+          onLiveChange={setQty}
+        />
 
         <div className="buybox__actions">
           <button

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { cartApi, type CartView } from '@/lib/cart-api';
 import { useAuth } from '@/lib/auth-context';
+import { QtyStepper } from '@/components/qty-stepper';
 import { formatInr } from '@/lib/catalogue-api';
 import { placeholderImage, isUsableImageUrl } from '@/lib/category-theme';
 import { safeSession } from '@/lib/safe-storage';
@@ -133,23 +134,13 @@ export default function CartPage() {
                     </div>
 
                     <div className="cline__actions">
-                      <div className="cline__qty">
-                        <button
-                          onClick={() => update(item.variantId, item.quantity - 1)}
-                          disabled={busy || item.quantity <= 1}
-                          aria-label="Decrease quantity"
-                        >
-                          −
-                        </button>
-                        <span data-testid={`cart-qty-${item.sku}`}>{item.quantity}</span>
-                        <button
-                          onClick={() => update(item.variantId, item.quantity + 1)}
-                          disabled={busy}
-                          aria-label="Increase quantity"
-                        >
-                          +
-                        </button>
-                      </div>
+                      <QtyStepper
+                        className="cline__qty"
+                        testId={`cart-qty-${item.sku}`}
+                        value={item.quantity}
+                        disabled={busy}
+                        onCommit={(n) => update(item.variantId, n)}
+                      />
                       <span className="cline__linetotal">
                         {formatInr(item.unitPrice * item.quantity)}
                       </span>
