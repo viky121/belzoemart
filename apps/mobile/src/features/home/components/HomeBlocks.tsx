@@ -1,5 +1,5 @@
-import type { HomeBlock } from '@belzo/shared';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { TILE_IMAGE_ASPECT, tileImage, type HomeBlock } from '@belzo/shared';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { theme } from '@/theme';
 import { Button } from '@/ui';
@@ -13,8 +13,11 @@ export interface HomeBlocksProps {
 
 /** Admin-added detail blocks: 'banner' and 'cards'; disabled blocks are skipped (design §11). */
 export function HomeBlocks({ blocks, onOpenHref }: HomeBlocksProps) {
+  const { width } = useWindowDimensions();
   const visible = blocks.filter((b) => b.enabled !== false);
   if (visible.length === 0) return null;
+  // Two cards per line.
+  const cardWidth = Math.floor((width - theme.spacing.lg * 2 - theme.spacing.sm) / 2);
   return (
     <View>
       {visible.map((block) =>
@@ -38,19 +41,39 @@ export function HomeBlocks({ blocks, onOpenHref }: HomeBlocksProps) {
           <View key={block.id} style={styles.cardsBlock}>
             {block.title ? <SectionHeader title={block.title} /> : null}
             <View style={styles.cards}>
-              {block.cards.map((c, i) => (
-                <Pressable
-                  key={`${block.id}-${i}`}
-                  onPress={() => onOpenHref(c.href)}
-                  accessibilityRole="button"
-                  accessibilityLabel={c.title}
-                  style={styles.card}
-                >
-                  {c.icon ? <Text style={styles.cardIcon}>{c.icon}</Text> : null}
-                  <Text style={styles.cardTitle}>{c.title}</Text>
-                  {c.subtitle ? <Text style={styles.cardSub}>{c.subtitle}</Text> : null}
-                </Pressable>
-              ))}
+              {block.cards.map((c, i) => {
+                const image = tileImage(c);
+                // A card with a picture is just the picture; its title is the screen-reader label.
+                return image ? (
+                  <Pressable
+                    key={`${block.id}-${i}`}
+                    onPress={() => onOpenHref(c.href)}
+                    accessibilityRole="button"
+                    accessibilityLabel={c.title}
+                    style={styles.imageCard}
+                    testID={`card-image-${i}`}
+                  >
+                    <RemoteImage
+                      uri={image}
+                      width="100%"
+                      height={Math.round(cardWidth / TILE_IMAGE_ASPECT)}
+                      radius={theme.radius.md}
+                    />
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    key={`${block.id}-${i}`}
+                    onPress={() => onOpenHref(c.href)}
+                    accessibilityRole="button"
+                    accessibilityLabel={c.title}
+                    style={styles.card}
+                    testID={`card-text-${i}`}
+                  >
+                    <Text style={styles.cardTitle}>{c.title}</Text>
+                    {c.subtitle ? <Text style={styles.cardSub}>{c.subtitle}</Text> : null}
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
         ),
@@ -84,7 +107,12 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     gap: 2,
   },
-  cardIcon: { fontSize: 22 },
+  imageCard: {
+    flexGrow: 1,
+    flexBasis: '47%',
+    borderRadius: theme.radius.md,
+    overflow: 'hidden',
+  },
   cardTitle: { ...theme.typography.body, color: theme.colors.inkStrong, fontWeight: '700' },
   cardSub: { ...theme.typography.caption, color: theme.colors.muted },
 });

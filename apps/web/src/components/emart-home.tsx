@@ -10,6 +10,8 @@ import { getHomeSections, resolveHomeSections } from '@/lib/home-sections';
 import { getCategoriesCached } from '@/lib/server-catalogue';
 import { OfferRows } from '@/components/offer-rows';
 import { PromoTiles } from '@/components/promo-tiles';
+import { WhyGrid } from '@/components/why-grid';
+import { InfoCards } from '@/components/info-cards';
 import { sanitizeHomeSections, DEFAULT_SECTIONS, visibleHomeLayout } from '@belzo/shared';
 
 /**
@@ -148,19 +150,7 @@ export async function EmartHome() {
                     <h2>{b.title}</h2>
                   </div>
                 )}
-                <div className="em-block__cards">
-                  {b.cards.map((c, ci) => (
-                    <Link key={ci} href={c.href} className="em-cardlet">
-                      {c.icon && (
-                        <span className="em-cardlet__icon" aria-hidden="true">
-                          {c.icon}
-                        </span>
-                      )}
-                      <strong>{c.title}</strong>
-                      {c.subtitle && <span>{c.subtitle}</span>}
-                    </Link>
-                  ))}
-                </div>
+                <InfoCards cards={b.cards} />
               </>
             )}
           </section>
@@ -197,20 +187,7 @@ export async function EmartHome() {
         ) : null;
 
       case 'why':
-        return home.why.length > 0 ? (
-          <section className="em-why" data-testid="emart-why">
-            <h2>Why Choose Belzo E Mart?</h2>
-            <div className="em-why__grid">
-              {home.why.map((f, i) => (
-                <div key={i} className="em-why__item">
-                  <span className="em-why__icon">{f.icon}</span>
-                  <strong>{f.title}</strong>
-                  <span>{f.sub}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null;
+        return home.why.length > 0 ? <WhyGrid items={home.why} /> : null;
 
       default:
         return null;

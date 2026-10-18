@@ -237,18 +237,24 @@ export const promoContentSchema = z.object({
 export type PromoContent = z.infer<typeof promoContentSchema>;
 
 export const whyItemSchema = z.object({
-  icon: z.string().trim().max(8).default('⭐'),
+  /** Not shown any more (no icons); kept so saved content stays valid. */
+  icon: z.string().trim().max(8).default(''),
   title: z.string().trim().min(1).max(80),
   sub: z.string().trim().max(120).default(''),
+  /** A picture that fills the whole card; the title is then only its description. '' = a text card. */
+  imageUrl: safeHrefSchema.default(''),
 });
 export type WhyItem = z.infer<typeof whyItemSchema>;
 
 /** Repeatable info card inside a 'cards' block. */
 export const homeBlockCardSchema = z.object({
+  /** Not shown any more (no icons); kept so saved content stays valid. */
   icon: z.string().trim().max(8).default(''),
   title: z.string().trim().min(1).max(80),
   subtitle: z.string().trim().max(160).default(''),
   href: safeHrefSchema.default('#'),
+  /** A picture that fills the whole card; the title is then only its description. '' = a text card. */
+  imageUrl: safeHrefSchema.default(''),
 });
 export type HomeBlockCard = z.infer<typeof homeBlockCardSchema>;
 

@@ -80,11 +80,11 @@ export const DEFAULT_HOME_EMART: HomeContent = {
     },
   ],
   why: [
-    { icon: '🚚', title: 'Fast & Reliable Delivery', sub: 'On time, every time' },
-    { icon: '🛡️', title: '100% Genuine Products', sub: 'Authentic & trusted' },
-    { icon: '💳', title: 'Multiple Payment Options', sub: 'UPI, cards & COD' },
-    { icon: '🎧', title: 'Dedicated Customer Support', sub: 'We\u2019re here to help' },
-    { icon: '🥬', title: 'Fresh & Quality Products', sub: 'Farm-fresh, hand-picked' },
+    { icon: '', imageUrl: '', title: 'Fast & Reliable Delivery', sub: 'On time, every time' },
+    { icon: '', imageUrl: '', title: '100% Genuine Products', sub: 'Authentic & trusted' },
+    { icon: '', imageUrl: '', title: 'Multiple Payment Options', sub: 'UPI, cards & COD' },
+    { icon: '', imageUrl: '', title: 'Dedicated Customer Support', sub: 'We\u2019re here to help' },
+    { icon: '', imageUrl: '', title: 'Fresh & Quality Products', sub: 'Farm-fresh, hand-picked' },
   ],
   blocks: [],
 };
@@ -133,10 +133,17 @@ export function mergeHome(theme: ThemeName, stored?: Partial<HomeContent> | null
 }
 
 /**
- * The picture of a promo tile, or null when the tile is a coloured text tile. Empty and the
- * "no link" placeholder ('#') both mean "no picture".
+ * The picture of a home tile (promo tile, "why choose us" point or info card), or null when it is
+ * a plain text tile. Empty and the "no link" placeholder ('#') both mean "no picture".
  */
-export function promoImage(promo: { imageUrl?: string | null }): string | null {
-  const url = (promo.imageUrl ?? '').trim();
+export function tileImage(tile: { imageUrl?: string | null }): string | null {
+  const url = (tile.imageUrl ?? '').trim();
   return url === '' || url === '#' ? null : url;
 }
+
+/** Same as {@link tileImage}, for promo tiles. */
+export const promoImage = tileImage;
+
+/** Recommended size of every home tile picture (all tiles are about 16:7). */
+export const TILE_IMAGE_SIZE = '800 × 350 px';
+export const TILE_IMAGE_ASPECT = 16 / 7;

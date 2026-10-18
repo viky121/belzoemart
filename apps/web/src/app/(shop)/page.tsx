@@ -11,7 +11,7 @@ import { isUsableImageUrl } from '@/lib/category-theme';
 import { EmartHome } from '@/components/emart-home';
 import { OfferRows } from '@/components/offer-rows';
 import { getCategoriesCached } from '@/lib/server-catalogue';
-import { offerRowsAt, promoImage, type ProductCardDto } from '@belzo/shared';
+import { offerRowsAt, promoImage, tileImage, type ProductCardDto } from '@belzo/shared';
 
 /** Map a managed promo colour to the classic tile's gradient so the classic
  *  look is preserved while the content is admin-managed. */
@@ -182,17 +182,22 @@ export default async function HomePage() {
             <>
               {b.title && <h2 className="home-block__head">{b.title}</h2>}
               <div className="promo-grid">
-                {b.cards.map((c, ci) => (
-                  <Link key={ci} href={c.href} className="promo-tile">
-                    <div>
-                      <h3>
-                        {c.icon ? `${c.icon} ` : ''}
-                        {c.title}
-                      </h3>
-                      {c.subtitle && <p>{c.subtitle}</p>}
-                    </div>
-                  </Link>
-                ))}
+                {b.cards.map((c, ci) => {
+                  const image = tileImage(c);
+                  return image ? (
+                    <Link key={ci} href={c.href} className="promo-tile promo-tile--img">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={image} alt={c.title} loading="lazy" />
+                    </Link>
+                  ) : (
+                    <Link key={ci} href={c.href} className="promo-tile">
+                      <div>
+                        <h3>{c.title}</h3>
+                        {c.subtitle && <p>{c.subtitle}</p>}
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             </>
           )}

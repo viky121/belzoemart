@@ -8,6 +8,8 @@ import {
   MOBILE_OFFER_SIZE_HINT,
   PROMO_COLORS,
   promoImage,
+  tileImage,
+  TILE_IMAGE_SIZE,
   type HomeBlock,
   type HomeBlockCard,
   type HomeSection,
@@ -24,8 +26,34 @@ import { ImageDrop } from '../settings/image-drop';
 import { SectionRow, type ProdRow } from '../settings/home-sections-editor';
 import { LIMITS } from './home-design';
 
-/** Recommended size of a promo-tile picture (the tile is about 16:7). */
-export const PROMO_IMAGE_SIZE = '800 × 350 px';
+/** Recommended size of a tile picture (every home tile is about 16:7). */
+export const PROMO_IMAGE_SIZE = TILE_IMAGE_SIZE;
+
+/** Picture upload for a card-like section: the picture fills the whole card. */
+function TilePicture({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const image = tileImage({ imageUrl: value });
+  return (
+    <>
+      <ImageDrop
+        value={image ?? ''}
+        onChange={onChange}
+        label={`Picture (${TILE_IMAGE_SIZE}, optional)`}
+        previewHeight={110}
+      />
+      {image && (
+        <>
+          <span className="prod-form__hint">
+            The picture fills the whole card. The text below is only its description for screen readers, so it is not
+            shown on top of the picture.
+          </span>
+          <button type="button" className="wiz__vdel" onClick={() => onChange('')}>
+            Remove picture (use a text card instead)
+          </button>
+        </>
+      )}
+    </>
+  );
+}
 
 const POSITION_LABEL: Record<MobileOfferPosition, string> = {
   after_hero: 'Right below the main banner',
@@ -182,33 +210,39 @@ export function BlockEditor({
         style={{ maxWidth: 420 }}
       />
       {block.cards.length === 0 && <p className="prod-form__hint">No cards yet. Add the first one.</p>}
-      {block.cards.map((c, i) => (
-        <div className="ce-promo" key={i}>
-          <div className="prod-grid">
-            <div>
-              <label className="auth-label">Icon (an emoji)</label>
-              <input className="auth-input" maxLength={8} value={c.icon} onChange={(e) => updateCard(i, { icon: e.target.value })} />
+      <p className="prod-form__hint">
+        Each card is either a <strong>picture</strong> (it fills the whole card) or a <strong>text card</strong>.
+        Pictures look best at <strong>{TILE_IMAGE_SIZE}</strong>.
+      </p>
+      {block.cards.map((c, i) => {
+        const image = tileImage(c);
+        return (
+          <div className="ce-promo" key={i} data-testid={`card-editor-${i}`}>
+            <TilePicture value={c.imageUrl} onChange={(imageUrl) => updateCard(i, { imageUrl })} />
+            <div className="prod-grid">
+              <div>
+                <label className="auth-label">{image ? 'Description of the picture' : 'Title'}</label>
+                <input className="auth-input" maxLength={80} value={c.title} onChange={(e) => updateCard(i, { title: e.target.value })} />
+              </div>
+              {!image && (
+                <div>
+                  <label className="auth-label">Small text</label>
+                  <input className="auth-input" maxLength={160} value={c.subtitle} onChange={(e) => updateCard(i, { subtitle: e.target.value })} />
+                </div>
+              )}
             </div>
-            <div>
-              <label className="auth-label">Title</label>
-              <input className="auth-input" maxLength={80} value={c.title} onChange={(e) => updateCard(i, { title: e.target.value })} />
-            </div>
-            <div>
-              <label className="auth-label">Small text</label>
-              <input className="auth-input" maxLength={160} value={c.subtitle} onChange={(e) => updateCard(i, { subtitle: e.target.value })} />
-            </div>
+            <LinkField value={c.href} onChange={(v) => updateCard(i, { href: v })} categories={categories} />
+            <button type="button" className="wiz__vdel" aria-label="Remove card" onClick={() => setCards(block.cards.filter((_, j) => j !== i))}>
+              ✕ Remove card
+            </button>
           </div>
-          <LinkField value={c.href} onChange={(v) => updateCard(i, { href: v })} categories={categories} />
-          <button type="button" className="wiz__vdel" aria-label="Remove card" onClick={() => setCards(block.cards.filter((_, j) => j !== i))}>
-            ✕ Remove card
-          </button>
-        </div>
-      ))}
+        );
+      })}
       <button
         type="button"
         className="wiz__addvar"
         disabled={block.cards.length >= LIMITS.cards}
-        onClick={() => setCards([...block.cards, { icon: '', title: 'New card', subtitle: '', href: '#' }])}
+        onClick={() => setCards([...block.cards, { icon: '', title: 'New card', subtitle: '', href: '#', imageUrl: '' }])}
       >
         + Add card {block.cards.length >= LIMITS.cards ? `(max ${LIMITS.cards})` : ''}
       </button>
@@ -321,21 +355,26 @@ export function WhyEditor({ items, onChange }: { items: WhyItem[]; onChange: (ne
     onChange(items.map((w, j) => (j === i ? { ...w, ...patch } : w)));
   return (
     <div className="hd-fields">
-      {items.map((w, i) => (
-        <div className="ce-promo" key={i}>
+      <p className="prod-form__hint">
+        Each point is either a <strong>picture</strong> (it fills the whole card) or a <strong>text point</strong>.
+        Pictures look best at <strong>{TILE_IMAGE_SIZE}</strong>.
+      </p>
+      {items.map((w, i) => {
+        const image = tileImage(w);
+        return (
+        <div className="ce-promo" key={i} data-testid={`why-editor-${i}`}>
+          <TilePicture value={w.imageUrl} onChange={(imageUrl) => update(i, { imageUrl })} />
           <div className="prod-grid">
             <div>
-              <label className="auth-label">Icon (an emoji)</label>
-              <input className="auth-input" maxLength={8} value={w.icon} onChange={(e) => update(i, { icon: e.target.value })} />
-            </div>
-            <div>
-              <label className="auth-label">Title</label>
+              <label className="auth-label">{image ? 'Description of the picture' : 'Title'}</label>
               <input className="auth-input" maxLength={80} value={w.title} onChange={(e) => update(i, { title: e.target.value })} />
             </div>
-            <div>
-              <label className="auth-label">Small text</label>
-              <input className="auth-input" maxLength={120} value={w.sub} onChange={(e) => update(i, { sub: e.target.value })} />
-            </div>
+            {!image && (
+              <div>
+                <label className="auth-label">Small text</label>
+                <input className="auth-input" maxLength={120} value={w.sub} onChange={(e) => update(i, { sub: e.target.value })} />
+              </div>
+            )}
           </div>
           <button
             type="button"
@@ -347,12 +386,13 @@ export function WhyEditor({ items, onChange }: { items: WhyItem[]; onChange: (ne
             ✕ Remove point
           </button>
         </div>
-      ))}
+        );
+      })}
       <button
         type="button"
         className="wiz__addvar"
         disabled={items.length >= LIMITS.why}
-        onClick={() => onChange([...items, { icon: '⭐', title: 'New point', sub: '' }])}
+        onClick={() => onChange([...items, { icon: '', title: 'New point', sub: '', imageUrl: '' }])}
       >
         + Add point {items.length >= LIMITS.why ? `(max ${LIMITS.why})` : ''}
       </button>
