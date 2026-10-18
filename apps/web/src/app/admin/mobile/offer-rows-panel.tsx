@@ -73,8 +73,9 @@ export function OfferRowsPanel({
   return (
     <div>
       <p className="prod-form__hint">
-        Add extra offer banners to the app home. Each row has its own layout: pick 1, 2 or 3 banners per row and where it
-        appears. Add as many rows as you like.
+        Add extra offer banners to the home screen of the <strong>app and the website</strong>. Each row has its own
+        layout: pick 1, 2 or 3 banners per row and where it appears. For two banners side by side choose “2 per row”;
+        for two lines of offers add two rows. Add as many rows as you like.
       </p>
       {rows.map((r, i) => (
         <div className="ce-promo mh-row" key={r.id} data-testid={`mh-row-${i}`}>

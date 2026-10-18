@@ -8,6 +8,8 @@ import { iconFor, isUsableImageUrl } from '@/lib/category-theme';
 import { getSiteContent } from '@/lib/site-content';
 import { getHomeSections, resolveHomeSections } from '@/lib/home-sections';
 import { getCategoriesCached } from '@/lib/server-catalogue';
+import { OfferRows } from '@/components/offer-rows';
+import { offerRowsAt } from '@belzo/shared';
 
 /** Soft pastel promo cards (themed heading + "Shop Now" pill), as per mockup. */
 const PROMO_BG: Record<string, string> = {
@@ -21,7 +23,7 @@ const PROMO_BG: Record<string, string> = {
 export async function EmartHome() {
   // Independent reads run concurrently (categories/brands/banners don't depend
   // on settings); home sections resolve afterwards since they need `sections`.
-  const [{ home, sections }, categories, brands, banners] = await Promise.all([
+  const [{ home, sections, offerRows }, categories, brands, banners] = await Promise.all([
     getSiteContent(),
     getCategoriesCached(),
     catalogueApi.brands().catch(() => []),
@@ -71,6 +73,8 @@ export async function EmartHome() {
         </section>
       )}
 
+      {/* Offer banners: right below the main banner */}
+      <OfferRows rows={offerRowsAt(offerRows, 'after_hero')} />
       {/* Shop by Category */}
       {categories.length > 0 && (
         <section className="em-section">
@@ -102,6 +106,8 @@ export async function EmartHome() {
         </section>
       )}
 
+      {/* Offer banners: below the category circles */}
+      <OfferRows rows={offerRowsAt(offerRows, 'after_categories')} />
       {/* Promo banners */}
       <section className="em-promos" data-testid="emart-promos">
         {promos.map((p, i) => (
@@ -177,6 +183,8 @@ export async function EmartHome() {
         </section>
       ))}
 
+      {/* Offer banners: below Deals of the Day and the other product sections */}
+      <OfferRows rows={offerRowsAt(offerRows, 'after_deals')} />
       {/* Top Brands */}
       {brands.length > 0 && (
         <section className="em-section">

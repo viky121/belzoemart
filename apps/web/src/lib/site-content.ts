@@ -1,7 +1,14 @@
 import { apiFetch } from './api-client';
 import { requestCache } from './request-cache';
 import type { HomeContent, HeroContent, PromoContent, WhyItem, HomeBlock } from '@belzo/shared';
-import { DEFAULT_HOME_CLASSIC, DEFAULT_HOME_EMART, mergeHome, type ThemeName } from '@belzo/shared';
+import {
+  DEFAULT_HOME_CLASSIC,
+  DEFAULT_HOME_EMART,
+  mergeHome,
+  sanitizeMobileHome,
+  type MobileOfferRow,
+  type ThemeName,
+} from '@belzo/shared';
 
 export { DEFAULT_HOME_CLASSIC, DEFAULT_HOME_EMART, mergeHome, type ThemeName };
 
@@ -43,6 +50,8 @@ export interface SiteContent {
   footer: FooterContent;
   /** Raw home-section config from the API (sanitized/validated by the resolver). */
   sections: unknown;
+  /** Admin-managed offer-banner rows (Admin → Mobile app → Offer rows), shown on the home page. */
+  offerRows: MobileOfferRow[];
 }
 
 interface RawPublicSettings {
@@ -50,6 +59,8 @@ interface RawPublicSettings {
   home?: Partial<HomeContent> | null;
   footer?: Partial<FooterContent> | null;
   sections?: unknown;
+  /** Shared with the mobile app: its offer rows are also shown on the website home. */
+  mobileHome?: unknown;
 }
 
 /**
@@ -72,8 +83,15 @@ export async function getSiteContent(): Promise<SiteContent> {
       home: mergeHome(theme, s.home),
       footer: { ...DEFAULT_FOOTER, ...(s.footer ?? {}) },
       sections: s.sections ?? null,
+      offerRows: sanitizeMobileHome(s.mobileHome).offerRows,
     };
   } catch {
-    return { theme: 'classic', home: DEFAULT_HOME_CLASSIC, footer: DEFAULT_FOOTER, sections: null };
+    return {
+      theme: 'classic',
+      home: DEFAULT_HOME_CLASSIC,
+      footer: DEFAULT_FOOTER,
+      sections: null,
+      offerRows: [],
+    };
   }
 }

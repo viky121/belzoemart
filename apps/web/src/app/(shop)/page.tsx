@@ -9,8 +9,9 @@ import { getSiteContent, type PromoContent } from '@/lib/site-content';
 import { getHomeSections, resolveHomeSections } from '@/lib/home-sections';
 import { isUsableImageUrl } from '@/lib/category-theme';
 import { EmartHome } from '@/components/emart-home';
+import { OfferRows } from '@/components/offer-rows';
 import { getCategoriesCached } from '@/lib/server-catalogue';
-import type { ProductCardDto } from '@belzo/shared';
+import { offerRowsAt, type ProductCardDto } from '@belzo/shared';
 
 /** Map a managed promo colour to the classic tile's gradient so the classic
  *  look is preserved while the content is admin-managed. */
@@ -30,7 +31,7 @@ const EMPTY: Paginated<ProductCardDto> = { items: [], total: 0, page: 1, pageSiz
 export default async function HomePage() {
   if ((await getTheme()) === 'emart') return <EmartHome />;
 
-  const [categories, banners, { home, sections }] = await Promise.all([
+  const [categories, banners, { home, sections, offerRows }] = await Promise.all([
     getCategoriesCached(),
     contentApi.banners('home_hero').catch(() => []),
     getSiteContent(),
@@ -95,6 +96,9 @@ export default async function HomePage() {
         <HeroCarousel slides={heroSlides} />
       </div>
 
+      {/* Offer banners: right below the main banner */}
+      <OfferRows rows={offerRowsAt(offerRows, 'after_hero')} />
+
       {/* Admin-managed home sections (shared config, both themes) */}
       {resolvedSections.map((s) => (
         <ProductRail
@@ -105,6 +109,9 @@ export default async function HomePage() {
           testId={`home-section-${s.id}`}
         />
       ))}
+
+      {/* Offer banners: below Deals of the Day and the other product sections */}
+      <OfferRows rows={offerRowsAt(offerRows, 'after_deals')} />
 
       {/* Per-category rails */}
       {categories.map((c, i) => (
@@ -124,6 +131,8 @@ export default async function HomePage() {
         />
       ))}
 
+      {/* Offer banners: after the category rails (the classic home has no category circles) */}
+      <OfferRows rows={offerRowsAt(offerRows, 'after_categories')} />
       {/* Promo banner grid — admin-managed per-theme content */}
       <section className="home__section promo-grid" data-testid="home-promos">
         {home.promos.map((p, i) => (
