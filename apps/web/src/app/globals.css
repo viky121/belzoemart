@@ -1444,6 +1444,25 @@ nav.main a:hover {
   .hero__slide {
     padding: 0 28px;
   }
+  /* Phones/tablets: a picture banner keeps its own shape (5:2, the size the admin recommends)
+     so the artwork is not cropped on a narrow screen. Text slides stay at least 200px tall. */
+  .hero__slide {
+    height: auto;
+    min-height: 200px;
+  }
+  .hero__slide--image {
+    min-height: 0;
+    aspect-ratio: 5 / 2;
+  }
+  .hero__arrow {
+    width: 28px;
+    height: 44px;
+    font-size: 1.1rem;
+    background: rgba(255, 255, 255, 0.75);
+  }
+  .hero__dots {
+    bottom: 8px;
+  }
   .hero__slide h1 {
     font-size: 1.5rem;
   }
