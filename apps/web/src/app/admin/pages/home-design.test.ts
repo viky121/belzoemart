@@ -32,7 +32,7 @@ function base(): DesignState {
     },
   ];
   const blocks = [{ type: 'cards' as const, id: 'k1', title: 'Info', cards: [], enabled: true }];
-  const promos = [{ title: 'Promo', subtitle: '', cta: 'Go', href: '/', icon: '🛒', color: 'green' as const }];
+  const promos = [{ title: 'Promo', subtitle: '', cta: 'Go', href: '/', icon: '', imageUrl: '', color: 'green' as const }];
   const why = [{ icon: '⭐', title: 'Fast', sub: '' }];
   const layout = resolveHomeLayout(null, { offerRows, sections: productSections, blocks });
   return { layout, productSections, offerRows, blocks, promos, why };

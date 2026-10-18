@@ -33,7 +33,7 @@ describe('site-content — mergeHome', () => {
   });
 
   it('uses stored promos when present', () => {
-    const promos = [{ title: 'Custom', subtitle: '', cta: 'Go', href: '/x', icon: '⭐', color: 'blue' as const }];
+    const promos = [{ title: 'Custom', subtitle: '', cta: 'Go', href: '/x', icon: '', imageUrl: '', color: 'blue' as const }];
     const merged = mergeHome('classic', { promos });
     expect(merged.promos).toEqual(promos);
   });
@@ -46,12 +46,12 @@ describe('site-content — mergeHome', () => {
 });
 
 describe('site-content — DEFAULT_HOME_CLASSIC', () => {
-  it('reproduces today’s exact 4 classic promo tiles', () => {
+  it('reproduces today’s 4 classic promo tiles (text only, no icons)', () => {
     expect(DEFAULT_HOME_CLASSIC.promos).toEqual([
-      { title: 'Top Electronics', subtitle: 'Earbuds, chargers & more', cta: 'Grab now', href: '/category/electronics', icon: '📱', color: 'blue' },
-      { title: 'Fashion Fiesta', subtitle: 'Trending apparel picks', cta: 'Explore', href: '/category/apparel', icon: '👗', color: 'pink' },
-      { title: 'Daily Grocery', subtitle: 'Stock up & save', cta: 'Shop', href: '/category/grocery', icon: '🛒', color: 'green' },
-      { title: 'Artisan Handicrafts', subtitle: 'Handmade, Made in India', cta: 'Discover', href: '/category/handicraft', icon: '🎨', color: 'amber' },
+      { title: 'Top Electronics', subtitle: 'Earbuds, chargers & more', cta: 'Grab now', href: '/category/electronics', icon: '', imageUrl: '', color: 'blue' },
+      { title: 'Fashion Fiesta', subtitle: 'Trending apparel picks', cta: 'Explore', href: '/category/apparel', icon: '', imageUrl: '', color: 'pink' },
+      { title: 'Daily Grocery', subtitle: 'Stock up & save', cta: 'Shop', href: '/category/grocery', icon: '', imageUrl: '', color: 'green' },
+      { title: 'Artisan Handicrafts', subtitle: 'Handmade, Made in India', cta: 'Discover', href: '/category/handicraft', icon: '', imageUrl: '', color: 'amber' },
     ]);
   });
 });

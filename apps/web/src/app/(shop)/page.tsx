@@ -11,7 +11,7 @@ import { isUsableImageUrl } from '@/lib/category-theme';
 import { EmartHome } from '@/components/emart-home';
 import { OfferRows } from '@/components/offer-rows';
 import { getCategoriesCached } from '@/lib/server-catalogue';
-import { offerRowsAt, type ProductCardDto } from '@belzo/shared';
+import { offerRowsAt, promoImage, type ProductCardDto } from '@belzo/shared';
 
 /** Map a managed promo colour to the classic tile's gradient so the classic
  *  look is preserved while the content is admin-managed. */
@@ -135,20 +135,28 @@ export default async function HomePage() {
       <OfferRows rows={offerRowsAt(offerRows, 'after_categories')} />
       {/* Promo banner grid — admin-managed per-theme content */}
       <section className="home__section promo-grid" data-testid="home-promos">
-        {home.promos.map((p, i) => (
-          <Link
-            key={i}
-            href={p.href}
-            className="promo-tile"
-            style={{ background: CLASSIC_PROMO_GRADIENT[p.color] }}
-          >
-            <div>
-              <h3>{p.title}</h3>
-              <p>{p.subtitle}</p>
-            </div>
-            <span>{p.cta} →</span>
-          </Link>
-        ))}
+        {home.promos.map((p, i) => {
+          const image = promoImage(p);
+          return image ? (
+            <Link key={i} href={p.href} className="promo-tile promo-tile--img">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={image} alt={p.title} loading="lazy" />
+            </Link>
+          ) : (
+            <Link
+              key={i}
+              href={p.href}
+              className="promo-tile"
+              style={{ background: CLASSIC_PROMO_GRADIENT[p.color] }}
+            >
+              <div>
+                <h3>{p.title}</h3>
+                <p>{p.subtitle}</p>
+              </div>
+              <span>{p.cta} →</span>
+            </Link>
+          );
+        })}
       </section>
 
       {/* Admin-managed custom detail blocks (theme-scoped content) */}

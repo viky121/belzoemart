@@ -225,8 +225,14 @@ export const promoContentSchema = z.object({
   subtitle: z.string().trim().max(160).default(''),
   cta: z.string().trim().max(60).default('Shop Now'),
   href: safeHrefSchema.default('/search'),
-  icon: z.string().trim().max(8).default('🛒'), // single emoji/char
+  /** Not shown any more (tiles carry no icon); kept so saved content stays valid. */
+  icon: z.string().trim().max(8).default(''),
   color: z.enum(PROMO_COLORS).default('green'),
+  /**
+   * A picture that fills the whole tile (the website and app then show just the picture, with the
+   * title as its description). '' = a coloured text tile.
+   */
+  imageUrl: safeHrefSchema.default(''),
 });
 export type PromoContent = z.infer<typeof promoContentSchema>;
 

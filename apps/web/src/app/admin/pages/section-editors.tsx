@@ -7,6 +7,7 @@ import {
   MOBILE_OFFER_POSITIONS,
   MOBILE_OFFER_SIZE_HINT,
   PROMO_COLORS,
+  promoImage,
   type HomeBlock,
   type HomeBlockCard,
   type HomeSection,
@@ -22,6 +23,9 @@ import { LinkField, type LinkCategory } from '../mobile/link-field';
 import { ImageDrop } from '../settings/image-drop';
 import { SectionRow, type ProdRow } from '../settings/home-sections-editor';
 import { LIMITS } from './home-design';
+
+/** Recommended size of a promo-tile picture (the tile is about 16:7). */
+export const PROMO_IMAGE_SIZE = '800 × 350 px';
 
 const POSITION_LABEL: Record<MobileOfferPosition, string> = {
   after_hero: 'Right below the main banner',
@@ -227,54 +231,82 @@ export function PromosEditor({
     onChange(promos.map((p, j) => (j === i ? { ...p, ...patch } : p)));
   return (
     <div className="hd-fields">
-      {promos.map((p, i) => (
-        <div className="ce-promo" key={i}>
-          <div className="prod-grid">
-            <div>
-              <label className="auth-label">Title</label>
-              <input className="auth-input" maxLength={120} value={p.title} onChange={(e) => update(i, { title: e.target.value })} />
+      <p className="prod-form__hint">
+        Each tile is either a <strong>picture</strong> (upload a banner image and it fills the whole tile) or a{' '}
+        <strong>coloured text tile</strong> (title, small text and a button). Pictures look best at{' '}
+        <strong>{PROMO_IMAGE_SIZE}</strong>.
+      </p>
+      {promos.map((p, i) => {
+        const image = promoImage(p);
+        return (
+          <div className="ce-promo" key={i} data-testid={`promo-editor-${i}`}>
+            <ImageDrop
+              value={image ?? ''}
+              onChange={(url) => update(i, { imageUrl: url })}
+              label={`Tile picture (${PROMO_IMAGE_SIZE})`}
+              previewHeight={110}
+            />
+            {image && (
+              <>
+                <span className="prod-form__hint">
+                  The picture fills the tile. The title below is only its description for screen readers and search
+                  engines, so it is not shown on top of the picture.
+                </span>
+                <button type="button" className="wiz__vdel" onClick={() => update(i, { imageUrl: '' })}>
+                  Remove picture (use a text tile instead)
+                </button>
+              </>
+            )}
+            <div className="prod-grid">
+              <div>
+                <label className="auth-label">{image ? 'Description of the picture' : 'Title'}</label>
+                <input className="auth-input" maxLength={120} value={p.title} onChange={(e) => update(i, { title: e.target.value })} />
+              </div>
+              {!image && (
+                <>
+                  <div>
+                    <label className="auth-label">Small text</label>
+                    <input className="auth-input" maxLength={160} value={p.subtitle} onChange={(e) => update(i, { subtitle: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="auth-label">Button text</label>
+                    <input className="auth-input" maxLength={60} value={p.cta} onChange={(e) => update(i, { cta: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="auth-label">Colour</label>
+                    <select className="auth-input" value={p.color} onChange={(e) => update(i, { color: e.target.value as PromoContent['color'] })}>
+                      {PROMO_COLORS.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
-            <div>
-              <label className="auth-label">Small text</label>
-              <input className="auth-input" maxLength={160} value={p.subtitle} onChange={(e) => update(i, { subtitle: e.target.value })} />
-            </div>
-            <div>
-              <label className="auth-label">Button text</label>
-              <input className="auth-input" maxLength={60} value={p.cta} onChange={(e) => update(i, { cta: e.target.value })} />
-            </div>
-            <div>
-              <label className="auth-label">Icon (an emoji)</label>
-              <input className="auth-input" maxLength={8} value={p.icon} onChange={(e) => update(i, { icon: e.target.value })} />
-            </div>
-            <div>
-              <label className="auth-label">Colour</label>
-              <select className="auth-input" value={p.color} onChange={(e) => update(i, { color: e.target.value as PromoContent['color'] })}>
-                {PROMO_COLORS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <LinkField value={p.href} onChange={(v) => update(i, { href: v })} categories={categories} />
+            <button
+              type="button"
+              className="wiz__vdel"
+              disabled={promos.length <= 1}
+              aria-label="Remove tile"
+              onClick={() => onChange(promos.filter((_, j) => j !== i))}
+            >
+              ✕ Remove tile
+            </button>
           </div>
-          <LinkField value={p.href} onChange={(v) => update(i, { href: v })} categories={categories} />
-          <button
-            type="button"
-            className="wiz__vdel"
-            disabled={promos.length <= 1}
-            aria-label="Remove tile"
-            onClick={() => onChange(promos.filter((_, j) => j !== i))}
-          >
-            ✕ Remove tile
-          </button>
-        </div>
-      ))}
+        );
+      })}
       <button
         type="button"
         className="wiz__addvar"
         disabled={promos.length >= LIMITS.promos}
         onClick={() =>
-          onChange([...promos, { title: 'New tile', subtitle: '', cta: 'Shop Now', href: '/search', icon: '🛒', color: 'green' }])
+          onChange([
+            ...promos,
+            { title: 'New tile', subtitle: '', cta: 'Shop Now', href: '/search', icon: '', color: 'green', imageUrl: '' },
+          ])
         }
       >
         + Add tile {promos.length >= LIMITS.promos ? `(max ${LIMITS.promos})` : ''}

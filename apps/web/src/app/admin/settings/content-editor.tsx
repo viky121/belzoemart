@@ -93,7 +93,7 @@ export function ContentEditor() {
   const addPromo = () =>
     setHome((h) => ({
       ...h,
-      promos: [...h.promos, { title: '', subtitle: '', cta: 'Shop Now', href: '/search', icon: '🛒', color: 'green' }],
+      promos: [...h.promos, { title: '', subtitle: '', cta: 'Shop Now', href: '/search', icon: '', imageUrl: '', color: 'green' }],
     }));
   const removePromo = (i: number) =>
     setHome((h) => ({ ...h, promos: h.promos.filter((_, j) => j !== i) }));
@@ -258,8 +258,12 @@ export function ContentEditor() {
                 <input className="auth-input" value={p.href} onChange={(e) => setPromo(i, { href: e.target.value })} />
               </div>
               <div>
-                <label className="auth-label">Icon (emoji)</label>
-                <input className="auth-input" value={p.icon} onChange={(e) => setPromo(i, { icon: e.target.value })} />
+                <ImageDrop
+                  value={p.imageUrl === '#' ? '' : p.imageUrl}
+                  onChange={(url) => setPromo(i, { imageUrl: url })}
+                  label="Tile picture (800 × 350 px, optional: fills the whole tile)"
+                  previewHeight={80}
+                />
               </div>
               <div>
                 <label className="auth-label">Colour</label>

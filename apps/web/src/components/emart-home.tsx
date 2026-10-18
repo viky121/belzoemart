@@ -9,15 +9,8 @@ import { getSiteContent } from '@/lib/site-content';
 import { getHomeSections, resolveHomeSections } from '@/lib/home-sections';
 import { getCategoriesCached } from '@/lib/server-catalogue';
 import { OfferRows } from '@/components/offer-rows';
+import { PromoTiles } from '@/components/promo-tiles';
 import { sanitizeHomeSections, DEFAULT_SECTIONS, visibleHomeLayout } from '@belzo/shared';
-
-/** Soft pastel promo cards (themed heading + "Shop Now" pill), as per mockup. */
-const PROMO_BG: Record<string, string> = {
-  green: 'linear-gradient(135deg, #e9f9ef 0%, #d7f3e1 100%)',
-  pink: 'linear-gradient(135deg, #fdeaf3 0%, #fbd9e8 100%)',
-  blue: 'linear-gradient(135deg, #eaf4ff 0%, #dcebfd 100%)',
-  amber: 'linear-gradient(135deg, #fff3e0 0%, #ffe8cc 100%)',
-};
 
 /**
  * eMart theme storefront home: grocery/FMCG look — content is admin-editable, and the
@@ -47,7 +40,6 @@ export async function EmartHome() {
   const resolvedById = new Map(resolvedSections.map((s) => [s.id, s]));
 
   const hero = home.hero;
-  const promos = home.promos.map((p) => ({ ...p, background: PROMO_BG[p.color] ?? PROMO_BG.green }));
   const blocksById = new Map(home.blocks.map((b) => [b.id, b]));
   const offerRowsById = new Map(offerRows.map((r) => [r.id, r]));
 
@@ -125,22 +117,7 @@ export async function EmartHome() {
       }
 
       case 'promos':
-        return (
-          <section className="em-promos" data-testid="emart-promos">
-            {promos.map((p, i) => (
-              <Link key={i} href={p.href} className="em-promo" data-accent={p.color} style={{ background: p.background }}>
-                <div className="em-promo__body">
-                  <h3>{p.title}</h3>
-                  <p>{p.subtitle}</p>
-                  <span className="em-promo__cta">{p.cta} →</span>
-                </div>
-                <span className="em-promo__icon" aria-hidden="true">
-                  {p.icon}
-                </span>
-              </Link>
-            ))}
-          </section>
-        );
+        return <PromoTiles promos={home.promos} />;
 
       case 'block': {
         // Admin-managed custom detail blocks (theme-scoped content)

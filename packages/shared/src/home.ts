@@ -56,7 +56,8 @@ export const DEFAULT_HOME_EMART: HomeContent = {
       subtitle: 'From farm to your home',
       cta: 'Shop Now',
       href: '/search',
-      icon: '🥦',
+      icon: '',
+ imageUrl: '',
       color: 'green',
     },
     {
@@ -64,7 +65,8 @@ export const DEFAULT_HOME_EMART: HomeContent = {
       subtitle: 'Look Good • Feel Good',
       cta: 'Shop Now',
       href: '/search',
-      icon: '🧴',
+      icon: '',
+ imageUrl: '',
       color: 'pink',
     },
     {
@@ -72,7 +74,8 @@ export const DEFAULT_HOME_EMART: HomeContent = {
       subtitle: 'Clean Home • Healthy Family',
       cta: 'Shop Now',
       href: '/search',
-      icon: '🧽',
+      icon: '',
+ imageUrl: '',
       color: 'blue',
     },
   ],
@@ -101,10 +104,10 @@ export const DEFAULT_HOME_CLASSIC: HomeContent = {
     imageUrl: '',
   },
   promos: [
-    { title: 'Top Electronics', subtitle: 'Earbuds, chargers & more', cta: 'Grab now', href: '/category/electronics', icon: '📱', color: 'blue' },
-    { title: 'Fashion Fiesta', subtitle: 'Trending apparel picks', cta: 'Explore', href: '/category/apparel', icon: '👗', color: 'pink' },
-    { title: 'Daily Grocery', subtitle: 'Stock up & save', cta: 'Shop', href: '/category/grocery', icon: '🛒', color: 'green' },
-    { title: 'Artisan Handicrafts', subtitle: 'Handmade, Made in India', cta: 'Discover', href: '/category/handicraft', icon: '🎨', color: 'amber' },
+    { title: 'Top Electronics', subtitle: 'Earbuds, chargers & more', cta: 'Grab now', href: '/category/electronics', icon: '', imageUrl: '', color: 'blue' },
+    { title: 'Fashion Fiesta', subtitle: 'Trending apparel picks', cta: 'Explore', href: '/category/apparel', icon: '', imageUrl: '', color: 'pink' },
+    { title: 'Daily Grocery', subtitle: 'Stock up & save', cta: 'Shop', href: '/category/grocery', icon: '', imageUrl: '', color: 'green' },
+    { title: 'Artisan Handicrafts', subtitle: 'Handmade, Made in India', cta: 'Discover', href: '/category/handicraft', icon: '', imageUrl: '', color: 'amber' },
   ],
   why: [],
   blocks: [],
@@ -127,4 +130,13 @@ export function mergeHome(theme: ThemeName, stored?: Partial<HomeContent> | null
     why: stored.why && stored.why.length > 0 ? stored.why : d.why,
     blocks: stored.blocks ?? d.blocks,
   };
+}
+
+/**
+ * The picture of a promo tile, or null when the tile is a coloured text tile. Empty and the
+ * "no link" placeholder ('#') both mean "no picture".
+ */
+export function promoImage(promo: { imageUrl?: string | null }): string | null {
+  const url = (promo.imageUrl ?? '').trim();
+  return url === '' || url === '#' ? null : url;
 }
