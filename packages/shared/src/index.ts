@@ -18,3 +18,4 @@ export * from './home';
 export * from './festivals';
 export * from './mobile-home';
 export * from './cms-body';
+export * from './home-layout';

@@ -4,7 +4,9 @@ import {
   MOBILE_HOME_KEY,
   homeSectionSchema,
   sanitizeHomeContent,
+  sanitizeHomeLayout,
   sanitizeMobileHome,
+  type HomeLayoutItem,
   type HomeSection,
   type MobileHome,
 } from '@belzo/shared';
@@ -32,14 +34,17 @@ export class PublicSettingsController {
     footer: unknown;
     sections: HomeSection[] | null;
     mobileHome: MobileHome;
+    /** Saved order of the website home sections (empty = the default order). */
+    homeLayout: HomeLayoutItem[];
   }> {
-    const [theme, emartHome, classicHome, footer, sections, mobileHome] = await Promise.all([
+    const [theme, emartHome, classicHome, footer, sections, mobileHome, homeLayout] = await Promise.all([
       this.settings.get<string>('theme'),
       this.settings.get<unknown>('home_content'),
       this.settings.get<unknown>('home_content.classic'),
       this.settings.get<object>('footer_content'),
       this.settings.get<unknown>('home.sections'),
       this.settings.get<unknown>(MOBILE_HOME_KEY),
+      this.settings.get<unknown>('home.layout'),
     ]);
     // Per-section sanitize: drop invalid entries, keep valid ones (with zod
     // defaults applied), cap at 24. Return null only when nothing valid remains
@@ -62,6 +67,7 @@ export class PublicSettingsController {
       sections: valid.length > 0 ? valid : null,
       // Mobile app home config (admin "Mobile" module), sanitized per element.
       mobileHome: sanitizeMobileHome(mobileHome),
+      homeLayout: sanitizeHomeLayout(homeLayout),
     };
   }
 

@@ -52,6 +52,8 @@ export interface SiteContent {
   sections: unknown;
   /** Admin-managed offer-banner rows (Admin → Mobile app → Offer rows), shown on the home page. */
   offerRows: MobileOfferRow[];
+  /** Saved home section order, as served (resolved against the content when rendering). */
+  homeLayout: unknown;
 }
 
 interface RawPublicSettings {
@@ -61,6 +63,8 @@ interface RawPublicSettings {
   sections?: unknown;
   /** Shared with the mobile app: its offer rows are also shown on the website home. */
   mobileHome?: unknown;
+  /** Saved order of the home sections (Admin → Pages → Home page design). */
+  homeLayout?: unknown;
 }
 
 /**
@@ -84,6 +88,7 @@ export async function getSiteContent(): Promise<SiteContent> {
       footer: { ...DEFAULT_FOOTER, ...(s.footer ?? {}) },
       sections: s.sections ?? null,
       offerRows: sanitizeMobileHome(s.mobileHome).offerRows,
+      homeLayout: s.homeLayout ?? null,
     };
   } catch {
     return {
@@ -92,6 +97,7 @@ export async function getSiteContent(): Promise<SiteContent> {
       footer: DEFAULT_FOOTER,
       sections: null,
       offerRows: [],
+      homeLayout: null,
     };
   }
 }

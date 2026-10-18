@@ -6741,3 +6741,9 @@ a.offer-banner:hover {
   .offer-row__grid--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .offer-rows { gap: 14px; margin: 14px 0; }
 }
+
+/* Home sections are wrapped so the page can follow the admin's order; the wrapper must not
+   change the layout (empty ones disappear, full ones behave as if unwrapped). */
+.em-home__slot {
+  display: contents;
+}

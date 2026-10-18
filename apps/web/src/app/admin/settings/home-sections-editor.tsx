@@ -14,7 +14,7 @@ import { DEFAULT_SECTIONS } from '@/lib/home-sections';
 import { safeUuid } from '@/lib/uuid';
 
 /** Admin product row shape (subset of the admin product list we need here). */
-interface ProdRow {
+export interface ProdRow {
   id: string;
   title: string;
   imageUrl: string | null;
@@ -152,22 +152,25 @@ export function HomeSectionsEditor() {
   );
 }
 
-interface SectionRowProps {
-  index: number;
-  total: number;
+export interface SectionRowProps {
+  index?: number;
+  total?: number;
   section: HomeSection;
   categories: { id: string; label: string }[];
   products: ProdRow[];
   onChange: (patch: Partial<HomeSection>) => void;
   onSource: (source: HomeSectionSource) => void;
-  onUp: () => void;
-  onDown: () => void;
-  onDelete: () => void;
+  onUp?: () => void;
+  onDown?: () => void;
+  onDelete?: () => void;
+  /** Hide the enable / move / delete row (the caller supplies its own controls). */
+  compact?: boolean;
 }
 
-function SectionRow({
-  index,
-  total,
+/** One product section's settings (title, source, count, hand-picked products). Reused by Home page design. */
+export function SectionRow({
+  index = 0,
+  total = 1,
   section,
   categories,
   products,
@@ -176,6 +179,7 @@ function SectionRow({
   onUp,
   onDown,
   onDelete,
+  compact = false,
 }: SectionRowProps) {
   const [filter, setFilter] = useState('');
 
@@ -350,37 +354,39 @@ function SectionRow({
         </div>
       )}
 
-      <div className="ce-why" style={{ marginTop: 8 }}>
-        <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <input
-            type="checkbox"
-            checked={section.enabled}
-            onChange={(e) => onChange({ enabled: e.target.checked })}
-          />
-          Enabled
-        </label>
-        <button
-          type="button"
-          className="wiz__vdel"
-          onClick={onUp}
-          disabled={index === 0}
-          aria-label="Move section up"
-        >
-          ↑
-        </button>
-        <button
-          type="button"
-          className="wiz__vdel"
-          onClick={onDown}
-          disabled={index === total - 1}
-          aria-label="Move section down"
-        >
-          ↓
-        </button>
-        <button type="button" className="wiz__vdel" onClick={onDelete} aria-label="Delete section">
-          ✕
-        </button>
-      </div>
+      {!compact && (
+        <div className="ce-why" style={{ marginTop: 8 }}>
+          <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={section.enabled}
+              onChange={(e) => onChange({ enabled: e.target.checked })}
+            />
+            Enabled
+          </label>
+          <button
+            type="button"
+            className="wiz__vdel"
+            onClick={onUp}
+            disabled={index === 0}
+            aria-label="Move section up"
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            className="wiz__vdel"
+            onClick={onDown}
+            disabled={index === total - 1}
+            aria-label="Move section down"
+          >
+            ↓
+          </button>
+          <button type="button" className="wiz__vdel" onClick={onDelete} aria-label="Delete section">
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }
