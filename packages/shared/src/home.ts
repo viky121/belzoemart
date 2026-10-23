@@ -40,7 +40,7 @@ export type ThemeName = 'classic' | 'emart';
  *  is unset (zero-config backward compatibility). */
 export const DEFAULT_HOME_EMART: HomeContent = {
   hero: {
-    eyebrow: '🛒 Belzo E Mart',
+    eyebrow: '🛒 Belzo eMart',
     line1: 'Your Daily Needs',
     line2: 'Now at Your',
     accent: 'Doorstep',

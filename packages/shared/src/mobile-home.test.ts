@@ -1,11 +1,16 @@
 import type { CategoryNodeDto } from './catalogue';
 import {
   DEFAULT_MOBILE_HOME,
+  DEFAULT_MOBILE_MENU,
   activeBanners,
+  menuAddressLines,
+  menuTelHref,
   mobileHomeSchema,
+  mobileMenuSchema,
   offerRowsAt,
   resolveMobileCategories,
   sanitizeMobileHome,
+  sanitizeMobileMenu,
 } from './mobile-home';
 
 const A = '11111111-1111-4111-8111-111111111111';
@@ -158,5 +163,50 @@ describe('resolveMobileCategories', () => {
       { categoryId: A, name: 'Dup', iconUrl: '', hidden: false },
     ]);
     expect(t.map((x) => x.name)).toEqual(['One', 'Grocery', 'Baby Care']);
+  });
+});
+
+describe('☰ menu config', () => {
+  it('an old config without a menu block gets the supplied defaults', () => {
+    const home = sanitizeMobileHome({ dealsEnabled: false });
+    expect(home.menu).toEqual(DEFAULT_MOBILE_MENU);
+    expect(home.menu.carePhone).toBe('8839095625');
+  });
+
+  it('keeps an admin-cleared field empty so the menu item hides', () => {
+    const menu = sanitizeMobileMenu({ carePhone: '', careWhatsappUrl: '' });
+    expect(menu.carePhone).toBe('');
+    expect(menu.careWhatsappUrl).toBe('');
+    expect(menu.careEmail).toBe(DEFAULT_MOBILE_MENU.careEmail);
+  });
+
+  it('falls back to the default for a malformed field and keeps the rest', () => {
+    const menu = sanitizeMobileMenu({
+      careWhatsappUrl: 'javascript:alert(1)',
+      storeMapsUrl: 'http://insecure',
+      careEmail: 'bad',
+      carePhone: '9999999999',
+    });
+    expect(menu.careWhatsappUrl).toBe(DEFAULT_MOBILE_MENU.careWhatsappUrl);
+    expect(menu.storeMapsUrl).toBe(DEFAULT_MOBILE_MENU.storeMapsUrl);
+    expect(menu.careEmail).toBe(DEFAULT_MOBILE_MENU.careEmail);
+    expect(menu.carePhone).toBe('9999999999');
+  });
+
+  it('the strict schema rejects a non-https link and a bad email', () => {
+    expect(mobileMenuSchema.safeParse({ ...DEFAULT_MOBILE_MENU, website: 'http://x.com' }).success).toBe(false);
+    expect(mobileMenuSchema.safeParse({ ...DEFAULT_MOBILE_MENU, careEmail: 'nope' }).success).toBe(false);
+    expect(
+      mobileMenuSchema.safeParse({
+        ...DEFAULT_MOBILE_MENU,
+        playStoreUrl: 'https://play.google.com/store/apps/details?id=in.belzo.emart',
+      }).success,
+    ).toBe(true);
+  });
+
+  it('splits the address into rows and builds a tel: link', () => {
+    expect(menuAddressLines('A\n\n B \r\nC')).toEqual(['A', 'B', 'C']);
+    expect(menuTelHref('88390 95625')).toBe('tel:8839095625');
+    expect(menuTelHref('')).toBeNull();
   });
 });

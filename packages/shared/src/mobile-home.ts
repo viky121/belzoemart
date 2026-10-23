@@ -85,6 +85,104 @@ const festivalDateSchema = z
   .refine((v) => v === '' || isValidDateKey(v), 'Use a valid date')
   .default('');
 
+// ───────────────────────── ☰ menu (contact, store, links) ─────────────────────────
+
+/** A full https:// link, or '' to leave it out (the menu item then hides itself). */
+const httpsLinkSchema = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((v) => v === '' || /^https:\/\/[^\s]+$/i.test(v), 'Use a full https:// link');
+
+/** A phone number (mobile or landline with STD code), or '' to leave it out. */
+const menuPhoneSchema = z
+  .string()
+  .trim()
+  .max(20)
+  .refine((v) => v === '' || /^\+?[\d][\d\s-]{6,18}$/.test(v), 'Enter a valid phone number');
+
+/**
+ * Contact, store and link details shown by the app's ☰ menu (Customer Care, Store Locator,
+ * Share, Rate Us, About). Edited in Admin → Mobile app → App menu, so none of it needs an app
+ * update. An empty value hides the matching menu action instead of showing a dead button.
+ */
+export const mobileMenuSchema = z.object({
+  /** Customer Care phone (call + WhatsApp number when no WhatsApp link is given). */
+  carePhone: menuPhoneSchema.default('8839095625'),
+  careEmail: z
+    .string()
+    .trim()
+    .max(190)
+    .refine((v) => v === '' || z.string().email().safeParse(v).success, 'Enter a valid email address')
+    .default('Belzoemart@gmail.com'),
+  careWhatsappUrl: httpsLinkSchema.default('https://wa.me/918839095625'),
+  /** e.g. "Mon–Sat, 9 AM – 8 PM" */
+  careHours: z.string().trim().max(120).default(''),
+  storeName: z.string().trim().max(80).default('Belzo eMart'),
+  /** One line per row. */
+  storeAddress: z
+    .string()
+    .trim()
+    .max(300)
+    .default('Brahman Colony, Kunvar Pura Road\nNear City Hospital\nTikamgarh, Madhya Pradesh 472001'),
+  storeMapsUrl: httpsLinkSchema.default('https://maps.app.goo.gl/Vg1QP7QuiYZDKbuA9'),
+  storeHours: z.string().trim().max(120).default(''),
+  /** Store helpline number. */
+  storeHelpline: menuPhoneSchema.default(''),
+  website: httpsLinkSchema.default('https://belzoemart.com'),
+  /** Link sent by "Share Belzo eMart" ('' = the website). Point this at the Play Store once published. */
+  shareUrl: httpsLinkSchema.default(''),
+  /** "Rate Us" opens these; with no link for the phone's platform the item is hidden. */
+  playStoreUrl: httpsLinkSchema.default(''),
+  appStoreUrl: httpsLinkSchema.default(''),
+});
+export type MobileMenu = z.infer<typeof mobileMenuSchema>;
+
+export const DEFAULT_MOBILE_MENU: MobileMenu = {
+  carePhone: '8839095625',
+  careEmail: 'Belzoemart@gmail.com',
+  careWhatsappUrl: 'https://wa.me/918839095625',
+  careHours: '',
+  storeName: 'Belzo eMart',
+  storeAddress: 'Brahman Colony, Kunvar Pura Road\nNear City Hospital\nTikamgarh, Madhya Pradesh 472001',
+  storeMapsUrl: 'https://maps.app.goo.gl/Vg1QP7QuiYZDKbuA9',
+  storeHours: '',
+  storeHelpline: '',
+  website: 'https://belzoemart.com',
+  shareUrl: '',
+  playStoreUrl: '',
+  appStoreUrl: '',
+};
+
+/**
+ * Lenient read: a field that is missing or malformed falls back to its default, the rest of the
+ * menu config is kept. (An admin-cleared field stays '' on purpose: that hides the item.)
+ */
+export function sanitizeMobileMenu(value: unknown): MobileMenu {
+  const v = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  const out = { ...DEFAULT_MOBILE_MENU };
+  for (const key of Object.keys(DEFAULT_MOBILE_MENU) as (keyof MobileMenu)[]) {
+    if (v[key] === undefined) continue;
+    const parsed = mobileMenuSchema.shape[key].safeParse(v[key]);
+    if (parsed.success) out[key] = parsed.data;
+  }
+  return out;
+}
+
+/** Address rows for display. */
+export function menuAddressLines(address: string): string[] {
+  return address
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+}
+
+/** `tel:` target for a displayed phone number, or null when there is none. */
+export function menuTelHref(phone: string): string | null {
+  const digits = phone.replace(/[^\d+]/g, '');
+  return digits.length >= 7 ? `tel:${digits}` : null;
+}
+
 /** Strict schema: used by the admin editor and PUT /admin/mobile-home to reject bad input. */
 export const mobileHomeSchema = z.object({
   heroBanners: z.array(mobileBannerSchema).max(MOBILE_LIMITS.heroBanners).default([]),
@@ -102,6 +200,8 @@ export const mobileHomeSchema = z.object({
   festivalStart: festivalDateSchema,
   /** Last day the theme shows (India date, inclusive). '' = no end limit. */
   festivalEnd: festivalDateSchema,
+  /** ☰ menu contact / store / link details. */
+  menu: mobileMenuSchema.default(DEFAULT_MOBILE_MENU),
 });
 export type MobileHome = z.infer<typeof mobileHomeSchema>;
 
@@ -116,6 +216,7 @@ export const DEFAULT_MOBILE_HOME: MobileHome = {
   festivalDecor: true,
   festivalStart: '',
   festivalEnd: '',
+  menu: DEFAULT_MOBILE_MENU,
 };
 
 /** Parse each array entry on its own, keep the valid ones (defaults applied), cap at `max`. */
@@ -161,6 +262,7 @@ export function sanitizeMobileHome(value: unknown): MobileHome {
     // A malformed date is dropped (= no limit on that side) rather than breaking the config.
     festivalStart: mobileHomeSchema.shape.festivalStart.catch('').parse(v.festivalStart),
     festivalEnd: mobileHomeSchema.shape.festivalEnd.catch('').parse(v.festivalEnd),
+    menu: sanitizeMobileMenu(v.menu),
   };
 }
 
