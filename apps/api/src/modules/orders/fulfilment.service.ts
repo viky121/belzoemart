@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ORDER_PROGRESS_STEPS, canTransition, progressRank, type OrderStatus } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { SettingsService } from '../admin/settings.service';
@@ -24,6 +24,8 @@ const ORDER_MOVING_STATUSES: readonly OrderStatus[] = ['shipped', 'out_for_deliv
  */
 @Injectable()
 export class FulfilmentService {
+  private readonly logger = new Logger('FulfilmentService');
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(SHIPPING_PROVIDER) private readonly shipping: ShippingProvider,
@@ -97,6 +99,41 @@ export class FulfilmentService {
       await this.prisma.order.update({ where: { id: orderId }, data: { status: 'packed' } });
     }
     return { shipmentId: shipment.id, awb: awb.awb };
+  }
+
+  /**
+   * Cancel the courier shipment(s) for an order being cancelled (BR-2/BR-3).
+   * The order cancellation is authoritative, so the courier call is
+   * best-effort: a failure is logged for manual reconciliation but never
+   * blocks the cancel. Shipments already delivered/cancelled/returned (rto)
+   * are skipped. Our shipment is marked `cancelled` with a tracking event so
+   * the timeline stays consistent with the order.
+   */
+  async cancelShipmentsForOrder(orderId: string): Promise<void> {
+    const shipments = await this.prisma.shipment.findMany({ where: { orderId } });
+    for (const s of shipments) {
+      if (s.status === 'delivered' || s.status === 'cancelled' || s.status === 'rto') continue;
+      if (s.awb) {
+        try {
+          await this.shipping.cancelShipment(s.awb);
+        } catch (e) {
+          const reason = e instanceof Error ? e.message : String(e);
+          this.logger.warn(
+            `Courier cancel failed for shipment ${s.id} (awb ${s.awb}); order ${orderId} is still cancelled. Reconcile manually: ${reason}`,
+          );
+        }
+      }
+      await this.prisma.shipment.update({ where: { id: s.id }, data: { status: 'cancelled' } });
+      await this.prisma.trackingEvent.create({
+        data: {
+          shipmentId: s.id,
+          status: 'cancelled',
+          description: 'Shipment cancelled',
+          location: null,
+          occurredAt: new Date(),
+        },
+      });
+    }
   }
 
   /**

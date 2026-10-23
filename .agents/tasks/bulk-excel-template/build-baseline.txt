@@ -1,0 +1,42 @@
+﻿Route (app)                              Size     First Load JS
+Ôöî ãÆ /                                    2.01 kB         116 kB
+Ôö£ ãÆ /_not-found                          877 B            88 kB
+Ôö£ ãÆ /account                             3.76 kB         114 kB
+Ôö£ ãÆ /admin                               3.72 kB         114 kB
+Ôö£ ãÆ /admin/brands                        2.85 kB         106 kB
+Ôö£ ãÆ /admin/catalogue                     14.3 kB         121 kB
+Ôö£ ãÆ /admin/catalogue/bulk                6.32 kB         117 kB
+Ôö£ ãÆ /admin/categories                    2.25 kB         109 kB
+Ôö£ ãÆ /admin/coupons                       3.23 kB         107 kB
+Ôö£ ãÆ /admin/customers                     3.29 kB         107 kB
+Ôö£ ãÆ /admin/login                         2.44 kB         106 kB
+Ôö£ ãÆ /admin/marketing                     3.11 kB         107 kB
+Ôö£ ãÆ /admin/orders                        3.15 kB         107 kB
+Ôö£ ãÆ /admin/payments                      2.59 kB         106 kB
+Ôö£ ãÆ /admin/reports                       2.29 kB         106 kB
+Ôö£ ãÆ /admin/returns                       2.59 kB         106 kB
+Ôö£ ãÆ /admin/reviews                       2.74 kB         106 kB
+Ôö£ ãÆ /admin/serviceability                2.46 kB         106 kB
+Ôö£ ãÆ /admin/settings                      9.7 kB          116 kB
+Ôö£ ãÆ /cart                                4.93 kB         115 kB
+Ôö£ ãÆ /category/[slug]                     1.34 kB         116 kB
+Ôö£ ãÆ /checkout                            7.45 kB         118 kB
+Ôö£ ãÆ /health                              147 B          87.2 kB
+Ôö£ ãÆ /login                               2.81 kB         106 kB
+Ôö£ ãÆ /notifications                       2.06 kB         106 kB
+Ôö£ ãÆ /order-result                        2.97 kB         113 kB
+Ôö£ ãÆ /orders                              4.43 kB         115 kB
+Ôö£ ãÆ /orders/[id]                         3.22 kB         107 kB
+Ôö£ ãÆ /page/[slug]                         147 B          87.2 kB
+Ôö£ ãÆ /product/[slug]                      6.11 kB         120 kB
+Ôö£ ãÆ /search                              1.34 kB         116 kB
+Ôö£ ãÆ /signup                              2.33 kB         106 kB
+Ôöö ãÆ /wishlist                            4.65 kB         115 kB
++ First Load JS shared by all            87.1 kB
+  Ôö£ chunks/8157abed-4173dffe62c105c1.js  53.6 kB
+  Ôö£ chunks/9531-3d8b281802b36202.js      31.5 kB
+  Ôöö other shared chunks (total)          1.9 kB
+
+
+ãÆ  (Dynamic)  server-rendered on demand
+

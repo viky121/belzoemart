@@ -1,0 +1,7 @@
+{
+  "task_id": "task-order-detail-redesign",
+  "task_description": "Redesign the Belzo eMart customer order-detail page (/orders/[id]) into a standard e-commerce layout, make the displayed status always the live order status (reconcile stale shipment/mock tracking), add Cancel and Return/Replace flows with standard reasons, photo upload (required for defect reasons, enforced server-side with own-storage URL validation) and confirmation, and keep the orders list consistent. No deploy; commit locally on master.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}

@@ -1,0 +1,14 @@
+{
+  "verdict": "APPROVED",
+  "summary": "CSV export/re-upload edit and editor price/stock/SKU/status meet all acceptance criteria; money in paise is correct, the export route is role-guarded, and all 7 verification commands pass on re-run. The remaining findings are non-blocking workflow risks.",
+  "findings": [
+    "Stale-export stock overwrite (confirmed, non-blocking): bulkUpsert writes inventory.available absolutely with no StockMovement, so re-uploading an export after orders were placed undoes those sales (oversell risk). Tell admins in the copy to clear the stock column unless stock was recounted, or apply stock as a delta from an exported baseline.",
+    "Last-row-wins reverts edits on multi-variant products (confirmed, documented trade-off): title, category, description, status and images repeat on every variant row, so an edit on any row but the last is silently undone. Detect rows of the same product that disagree and report a per-row warning or error.",
+    "Excel-mangled SKUs create duplicate products (likely): Excel drops leading zeros and switches long numeric SKUs to scientific notation when the file is opened, so formatting as Text afterwards is too late, and the changed SKU is imported as a new product. Recommend the Data > From Text/CSV import route and report created vs updated counts.",
+    "Full-catalogue upload hits request limits (likely at scale): the bulk page posts all rows in one request, against a 5000-row zod cap and a 1 MB JSON body limit, and descriptions are repeated per variant row. Chunk the import on the client (for example 200 rows per request) and remap row numbers.",
+    "Editor saves blocked by relative image URLs (possible, pre-existing schema): PUT /admin/products/:id/images uses z.string().url(), which rejects the '/...' paths that bulk import and local storage produce. For those products the new variant, stock and status steps never run. Align the schema with the URL-or-app-path refine, or skip the PUT when images are unchanged.",
+    "Failed save discards pending edits (confirmed, minor): after a mid-sequence error, load() in finally resets edits and status, so edits for variants not yet saved and the chosen status are lost.",
+    "CSV price edits bypass the slab invariant (confirmed; the line pre-dates this diff): the existing-SKU branch of bulkUpsert updates sellingPrice without checking priceSlabsJson, unlike VariantService.upsert, so a price cut via CSV can leave bulk tiers more expensive than the base price.",
+    "Untested wiring (non-blocking): the bulk page's parsed-record to Row mapping (blank cells become undefined, rupees to paise) and the editor's save sequencing and reload have no tests. Extract the mapping into lib/ and test export row -> CSV -> mapped row -> bulkUpsert input."
+  ]
+}

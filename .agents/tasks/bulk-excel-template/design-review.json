@@ -1,0 +1,97 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    {
+      "id": 1,
+      "severity": "MEDIUM",
+      "title": "Single-row Size/Colour edits leave the twin attribute stale on wizard-created single-variant products",
+      "where": "§6b single-row extra rules; §7 single-row export",
+      "fix": "Single-row Size: when the variant's Size changes, also mergeAttr the product's Size key if one exists. Single-row Colour: when the product's Color changes, also mergeAttr the variant's Color key if one exists. Export single-row size = variant Size else product Size; colour = product Color else variant Color. Add specs, including a no-write round trip."
+    },
+    {
+      "id": 2,
+      "severity": "NIT",
+      "title": "Editor/wizard can create a variant SKU equal to another product's saved Parent SKU",
+      "where": "VariantService.upsert; §6b parentSkuClash covers only the sheet path",
+      "fix": "In VariantService.upsert, 409 when product.findUnique({ where: { sku } }) is a different product. Add a spec."
+    },
+    {
+      "id": 3,
+      "severity": "NIT",
+      "title": "Saving sku = P via step 2/3 can take another legacy product's derived Parent SKU",
+      "where": "§6a steps 2-3; §6c",
+      "fix": "Before saving sku P for a null-sku target T, group error when productOfDerivedSku.get(P) is a product other than T."
+    },
+    {
+      "id": 4,
+      "severity": "NIT",
+      "title": "Instructions don't say deleting a Child row keeps the variant",
+      "where": "§7 Instructions",
+      "fix": "Add: deleting a row does not delete the product or variant; use Remove in the product editor."
+    },
+    {
+      "id": 5,
+      "severity": "NIT",
+      "title": "Gram values under a 'Weight (g)' header are saved x1000 with only a warning",
+      "where": "§3 aliases; §6b 50 kg warning",
+      "fix": "Track which weight alias matched. When it was Weight (g) and the value is over 50 kg, make it a row error asking for kg."
+    },
+    {
+      "id": 6,
+      "severity": "NIT",
+      "title": "429 from the global ThrottlerGuard (100/min) is not handled",
+      "where": "§4 import steps 1 and 4; §10",
+      "fix": "On 429, wait Retry-After (default 60 s), show progress text, retry once, then fall back to the current error path."
+    },
+    {
+      "id": 7,
+      "severity": "NIT",
+      "title": "A timed-out chunk may already be saved, but the message implies it wasn't",
+      "where": "§4 import step 4",
+      "fix": "For network/5xx/504 errors, append: 'Some of these rows may have been saved — uploading the same file again is safe.'"
+    },
+    {
+      "id": 8,
+      "severity": "NIT",
+      "title": "GST list is the pre-GST-2.0 slab set (40% can't be entered)",
+      "where": "FR-1, GST_RATES, Instructions #9",
+      "fix": "Keep the owner's list in the single GST_RATES constant. Add open point A-28 for the owner. No behaviour change."
+    },
+    {
+      "id": 9,
+      "severity": "NIT",
+      "title": "Gallery replacement drops existing alt texts",
+      "where": "§6c step 3",
+      "fix": "alt = the existing image's alt when the same URL is kept, else ''."
+    },
+    {
+      "id": 10,
+      "severity": "NIT",
+      "title": "A blank indicator with parentSku === sku is inferred as a Child",
+      "where": "§3 grouping step 2",
+      "fix": "Infer parent when parentSku is blank or equals sku. Add a spec."
+    },
+    {
+      "id": 11,
+      "severity": "NIT",
+      "title": "P2002 race on slug gets the raw Prisma message",
+      "where": "§6c transaction failure",
+      "fix": "Branch on err.meta.target: sku gets the existing message, slug gets a 'same title saved at the same moment — upload again' message."
+    },
+    {
+      "id": 12,
+      "severity": "NIT",
+      "title": "Editor tier tool is % off Selling Price; sheet tiers are % off MRP",
+      "where": "§7 Instructions #10 vs ProductService.applyPriceSlabs",
+      "fix": "Add a note to Instructions #10 explaining the different bases."
+    },
+    {
+      "id": 13,
+      "severity": "NIT",
+      "title": "AC-15 '<1 kB' vs §11 'unchanged versus master'",
+      "where": "AC-15; §11 manual checks",
+      "fix": "Make §11 say 'changes by less than 1 kB'."
+    }
+  ],
+  "reviewDoc": "c:\\xampp\\htdocs\\Belzo\\.agents\\tasks\\bulk-excel-template\\design-review.md"
+}

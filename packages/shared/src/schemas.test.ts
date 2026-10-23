@@ -180,7 +180,8 @@ describe('schemas — promoContentSchema / homeBlockSchema', () => {
     const res = promoContentSchema.safeParse({ title: 'Deals', href: 'javascript:void' });
     expect(res.success).toBe(true);
     if (res.success) {
-      expect(res.data).toMatchObject({ cta: 'Shop Now', icon: '🛒', color: 'green', href: '#' });
+ // "#" is how an unset picture/link is stored; promoImage() treats it as no picture.
+      expect(res.data).toMatchObject({ cta: 'Shop Now', icon: '', imageUrl: '#', color: 'green', href: '#' });
     }
   });
 

@@ -1,0 +1,98 @@
+# Belzo eMart — single-host production stack (web + api + worker + postgres + redis + caddy).
+# Usage (on the server):
+#   cp .env.prod.example .env.prod   # then fill in secrets
+#   docker compose --env-file .env.prod -f docker-compose.prod.yml build
+#   docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm api npx prisma migrate deploy
+#   docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+name: belzo
+
+services:
+  postgres:
+    image: postgres:16.3-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - belzo-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    volumes:
+      - belzo-redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: belzo-api:latest
+    restart: unless-stopped
+    env_file: [.env.prod]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    expose: ['4000']
+    volumes:
+      # Persist locally-stored uploads (category/product/banner images) across
+      # container recreations (STORAGE_PROVIDER=local).
+      - belzo-uploads:/app/apps/api/uploads
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: belzo-api:latest
+    restart: unless-stopped
+    command: ['node', 'dist/worker.js']
+    env_file: [.env.prod]
+    depends_on:
+      redis: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Baked into the browser bundle → must be the PUBLIC url.
+        NEXT_PUBLIC_API_BASE_URL: ${PUBLIC_BASE_URL}
+    image: belzo-web:latest
+    restart: unless-stopped
+    # SSR / server components call the API directly over the internal network.
+    # Must be a server-only var (NOT NEXT_PUBLIC_*, which Next inlines at build
+    # time) so it is honoured at runtime and SSR bypasses the public proxy.
+    environment:
+      API_INTERNAL_ORIGIN: http://api:4000
+    depends_on: [api]
+    expose: ['3000']
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - belzo-caddy-data:/data
+      - belzo-caddy-config:/config
+    depends_on: [web, api]
+
+volumes:
+  belzo-pg:
+  belzo-redis:
+  belzo-caddy-data:
+  belzo-caddy-config:
+  belzo-uploads:

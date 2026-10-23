@@ -1,0 +1,30 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "severity": "non-blocking",
+      "confidence": "likely",
+      "title": "Hard-delete race with checkout",
+      "detail": "VariantService.remove counts OrderItems before opening the transaction. An order placed in that window leaves an OrderItem pointing at a hard-deleted variant whose inventory row was cascaded away, so confirmSale/release/adjust throw NotFound. Re-check the count inside the transaction, or soft-delete when inventory.reserved > 0."
+    },
+    {
+      "severity": "non-blocking",
+      "confidence": "possible",
+      "title": "Last-active guard not atomic",
+      "detail": "Two concurrent removes of a published product's last two active variants can both pass the count check. This fails closed: the product is hidden from the storefront and can't be re-published until a variant is added or restored."
+    },
+    {
+      "severity": "non-blocking",
+      "confidence": "confirmed",
+      "title": "Low-stock report lists removed variants",
+      "detail": "ReportingService.inventory() has no isActive filter, so soft-deleted variants with <=10 units still appear. Add variant: { isActive: true } to the where."
+    },
+    {
+      "severity": "non-blocking",
+      "confidence": "confirmed",
+      "title": "Autocomplete suggests unpurchasable products",
+      "detail": "PostgresSearchProvider.autocomplete filters only on status 'published'. Add variants: { some: { isActive: true } } to match search()."
+    }
+  ],
+  "reviewDoc": "c:\\xampp\\htdocs\\Belzo\\.agents\\tasks\\remove-variant/review.md"
+}

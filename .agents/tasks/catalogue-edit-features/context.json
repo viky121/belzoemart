@@ -1,0 +1,31 @@
+{
+  "project_type": "pnpm monorepo: NestJS 10 + Prisma 5 API (apps/api), Next.js 14 app-router web storefront + admin (apps/web), shared TS package (packages/shared)",
+  "language": "TypeScript",
+  "build_system": "pnpm@9 workspaces. API: nest build / tsc. Web: next build. Windows PowerShell 5.1 shell: '&&' is NOT supported - run each pnpm command as a separate call (or chain with ';' and check $LASTEXITCODE).",
+  "test_framework": "jest + ts-jest in both apps. API specs: apps/api/src/**/*.spec.ts with hand-written fake Prisma objects (see product.service.spec.ts build()). Web: jest testMatch '**/*.test.ts' only (NO .tsx tests, node environment) under apps/web/src, alias '@/' -> src/, '@belzo/shared' -> packages/shared/src.",
+  "build_command": "pnpm --filter @belzo/api typecheck ; pnpm --filter @belzo/web typecheck ; pnpm --filter @belzo/web build",
+  "test_command": "pnpm --filter @belzo/api test ; pnpm --filter @belzo/shared test ; pnpm --filter @belzo/web test",
+  "verification_instructions": "From c:\\xampp\\htdocs\\Belzo run each separately and require exit 0: 1) pnpm --filter @belzo/api typecheck 2) pnpm --filter @belzo/api lint 3) pnpm --filter @belzo/api test 4) pnpm --filter @belzo/shared test 5) pnpm --filter @belzo/web typecheck 6) pnpm --filter @belzo/web test 7) pnpm --filter @belzo/web build. Record pass/fail + test counts in the commit message.",
+  "snapshot_or_generated_files": null,
+  "environment_constraints": "Work directly on master in c:\\xampp\\htdocs\\Belzo (no worktree). Do NOT deploy (never run pnpm deploy / scripts/deploy.ps1). Never push. Many unrelated files are untracked (.agents/, aidlc-docs/, README.md, .gitignore, .kiro/, etc.) - stage ONLY the files you changed, by explicit path; never 'git add .' / '-A'; never commit anything under .agents/. No DB migration is needed (no schema change).",
+  "contribution_requirements": "No AGENTS.md/CONTRIBUTING. Follow existing style: money is integer PAISE end to end (CSV/inputs in rupees, convert with Math.round(x*100)); admin routes live on AdminCatalogueController with class-level @Roles('catalogue_manager'); zod DTOs via createZodDto; errors thrown as Nest HttpExceptions (global AllExceptionsFilter turns anything else into a generic 500 'Internal server error'). Commit messages in the repo style: 'area: summary' (e.g. 'bulk upload: ...', 'admin catalogue: ...').",
+  "key_patterns": "ProductService.bulkUpsert(rows): per-row try/catch -> {ok, errors[{row,message}]}, resolveCategory (tolerant slug/name match), findOrCreateBrandByName, per-row prisma.$transaction(async tx => ...); existing-SKU branch builds productData only from provided optional cells. ProductService.setImages = deleteMany + create with position. VariantService.upsert writes priceSlabsJson = normaliseSlabs(input.priceSlabs) (omitting slabs WIPES them; slab unitPrice > sellingPrice -> BadRequest 'Slab price must be between 0 and the selling price'), attributesJson = input.attributes ?? {} (omitting WIPES), weightGrams/imageUrl (undefined = unchanged in Prisma). GET /admin/products/:productId/variants = prisma.variant.findMany({include:{inventory:true}}) -> raw rows with attributesJson, priceSlabsJson, weightGrams, imageUrl, inventory.available. Stock change = POST /admin/inventory/:variantId/adjust {delta, ref} (UpdateStockModal in catalogue/page.tsx computes delta = target - current). Status = PATCH /admin/products/:id/status {status} (publish needs >=1 variant). Web admin calls go through adminFetch (lib/admin-api.ts, auth header + 401 refresh); errors are ApiClientError with .message = server message and .payload.statusCode. Next.js page.tsx files must not export non-page names, so shared constants go in src/lib or sibling components. UI classes: prod-section, prod-subhead, prod-grid, auth-label, auth-input, admin-table, slab-editor__table, admin-inline-btn, btn, prod-form__msg (role=status), admin-muted.",
+  "relevant_files": [
+    "apps/api/src/modules/catalogue/admin-catalogue.controller.ts",
+    "apps/api/src/modules/catalogue/product.service.ts",
+    "apps/api/src/modules/catalogue/product.service.spec.ts",
+    "apps/api/src/modules/catalogue/variant.service.ts",
+    "apps/api/src/modules/catalogue/inventory.service.ts",
+    "apps/api/src/common/filters/all-exceptions.filter.ts",
+    "apps/api/prisma/schema.prisma (Product status enum draft|published|archived; Variant.sku @unique; Inventory.available; ProductImage.position)",
+    "apps/web/src/app/admin/catalogue/bulk/page.tsx",
+    "apps/web/src/app/admin/catalogue/page.tsx",
+    "apps/web/src/app/admin/catalogue/product-editor.tsx",
+    "apps/web/src/app/admin/catalogue/variant-slabs.tsx",
+    "apps/web/src/lib/admin-api.ts",
+    "apps/web/src/lib/api-client.ts",
+    "apps/web/src/lib/site-content.test.ts (web jest test pattern)",
+    "apps/web/jest.config.js"
+  ],
+  "directory_structure": "apps/api/src/modules/catalogue: admin + storefront catalogue controllers/services/specs. apps/api/prisma: schema + migrations. apps/web/src/app/admin/catalogue: admin catalogue page (page.tsx with table, ProductEditor/VariantSlabsEditor toggles, UpdateStockModal), product-wizard.tsx, product-editor.tsx, variant-slabs.tsx, bulk/page.tsx (CSV import). apps/web/src/lib: client helpers + *.test.ts jest tests. packages/shared: shared DTOs/utils."
+}

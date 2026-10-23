@@ -24,15 +24,17 @@ export class CheckoutController {
   ) {}
 
   @Post('preview')
-  preview(@CurrentUser() user: JwtPrincipal, @Body() dto: CheckoutPreviewDto) {
+  async preview(@CurrentUser() user: JwtPrincipal, @Body() dto: CheckoutPreviewDto) {
     // Optional paymentMethod: 'cod' includes the COD fee in the preview. The web
     // sends none, so isCod stays false exactly as before.
-    return this.checkout.preview(
+    const result = await this.checkout.preview(
       { customerId: user.sub },
       dto.addressId,
       dto.couponCode,
       dto.paymentMethod === 'cod',
     );
+    // Lets the apps offer "pay online" only when a real gateway is configured.
+    return { ...result, onlinePayment: this.payments.onlinePaymentEnabled };
   }
 
   @Post('place')

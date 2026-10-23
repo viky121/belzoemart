@@ -1,0 +1,12 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "severity": "nit",
+      "confidence": "possible",
+      "label": "Unguarded card href",
+      "detail": "In both renderers a `cards` entry always renders as a <Link href={c.href}>. Because homeBlockCardSchema.href defaults to \"#\", a card left without a link becomes an inert link rather than a plain tile. Icon is guarded in both renderers; href is not. Cosmetic and non-blocking."
+    }
+  ],
+  "reviewDoc": "c:\\xampp\\htdocs\\Belzo\\.agents\\tasks\\theme-home-content\\impl-review.md"
+}

@@ -94,4 +94,13 @@ export class AdminOrdersController {
   updateReturn(@Param('returnId') returnId: string, @Body() dto: ReturnUpdateDto) {
     return this.returns.adminUpdate(returnId, dto.status);
   }
+
+  /**
+   * Full order detail for the admin panel. Declared last so static routes
+   * (e.g. `returns`) are matched before this `:id` param route.
+   */
+  @Get(':id')
+  detail(@Param('id') id: string) {
+    return this.orders.adminGetOrder(id);
+  }
 }

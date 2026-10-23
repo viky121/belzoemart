@@ -1,0 +1,18 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "severity": "minor",
+      "file": "apps/api/src/modules/orders/cod-return-credit.ts",
+      "issue": "A fully returned COD order gets the remainder of grandTotal, including shipping and the COD fee. A prepaid return still refunds only unitPrice x qty clamped to the captured amount, so prepaid shoppers never get shipping back (confirmed). This is a policy asymmetry that the owner's option A approval may not have explicitly covered.",
+      "fix": "Confirm with the owner that refunding shipping and the COD fee on full COD returns is intended, or align the COD and prepaid refund rules in a follow-up."
+    },
+    {
+      "severity": "minor",
+      "file": "apps/api/src/modules/orders/return.service.ts",
+      "issue": "processCodReceived reads earlier wallet credits (walletEntry.findMany) and then calls wallet.earn in a separate transaction. Two different returns of the same COD order marked received concurrently could both read the same alreadyCredited and together exceed grandTotal (likely; requires concurrent admin actions).",
+      "fix": "Do the cap read and the wallet credit in one prisma.$transaction, or lock the order row (SELECT ... FOR UPDATE) before computing the credit."
+    }
+  ],
+  "reviewDoc": "c:\\xampp\\htdocs\\Belzo\\.agents\\tasks\\order-detail-redesign\\2026-10-11-095243-review.md"
+}

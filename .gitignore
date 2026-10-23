@@ -1,0 +1,65 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+*.pem
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test / coverage
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Prisma
+apps/api/prisma/*.db
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Docker volumes
+.docker-data/
+
+# Production env (secrets) — never commit
+.env.prod
+.env.*.prod
+# Backups / archives
+Belzo-migration-backup-*/
+*.tgz
+*.tar.gz
+# Expo / React Native build artifacts
+apps/mobile/.expo/
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/dist/
+
+# Local scratch / credentials from manual API testing — never commit
+login.json
+login-body.json
+out.json
+result.txt
+tmp-*.sh
+# User-uploaded media (stored on the server / S3, not in git)
+apps/api/uploads/
+# Deploy tarball
+belzo-src.tgz

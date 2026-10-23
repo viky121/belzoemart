@@ -1,6 +1,9 @@
 import { ProductService } from './product.service';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { CategoryService } from './category.service';
+import type { InventoryService } from './inventory.service';
+
+const fakeInventory = {} as InventoryService;
 
 /**
  * Unit tests for ProductService.bulkUpsert error reporting (FR-8.3, BR-4).
@@ -128,7 +131,7 @@ describe('ProductService.bulkUpsert', () => {
     };
     const categories = {} as CategoryService;
     return {
-      svc: new ProductService(prisma as unknown as PrismaService, categories),
+      svc: new ProductService(prisma as unknown as PrismaService, categories, fakeInventory),
       products,
       variants,
       images,
@@ -417,7 +420,7 @@ describe('ProductService.adminList', () => {
         ],
       },
     } as unknown as PrismaService;
-    const svc = new ProductService(prisma, {} as CategoryService);
+    const svc = new ProductService(prisma, {} as CategoryService, fakeInventory);
     const [row] = await svc.adminList();
     expect(calls[0]?.include.variants).toEqual({ where: { isActive: true } });
     expect(row).toMatchObject({ variantCount: 2, stock: 10, sellingPrice: 250 });
@@ -455,7 +458,7 @@ describe('ProductService.list — paginated', () => {
         },
       },
     } as unknown as PrismaService;
-    const svc = new ProductService(prisma, {} as CategoryService);
+    const svc = new ProductService(prisma, {} as CategoryService, fakeInventory);
     const res = await svc.list({ sort: 'relevance', page: 1, pageSize: 20 } as never);
     expect(res.items[0]).toMatchObject({ sellingPrice: 800, mrp: 1000, defaultVariantId: 'a-v' });
     expect(calls.findMany[0]?.where).toMatchObject({
@@ -504,7 +507,7 @@ describe('ProductService.list — ids branch', () => {
       },
     } as unknown as PrismaService;
     const categories = {} as CategoryService;
-    return { svc: new ProductService(prisma, categories), calls };
+    return { svc: new ProductService(prisma, categories, fakeInventory), calls };
   }
 
   it('returns only matching published products in the requested id order', async () => {
@@ -615,7 +618,7 @@ describe('ProductService storefront DTOs — costPrice confidentiality', () => {
       count: async () => 1,
     },
   } as unknown as PrismaService;
-  const svc = new ProductService(prisma, {} as CategoryService);
+  const svc = new ProductService(prisma, {} as CategoryService, fakeInventory);
 
   it('detail() never includes costPrice', async () => {
     const json = JSON.stringify(await svc.detail('mens-cotton-slim-fit-t-shirt'));

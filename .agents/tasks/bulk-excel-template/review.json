@@ -1,0 +1,23 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "severity": "NIT",
+      "file": "apps/api/src/modules/catalogue/bulk-sheet.plan.ts",
+      "problem": "NIT 5 row error builds its suggestion from the raw cell with Number(raw) / 1000. parseKgToGrams accepts a trailing kg/kgs, so a cell such as '60000 kg' under a 'Weight (g)' header produces 'enter NaN (e.g. 0.2)'.",
+      "fix": "Compute the suggested value from the parsed result (weight.value / 1_000_000) instead of the raw text."
+    },
+    {
+      "severity": "NIT",
+      "file": "apps/api/src/modules/catalogue/bulk-sheet.plan.ts",
+      "problem": "Under a 'Weight (g)' header, real gram values of 50 or less (e.g. 30 for a 30 g sachet) are read as kg and saved as 30 kg with no warning. The guard only fires above 50 kg, as agreed in NIT 5. Fulfilment uses weightGrams for shipping.",
+      "fix": "Optional: when weightUnitHint === 'g', add a row warning for any weight of 1 or more saying the header names grams but the value is read as kg."
+    },
+    {
+      "severity": "NIT",
+      "file": ".agents/tasks/bulk-excel-template/design.md",
+      "problem": "Doc-only round-3 NITs 8 and 13 are not applied yet: §14 has no A-28 (40% GST cannot be entered), and §11 (line 844) still says First Load JS is 'unchanged versus master' instead of 'changes by less than 1 kB'.",
+      "fix": "Apply both in plan step 6 (finalize) and mention NIT 8 in the final report."
+    }
+  ]
+}

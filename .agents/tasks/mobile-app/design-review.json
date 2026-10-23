@@ -1,0 +1,162 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    {
+      "id": 1,
+      "severity": "HIGH",
+      "title": "Idempotent place retries corrupt the payment record (initiate re-runs on reused:true)",
+      "location": "design.md §6.6 step 3, §7 A4 'Replay safety'; apps/api/src/modules/checkout/checkout.controller.ts place, payment.service.ts initiate",
+      "problem": "On a reused key, the controller still calls PaymentService.initiate, which creates a new gateway order and runs payment.update({providerOrderId: new, status: 'pending'}) on an already-captured payment. Cancel and refund_source returns then skip the refund (order.service.ts:223, return.service.ts:237), paymentSummary shows 'pending', and under Razorpay the real capture webhook matches no payment. The mobile ambiguous-retry design triggers this routinely.",
+      "fix": "Add backend change A7: in PaymentService.initiate, after the COD check, `if (payment.status !== 'created') return { provider: payment.provider, clientConfig: {} };`. Add specs: a captured payment is untouched and createOrder is not called; a reused mock order keeps its payment 'captured'. Note in §14 that the Phase 5 Razorpay re-open needs the stored providerOrderId."
+    },
+    {
+      "id": 2,
+      "severity": "MEDIUM",
+      "title": "Moved order-view.test.ts fails under shared's noUncheckedIndexedAccess",
+      "location": "design.md §10 Tests; apps/web/src/lib/order-view.test.ts lines 147, 152, 170",
+      "problem": "Shared's tsconfig extends the base with noUncheckedIndexedAccess=true, and shared's ts-jest type-checks tests (existing tests use ?. and !). The web test's steps[0].at etc. will raise TS2532 once moved, while the design says 'assertions are unchanged'.",
+      "fix": "Allow adding `!` on indexed accesses in moved tests (values unchanged), or keep order-view.test.ts in apps/web."
+    },
+    {
+      "id": 3,
+      "severity": "MEDIUM",
+      "title": "Web lib/order-view.ts re-export list omits formatDate/formatDateTime",
+      "location": "design.md §10 web modules list; apps/web/src/app/(shop)/orders/[id]/order-sections.tsx lines 9-11",
+      "problem": "The re-export list is defined as the table row, which excludes formatDate and formatDateTime, but order-sections.tsx imports them from '@/lib/order-view'. Following the list literally breaks the web build.",
+      "fix": "Specify `export { formatDate, formatDateTime } from '@belzo/shared';` in lib/order-view.ts as well. Acceptance: web typecheck passes with zero edits under apps/web/src/app/**."
+    },
+    {
+      "id": 4,
+      "severity": "MEDIUM",
+      "title": "Razorpay-stub 'unavailable' path strands a real pending order and gives false advice",
+      "location": "design.md §6.6 step 4, §6.7",
+      "problem": "After place succeeds with provider razorpay, the order is pending, stock is reserved and the coupon is redeemed. The stub returns 'unavailable' and the copy says 'pay on the website', but no retry-payment endpoint or unpaid-order expiry exists, so stock stays held indefinitely.",
+      "fix": "On 'unavailable', call POST /orders/:id/cancel {reason:'Online payment unavailable in app'} (allowed while pending), then show 'We cancelled this order and no money was taken. Please place it again with Cash on Delivery.' If the cancel fails, fall back to 'Contact support with order #<shortOrderId>'. Never say 'pay on the website'. Unit test: exactly one cancel call. Check whether cancel reverses the coupon redemption and document it."
+    },
+    {
+      "id": 5,
+      "severity": "MEDIUM",
+      "title": "Checkout address/payment selection flow underspecified and inconsistent",
+      "location": "design.md §2.1 route params, §11 Addresses/AddressForm/Checkout",
+      "problem": "The Checkout route has no params but is navigated to with {addressId}. Selecting an existing address in select mode is unspecified, and AddressForm has no select-mode flag. The zero-address case and the no-payment-method case (production default online off plus admin COD disabled) are unspecified.",
+      "fix": "Checkout: {addressId?}; Addresses: {selectForCheckout?}; AddressForm: {addressId?, selectForCheckout?}. In select mode, tapping a card runs navigation.popTo('Checkout', {addressId}, {merge:true}), and AddressForm does the same after create. Selection order: route param, then default, then first. Zero addresses: EmptyState 'Add a delivery address' that opens AddressForm{selectForCheckout:true}, Place disabled. No method available (!codEnabled && !onlinePaymentEnabled): banner 'No payment method is available right now.', Place disabled. Preselect the method when only one is available."
+    },
+    {
+      "id": 6,
+      "severity": "MEDIUM",
+      "title": "CI breaks: root pnpm -r scripts include mobile on Node 20.14",
+      "location": "design.md §8.4; .github/workflows/ci.yml",
+      "problem": "CI pins Node 20.14.0 and runs pnpm typecheck/lint/test recursively. @testing-library/react-native 14.1.0 engines are '^22.13.0 || >=24' and react-native 0.86.3 needs '^20.19.4 ||…', so adding mobile regresses currently-working CI.",
+      "fix": "Run the existing job's steps with --filter '!@belzo/mobile' and add a separate mobile CI job on a pinned Node 22.13.0 (typecheck, lint, test). Dockerfiles stay unchanged. If CI cannot be touched, document the exact patch as a known regression in phase2-4-report.md."
+    },
+    {
+      "id": 7,
+      "severity": "MEDIUM",
+      "title": "Shared-from-source Metro resolution can be falsely verified against a stale local dist",
+      "location": "design.md §8.2 metro.config.js, §16.2 step 7, §15 item 3",
+      "problem": "packages/shared/dist exists locally and the pnpm link's main is dist/index.js. If the custom resolveRequest or tsconfig paths don't win, a local expo export silently bundles stale CJS (Metro does not check named exports), so it passes locally and fails on EAS.",
+      "fix": "During verification, rename packages/shared/dist before expo export and restore it afterwards. Export with --source-maps and assert the map contains packages/shared/src/index.ts. Add a Jest test that metro.config's resolveRequest maps '@belzo/shared' to the src entry."
+    },
+    {
+      "id": 8,
+      "severity": "MEDIUM",
+      "title": "DataExportView atob decoding garbles non-ASCII personal data",
+      "location": "design.md §11 PrivacyData; apps/api/src/modules/identity/data-request.service.ts processExport",
+      "problem": "The server base64-encodes UTF-8 bytes. atob returns a Latin-1 binary string, so Devanagari or '₹' in names and addresses render as mojibake.",
+      "fix": "decodeBase64Utf8(b64) = decodeURIComponent(Array.from(atob(b64), c => '%' + c.charCodeAt(0).toString(16).padStart(2,'0')).join('')). Unit-test a round-trip of '{\"name\":\"राम ₹\"}'. Reject non 'data:application/json;base64,' URLs with 'Export format not supported'."
+    },
+    {
+      "id": 9,
+      "severity": "MEDIUM",
+      "title": "Dev/preview builds default to the live store with mock online orders auto-confirmed",
+      "location": "design.md §13.1 extra.onlinePaymentEnabled dev default, apiBaseUrl dev default http://13.48.85.9; §13.2 preview profile",
+      "problem": "Tester builds hit production. With PAYMENT_PROVIDER=mock, any 'UPI/Card' order is auto-captured: confirmed, stock sold, and shipment, invoice and notification jobs enqueued (possibly real Shiprocket shipments). This is undocumented and makes the faked-payment path the default.",
+      "fix": "Make onlinePaymentEnabled default off in both variants (`env.EXPO_PUBLIC_ONLINE_PAYMENT === 'on'`). Add a README and report warning that dev/preview builds talk to the LIVE store and that orders placed are real. Document how to point a dev build at a local API (http://10.0.2.2:4000)."
+    },
+    {
+      "id": 10,
+      "severity": "NIT",
+      "title": "OrderConfirmation params lack notice",
+      "location": "design.md §2.1 vs §6.6",
+      "fix": "OrderConfirmation: { orderId: string; provider: string; notice?: 'payment_unavailable' | 'payment_incomplete' }."
+    },
+    {
+      "id": 11,
+      "severity": "NIT",
+      "title": "Cart query-key identity undefined during boot; CustomerProfile type missing from §4.3",
+      "location": "design.md §6.2, §6.3, §4.3",
+      "fix": "Use identity = authenticated ? 'customer' : 'guest' (the cache is cleared on every identity change). Add CustomerProfile to the api/types.ts list."
+    },
+    {
+      "id": 12,
+      "severity": "NIT",
+      "title": "Baseline-commit list misses untracked token.service.spec.ts",
+      "location": "design.md §17 step 0",
+      "fix": "Add apps/api/src/modules/identity/token.service.spec.ts to the step-0 list."
+    },
+    {
+      "id": 13,
+      "severity": "NIT",
+      "title": "Pin @babel/runtime explicitly",
+      "location": "design.md §12",
+      "fix": "@shopify/flash-list 2.0.2 has a non-optional @babel/runtime peer. Add @babel/runtime as a direct apps/mobile dependency pinned to the exact 7.x version in the lockfile."
+    },
+    {
+      "id": 14,
+      "severity": "NIT",
+      "title": "ImageViewer behaviour unspecified",
+      "location": "design.md §2.1, §11",
+      "fix": "Specify a horizontal paging FlatList of RemoteImage (contentFit contain) with an indicator and close button, and no pinch-zoom in v1, so no gesture-handler is added."
+    },
+    {
+      "id": 15,
+      "severity": "NIT",
+      "title": "Boot can exceed the stated 10 s bound via 429 retries",
+      "location": "design.md §2.5 vs §5.3",
+      "fix": "Use retry429:false for the boot-time refresh."
+    },
+    {
+      "id": 16,
+      "severity": "NIT",
+      "title": "EAS profile environment and upload scope",
+      "location": "design.md §13.2",
+      "fix": "Add \"environment\" to each eas.json profile. Consider an .easignore excluding apps/api, apps/web, .agents, aidlc-docs and infra, and repeating every .gitignore pattern (.env, *.pem)."
+    },
+    {
+      "id": 17,
+      "severity": "NIT",
+      "title": "Local docker build check would include host node_modules",
+      "location": "design.md §8.3 (c)",
+      "fix": "Add **/node_modules to .dockerignore (the server context never has them) or drop check (c)."
+    },
+    {
+      "id": 18,
+      "severity": "NIT",
+      "title": "A4 online clear deletes whole line even if the cart changed after place",
+      "location": "design.md §7 A4 markCaptured call",
+      "fix": "Accept for now; record a Phase 5 refinement to decrement by the ordered quantity."
+    },
+    {
+      "id": 19,
+      "severity": "NIT",
+      "title": "Move-to-cart two-request workaround although CartService supports saved=false",
+      "location": "design.md §6.5; apps/api/src/modules/cart/cart.service.ts saveForLater",
+      "fix": "Optionally add POST /cart/items/:variantId/move-to-cart → saveForLater(ref, id, false) with a spec, or record that the fix is trivial."
+    },
+    {
+      "id": 20,
+      "severity": "NIT",
+      "title": "Customer refresh accepts admin refresh tokens (pre-existing)",
+      "location": "customer-auth.service.ts refresh → token.service.ts rotate",
+      "fix": "Optionally have rotate take an expected principal kind and reject a mismatch with 401."
+    },
+    {
+      "id": 21,
+      "severity": "NIT",
+      "title": "Deploy ordering: app requires backend A1",
+      "location": "design.md §5.3, §17",
+      "fix": "Document 'deploy backend A1 before distributing any build'. Optionally map a missing refreshToken to 'This app needs a newer server version'."
+    }
+  ],
+  "reviewDoc": "c:\\xampp\\htdocs\\Belzo\\.agents\\tasks\\mobile-app/design-review.md"
+}

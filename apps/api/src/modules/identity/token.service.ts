@@ -71,6 +71,14 @@ export class TokenService {
     return { accessToken, refreshToken, expiresIn: this.accessTtl() };
   }
 
+  /** Sign a principal out everywhere: revokes all of their live refresh tokens (e.g. after a password reset). */
+  async revokeAllFor(principalId: string, kind: PrincipalKind): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { principalId, principalKind: kind, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
   /**
    * Rotate a refresh token. Verifies it exists, is unexpired and unrevoked.
    * On success revokes it and issues a new pair in the same family. On reuse of

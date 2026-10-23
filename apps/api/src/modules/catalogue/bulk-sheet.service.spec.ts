@@ -6,6 +6,7 @@ import { ProductService } from './product.service';
 import { AdminCatalogueController } from './admin-catalogue.controller';
 import { ROLES_KEY } from '../../common/auth/roles.decorator';
 import type { PrismaService } from '../../common/prisma/prisma.service';
+import type { InventoryService } from './inventory.service';
 import type { CategoryService } from './category.service';
 
 /**
@@ -329,7 +330,11 @@ function setup(
     },
   };
 
-  const products = new ProductService(prisma as PrismaService, {} as CategoryService);
+  const products = new ProductService(
+    prisma as PrismaService,
+    {} as CategoryService,
+    {} as InventoryService,
+  );
   const svc = new BulkSheetService(prisma as PrismaService, products);
   return {
     svc,

@@ -59,7 +59,12 @@ export function paginatedSchema<T extends z.ZodTypeAny>(item: T) {
 
 /** OTP request by phone (primary) or email. At least one must be provided. */
 export const otpRequestSchema = z
-  .object({ phone: phoneSchema.optional(), email: emailSchema.optional() })
+  .object({
+    phone: phoneSchema.optional(),
+    email: emailSchema.optional(),
+    /** Optional: "register" refuses numbers already registered, "reset" only works for existing accounts. */
+    purpose: z.enum(['login', 'register', 'reset']).optional(),
+  })
   .refine((d) => Boolean(d.phone) || Boolean(d.email), {
     message: 'Provide a phone number or email',
   });
@@ -83,6 +88,90 @@ export const emailLoginSchema = z.object({
   password: passwordSchema,
 });
 export type EmailLogin = z.infer<typeof emailLoginSchema>;
+
+// ---------------------------------------------------------------------------
+// Verified sign-up, mobile + password sign-in, password reset
+// ---------------------------------------------------------------------------
+
+/** What a new customer password must contain. Shared so the web, the app and the API show and enforce the same rules. */
+export const PASSWORD_RULES: { key: 'length' | 'upper' | 'lower' | 'symbol'; label: string; test: (p: string) => boolean }[] = [
+  { key: 'length', label: 'At least 8 characters', test: (p) => p.length >= 8 },
+  { key: 'upper', label: 'One capital letter (A-Z)', test: (p) => /[A-Z]/.test(p) },
+  { key: 'lower', label: 'One small letter (a-z)', test: (p) => /[a-z]/.test(p) },
+  { key: 'symbol', label: 'One symbol (for example @ # $ % !)', test: (p) => /[^A-Za-z0-9\s]/.test(p) },
+];
+
+/** Labels of the rules `password` does not meet yet (empty = strong enough). */
+export function passwordProblems(password: string): string[] {
+  return PASSWORD_RULES.filter((r) => !r.test(password)).map((r) => r.label);
+}
+
+/** A new password: 8+ characters with a capital letter, a small letter and a symbol. */
+export const strongPasswordSchema = z
+  .string()
+  .max(128, 'Password is too long')
+  .superRefine((p, ctx) => {
+    const problems = passwordProblems(p);
+    if (problems.length > 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Password needs: ${problems.join(', ').toLowerCase()}` });
+    }
+  });
+
+/** Why an OTP is being requested; sign-up and reset check whether the number/email is already registered. */
+export const otpPurposeSchema = z.enum(['login', 'register', 'reset']);
+export type OtpPurpose = z.infer<typeof otpPurposeSchema>;
+
+/** Create an account. Name + email + mobile, the password twice, and the proofs from verifying the mobile and email by OTP. */
+export const registerAccountSchema = z
+  .object({
+    name: z.string().trim().min(2, 'Enter your full name').max(120),
+    email: emailSchema,
+    phone: phoneSchema,
+    password: strongPasswordSchema,
+    confirmPassword: z.string().max(128),
+    phoneProof: z.string().min(20).max(2000),
+    emailProof: z.string().min(20).max(2000),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'Both passwords must match',
+  });
+export type RegisterAccount = z.infer<typeof registerAccountSchema>;
+
+/** Sign in with the mobile number and password. */
+export const phoneLoginSchema = z.object({
+  phone: phoneSchema,
+  password: z.string().min(1, 'Enter your password').max(128),
+});
+export type PhoneLogin = z.infer<typeof phoneLoginSchema>;
+
+/** Sign in with EITHER the mobile number or the email, plus the password. */
+export const identifierLoginSchema = z.object({
+  identifier: z
+    .string()
+    .trim()
+    .min(3, 'Enter your mobile number or email')
+    .max(254)
+    .refine(
+      (v) => emailSchema.safeParse(v).success || phoneSchema.safeParse(v.replace(/[\s-]/g, '')).success,
+      'Enter a valid mobile number or email',
+    ),
+  password: z.string().min(1, 'Enter your password').max(128),
+});
+export type IdentifierLogin = z.infer<typeof identifierLoginSchema>;
+
+/** Set a new password after proving the mobile number (or email) by OTP. */
+export const passwordResetSchema = z
+  .object({
+    proof: z.string().min(20).max(2000),
+    password: strongPasswordSchema,
+    confirmPassword: z.string().max(128),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'Both passwords must match',
+  });
+export type PasswordReset = z.infer<typeof passwordResetSchema>;
 
 export const authTokensSchema = z.object({
   accessToken: z.string(),
@@ -225,24 +314,36 @@ export const promoContentSchema = z.object({
   subtitle: z.string().trim().max(160).default(''),
   cta: z.string().trim().max(60).default('Shop Now'),
   href: safeHrefSchema.default('/search'),
-  icon: z.string().trim().max(8).default('🛒'), // single emoji/char
+  /** Not shown any more (tiles carry no icon); kept so saved content stays valid. */
+  icon: z.string().trim().max(8).default(''),
   color: z.enum(PROMO_COLORS).default('green'),
+  /**
+   * A picture that fills the whole tile (the website and app then show just the picture, with the
+   * title as its description). '' = a coloured text tile.
+   */
+  imageUrl: safeHrefSchema.default(''),
 });
 export type PromoContent = z.infer<typeof promoContentSchema>;
 
 export const whyItemSchema = z.object({
-  icon: z.string().trim().max(8).default('⭐'),
+  /** Not shown any more (no icons); kept so saved content stays valid. */
+  icon: z.string().trim().max(8).default(''),
   title: z.string().trim().min(1).max(80),
   sub: z.string().trim().max(120).default(''),
+  /** A picture that fills the whole card; the title is then only its description. '' = a text card. */
+  imageUrl: safeHrefSchema.default(''),
 });
 export type WhyItem = z.infer<typeof whyItemSchema>;
 
 /** Repeatable info card inside a 'cards' block. */
 export const homeBlockCardSchema = z.object({
+  /** Not shown any more (no icons); kept so saved content stays valid. */
   icon: z.string().trim().max(8).default(''),
   title: z.string().trim().min(1).max(80),
   subtitle: z.string().trim().max(160).default(''),
   href: safeHrefSchema.default('#'),
+  /** A picture that fills the whole card; the title is then only its description. '' = a text card. */
+  imageUrl: safeHrefSchema.default(''),
 });
 export type HomeBlockCard = z.infer<typeof homeBlockCardSchema>;
 
@@ -345,9 +446,11 @@ export function sanitizeHomeContent(value: unknown): Partial<HomeContent> | null
 // Cart / Checkout
 // ---------------------------------------------------------------------------
 
+/** Most units of one product a single cart line can hold. */
+export const MAX_CART_QTY = 99;
 export const cartItemInputSchema = z.object({
   variantId: uuidSchema,
-  quantity: z.number().int().min(1).max(99),
+  quantity: z.number().int().min(1).max(MAX_CART_QTY),
 });
 export type CartItemInput = z.infer<typeof cartItemInputSchema>;
 

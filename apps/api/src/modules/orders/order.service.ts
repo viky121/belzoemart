@@ -4,6 +4,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { InventoryService } from '../catalogue/inventory.service';
 import { PaymentService } from '../checkout/payment.service';
 import { CartService } from '../cart/cart.service';
+import { FulfilmentService } from './fulfilment.service';
 
 /** Variant attributes JSON → plain string map ({} when not an object). */
 function toAttributes(json: unknown): Record<string, string> {
@@ -27,6 +28,7 @@ export class OrderService {
     private readonly inventory: InventoryService,
     private readonly payments: PaymentService,
     private readonly cart: CartService,
+    private readonly fulfilment: FulfilmentService,
   ) {}
 
   /** Resolve display image, slug, returnability and variant attributes for a set of variant ids. */
@@ -122,6 +124,82 @@ export class OrderService {
     };
   }
 
+  /**
+   * Admin order detail (FR-9): the full order with customer and delivery
+   * address, line items (image/slug/variant attributes), payments, shipments
+   * with reconciled tracking, returns and invoice. RBAC-guarded upstream; no
+   * per-customer ownership restriction.
+   */
+  async adminGetOrder(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: true,
+        payments: true,
+        shipments: { include: { events: true } },
+        invoice: true,
+        returns: { include: { items: true }, orderBy: { createdAt: 'desc' } },
+      },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    const [meta, customer, addr] = await Promise.all([
+      this.productMetaForVariants(order.items.map((i) => i.variantId)),
+      this.prisma.customer.findUnique({ where: { id: order.customerId } }),
+      this.prisma.address.findUnique({ where: { id: order.addressId } }),
+    ]);
+    const tracking = reconcileTracking({ order, shipments: order.shipments });
+    const shipmentStatus = new Map(tracking.shipments.map((s) => [s.id, s.status]));
+    return {
+      ...order,
+      customer: customer
+        ? {
+            id: customer.id,
+            name: customer.name,
+            email: customer.email,
+            phone: customer.phone,
+            status: customer.status,
+            createdAt: customer.createdAt,
+          }
+        : null,
+      address: addr
+        ? {
+            label: addr.label,
+            fullName: addr.fullName,
+            phone: addr.phone,
+            line1: addr.line1,
+            line2: addr.line2,
+            city: addr.city,
+            state: addr.state,
+            pincode: addr.pincode,
+          }
+        : null,
+      items: order.items.map((i) => {
+        const m = meta.get(i.variantId);
+        return {
+          ...i,
+          imageUrl: m?.imageUrl ?? null,
+          slug: m?.slug ?? null,
+          isReturnable: m?.isReturnable ?? true,
+          attributes: m?.attributes ?? {},
+        };
+      }),
+      returns: order.returns.map((r) => ({
+        id: r.id,
+        status: r.status,
+        reason: r.reason,
+        resolution: r.resolution,
+        images: Array.isArray(r.imagesJson)
+          ? r.imagesJson.filter((u): u is string => typeof u === 'string')
+          : [],
+        items: r.items.map((it) => ({ orderItemId: it.orderItemId, quantity: it.quantity })),
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      })),
+      shipments: order.shipments.map((s) => ({ ...s, status: shipmentStatus.get(s.id) ?? s.status })),
+      tracking,
+    };
+  }
+
   async listForCustomer(customerId: string, status?: OrderStatus) {
     const orders = await this.prisma.order.findMany({
       where: { customerId, ...(status ? { status } : {}) },
@@ -181,9 +259,10 @@ export class OrderService {
   }
 
   /**
-   * Cancel an order (BR-2, BR-3). Customers may cancel only pending/confirmed;
-   * admins may cancel up to shipped. Releases reserved stock and refunds a
-   * captured payment.
+   * Cancel an order (BR-2, BR-3). Customers may cancel any time before the
+   * order has shipped (pending/confirmed/packed); admins may cancel up to
+   * shipped. Releases reserved stock (or restocks a committed sale) and refunds
+   * a captured payment.
    */
   async cancel(orderId: string, actor: { customerId?: string; isAdmin?: boolean }, reason: string) {
     const order = await this.prisma.order.findUnique({
@@ -217,6 +296,10 @@ export class OrderService {
         await this.inventory.adjust(item.variantId, item.quantity, `cancel:${order.id}`);
       }
     }
+
+    // Cancel any courier shipment (packed/shipped orders). Best-effort: never
+    // blocks the cancel — see FulfilmentService.cancelShipmentsForOrder.
+    await this.fulfilment.cancelShipmentsForOrder(order.id);
 
     // Refund captured payments.
     const captured = order.payments.find((p) => p.status === 'captured');

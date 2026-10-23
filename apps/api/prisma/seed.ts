@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
+import { LEGAL_PAGES } from './legal-content';
 
 /**
  * Idempotent seed. Creates:
@@ -139,11 +140,8 @@ async function seedSettings(): Promise<void> {
 async function seedCms(): Promise<void> {
   const pages = [
     { slug: 'about', title: 'About Belzo eMart', body: 'Belzo eMart brings apparel, groceries, electronics and handicrafts to your doorstep across India.' },
-    { slug: 'contact', title: 'Contact Us', body: 'Email support@belzo.example. Grievance Officer: grievance@belzo.example.' },
-    { slug: 'terms', title: 'Terms & Conditions', body: 'Standard terms of use for Belzo eMart.' },
-    { slug: 'privacy', title: 'Privacy Policy', body: 'We process personal data per the DPDP Act 2023. You may request export or deletion from your account.' },
-    { slug: 'returns-policy', title: 'Return & Refund Policy', body: 'Returns accepted within the return window for delivered orders.' },
-    { slug: 'shipping-policy', title: 'Shipping Policy', body: 'Orders ship via our logistics partners with tracking.' },
+    // Legal policies (terms, privacy, returns, shipping, cancellation, payment, grievance, contact, ...).
+    ...LEGAL_PAGES.map(({ slug, title, body }) => ({ slug, title, body })),
   ];
   for (const p of pages) {
     await prisma.cmsPage.upsert({ where: { slug: p.slug }, update: {}, create: p });

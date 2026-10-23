@@ -5,6 +5,7 @@ import { isValidGstin } from '@belzo/shared';
 import { adminFetch } from '@/lib/admin-api';
 import { ContentEditor } from './content-editor';
 import { HomeSectionsEditor } from './home-sections-editor';
+import { SmsGatewayCard } from './sms-gateway-card';
 
 type Settings = Record<string, unknown>;
 
@@ -77,6 +78,8 @@ export default function AdminSettingsPage() {
     <div data-testid="admin-settings">
       <h1>Settings</h1>
       {msg && <p role="status" data-testid="settings-msg">{msg}</p>}
+
+      <SmsGatewayCard />
 
       <section style={{ marginBottom: '1.5rem' }}>
         <h2 style={{ fontSize: '1.05rem', margin: '0 0 0.25rem' }}>Storefront theme</h2>

@@ -4,6 +4,7 @@ import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { InventoryService } from '../catalogue/inventory.service';
 import type { PaymentService } from '../checkout/payment.service';
 import type { CartService } from '../cart/cart.service';
+import type { FulfilmentService } from './fulfilment.service';
 
 /**
  * Unit tests for OrderService transition + cancel rules (BR-1, BR-2).
@@ -28,10 +29,15 @@ describe('OrderService', () => {
     } as unknown as InventoryService;
     const payments = { refund: async () => { refunded = true; return { status: 'processed' }; } } as unknown as PaymentService;
     const cart = {} as CartService;
+    const cancelledShipmentsFor: string[] = [];
+    const fulfilment = {
+      cancelShipmentsForOrder: async (orderId: string) => { cancelledShipmentsFor.push(orderId); },
+    } as unknown as FulfilmentService;
     return {
-      svc: new OrderService(prisma, inventory, payments, cart),
+      svc: new OrderService(prisma, inventory, payments, cart, fulfilment),
       updates,
       released,
+      cancelledShipmentsFor,
       get refunded() { return refunded; },
     };
   }
@@ -71,6 +77,22 @@ describe('OrderService', () => {
     expect(ctx.released).toContain('v1');
     expect(ctx.refunded).toBe(true);
   });
+
+  it('BR-2: customer can cancel a packed order and its courier shipment is cancelled', async () => {
+    const ctx = build({
+      id: 'o1',
+      status: 'packed',
+      customerId: 'c1',
+      grandTotal: 100000,
+      items: [{ variantId: 'v1', quantity: 1 }],
+      payments: [{ status: 'captured' }],
+    });
+    const res = await ctx.svc.cancel('o1', { customerId: 'c1' }, 'changed mind');
+    expect(res).toMatchObject({ status: 'cancelled' });
+    expect(ctx.updates[0]).toMatchObject({ status: 'cancelled' });
+    expect(ctx.cancelledShipmentsFor).toEqual(['o1']);
+    expect(ctx.refunded).toBe(true);
+  });
 });
 
 /** Orders that contain a removed variant keep working (history + reorder). */
@@ -108,7 +130,7 @@ describe('OrderService — removed variants', () => {
       },
       getCart: async () => ({ cartId: 'cart1', items: added.map((variantId) => ({ variantId })) }),
     } as unknown as CartService;
-    const svc = new OrderService(prisma, {} as InventoryService, {} as PaymentService, cart);
+    const svc = new OrderService(prisma, {} as InventoryService, {} as PaymentService, cart, {} as FulfilmentService);
     return { svc, added };
   }
 
@@ -197,7 +219,7 @@ describe('OrderService.getForCustomer — detail payload', () => {
         ],
       },
     } as unknown as PrismaService;
-    return new OrderService(prisma, {} as InventoryService, {} as PaymentService, {} as CartService);
+    return new OrderService(prisma, {} as InventoryService, {} as PaymentService, {} as CartService, {} as FulfilmentService);
   }
 
   const ownAddress = {

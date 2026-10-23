@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { adminFetch } from '@/lib/admin-api';
+import { safeUuid } from '@/lib/uuid';
 import { PROMO_COLORS, homeContentSchema, type HomeBlock } from '@belzo/shared';
 import {
   DEFAULT_FOOTER,
@@ -92,7 +93,7 @@ export function ContentEditor() {
   const addPromo = () =>
     setHome((h) => ({
       ...h,
-      promos: [...h.promos, { title: '', subtitle: '', cta: 'Shop Now', href: '/search', icon: '🛒', color: 'green' }],
+      promos: [...h.promos, { title: '', subtitle: '', cta: 'Shop Now', href: '/search', icon: '', imageUrl: '', color: 'green' }],
     }));
   const removePromo = (i: number) =>
     setHome((h) => ({ ...h, promos: h.promos.filter((_, j) => j !== i) }));
@@ -108,8 +109,8 @@ export function ContentEditor() {
     setHome((h) => {
       const block: HomeBlock =
         type === 'banner'
-          ? { type: 'banner', id: crypto.randomUUID(), title: '', text: '', imageUrl: '', ctaText: '', ctaHref: '#', enabled: true }
-          : { type: 'cards', id: crypto.randomUUID(), title: '', cards: [], enabled: true };
+          ? { type: 'banner', id: safeUuid(), title: '', text: '', imageUrl: '', ctaText: '', ctaHref: '#', enabled: true }
+          : { type: 'cards', id: safeUuid(), title: '', cards: [], enabled: true };
       return { ...h, blocks: [...h.blocks, block] };
     });
   const setBlock = (i: number, patch: Partial<HomeBlock>) =>
@@ -125,11 +126,11 @@ export function ContentEditor() {
       ...h,
       blocks: h.blocks.map((b, j) =>
         j === bi && b.type === 'cards'
-          ? { ...b, cards: [...b.cards, { icon: '', title: '', subtitle: '', href: '#' }] }
+          ? { ...b, cards: [...b.cards, { icon: '', title: '', subtitle: '', href: '#', imageUrl: '' }] }
           : b,
       ),
     }));
-  const setCard = (bi: number, ci: number, patch: Partial<{ icon: string; title: string; subtitle: string; href: string }>) =>
+  const setCard = (bi: number, ci: number, patch: Partial<{ icon: string; title: string; subtitle: string; href: string; imageUrl: string }>) =>
     setHome((h) => ({
       ...h,
       blocks: h.blocks.map((b, j) =>
@@ -257,8 +258,12 @@ export function ContentEditor() {
                 <input className="auth-input" value={p.href} onChange={(e) => setPromo(i, { href: e.target.value })} />
               </div>
               <div>
-                <label className="auth-label">Icon (emoji)</label>
-                <input className="auth-input" value={p.icon} onChange={(e) => setPromo(i, { icon: e.target.value })} />
+                <ImageDrop
+                  value={p.imageUrl === '#' ? '' : p.imageUrl}
+                  onChange={(url) => setPromo(i, { imageUrl: url })}
+                  label="Tile picture (800 × 350 px, optional: fills the whole tile)"
+                  previewHeight={80}
+                />
               </div>
               <div>
                 <label className="auth-label">Colour</label>
@@ -290,7 +295,7 @@ export function ContentEditor() {
             <h3 className="prod-subhead">“Why Choose” items</h3>
             {home.why.map((w, i) => (
               <div className="ce-why" key={i}>
-                <input className="auth-input" style={{ width: 64 }} value={w.icon} onChange={(e) => setWhy(i, { icon: e.target.value })} placeholder="🚚" />
+ <div style={{ minWidth: 180 }}><ImageDrop value={w.imageUrl === "#" ? "" : w.imageUrl} onChange={(url) => setWhy(i, { imageUrl: url })} label="Picture (800 × 350 px, optional: fills the card)" previewHeight={40} /></div>
                 <input className="auth-input" value={w.title} onChange={(e) => setWhy(i, { title: e.target.value })} placeholder="Title" />
                 <input className="auth-input" value={w.sub} onChange={(e) => setWhy(i, { sub: e.target.value })} placeholder="Subtitle" />
                 <button type="button" className="wiz__vdel" onClick={() => swapWhy(i, i - 1)} disabled={i === 0} aria-label="Move item up">↑</button>
@@ -298,7 +303,7 @@ export function ContentEditor() {
                 <button type="button" className="wiz__vdel" onClick={() => setHome((h) => ({ ...h, why: h.why.filter((_, j) => j !== i) }))}>✕</button>
               </div>
             ))}
-            <button type="button" className="wiz__addvar" onClick={() => setHome((h) => ({ ...h, why: [...h.why, { icon: '⭐', title: '', sub: '' }] }))}>
+            <button type="button" className="wiz__addvar" onClick={() => setHome((h) => ({ ...h, why: [...h.why, { icon: '', title: '', sub: '', imageUrl: '' }] }))}>
               + Add item
             </button>
           </>
@@ -355,7 +360,7 @@ export function ContentEditor() {
                 <label className="auth-label">Cards</label>
                 {b.cards.map((c, ci) => (
                   <div className="ce-why" key={ci}>
-                    <input className="auth-input" style={{ width: 64 }} value={c.icon} onChange={(e) => setCard(i, ci, { icon: e.target.value })} placeholder="⭐" />
+ <div style={{ minWidth: 180 }}><ImageDrop value={c.imageUrl === "#" ? "" : c.imageUrl} onChange={(url) => setCard(i, ci, { imageUrl: url })} label="Picture (800 × 350 px, optional: fills the card)" previewHeight={40} /></div>
                     <input className="auth-input" value={c.title} onChange={(e) => setCard(i, ci, { title: e.target.value })} placeholder="Title" />
                     <input className="auth-input" value={c.subtitle} onChange={(e) => setCard(i, ci, { subtitle: e.target.value })} placeholder="Subtitle" />
                     <input className="auth-input" value={c.href} onChange={(e) => setCard(i, ci, { href: e.target.value })} placeholder="Link" />

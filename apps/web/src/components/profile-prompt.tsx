@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { safeSession } from '@/lib/safe-storage';
 
 /**
  * Post-login profile completion.
@@ -47,7 +48,7 @@ export function ProfilePrompt() {
   // Auto-open once per session after login when the profile is incomplete.
   useEffect(() => {
     if (!ready || !customer || !incomplete || typeof window === 'undefined') return;
-    if (window.sessionStorage.getItem(DISMISS_KEY) === '1') return;
+    if (safeSession.get(DISMISS_KEY) === '1') return;
     setEditAll(false);
     setName(needsName ? '' : customer.name);
     setEmail(customer.email ?? '');
@@ -72,7 +73,7 @@ export function ProfilePrompt() {
   }, [customer]);
 
   const dismiss = useCallback(() => {
-    if (typeof window !== 'undefined') window.sessionStorage.setItem(DISMISS_KEY, '1');
+    safeSession.set(DISMISS_KEY, '1');
     setOpen(false);
   }, []);
 
@@ -125,8 +126,8 @@ export function ProfilePrompt() {
           locale: updated.locale,
         });
       }
+      safeSession.set(DISMISS_KEY, '1');
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(DISMISS_KEY, '1');
         // Let pages that show profile data (e.g. My Account) refresh in place.
         window.dispatchEvent(new CustomEvent('belzo:profile-updated', { detail: updated }));
       }

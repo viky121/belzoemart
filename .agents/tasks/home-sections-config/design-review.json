@@ -1,0 +1,34 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "id": 1,
+      "severity": "NIT",
+      "location": "§2 Read-time (defensive, per-section)",
+      "problem": "Prose says the sanitizer is 'exported from the web resolver and reused by the controller logic'; apps/api cannot import apps/web, so that cross-app import is not possible. The concrete snippets already inline the logic correctly.",
+      "fix": "Reword: the per-section sanitize logic is implemented in both the web resolver and the public controller; the only shared artifact is homeSectionSchema imported from @belzo/shared in each."
+    },
+    {
+      "id": 2,
+      "severity": "NIT",
+      "location": "§1 schema / §5 defaults / error table",
+      "problem": "homeSectionsSchema has no .min(1), so an admin can save []. On read, valid.length===0 returns null which triggers DEFAULT_SECTIONS, so an intentionally-emptied config silently reverts to the three default rails.",
+      "fix": "Document that an empty saved array is treated as unconfigured and falls back to defaults; to render no rails, disable all sections (enabled:false) rather than deleting them."
+    },
+    {
+      "id": 3,
+      "severity": "NIT",
+      "location": "§4 Per-theme rendering",
+      "problem": "The composition of getHomeSections (applies defaults + filters enabled) and resolveHomeSections is implied but never shown as a single call, risking an unfiltered/undefaulted list being resolved.",
+      "fix": "Show the concrete call once: const sections = await resolveHomeSections(await getHomeSections()); in both page.tsx and emart-home.tsx."
+    },
+    {
+      "id": 4,
+      "severity": "NIT",
+      "location": "§4 Shared resolver (getHomeSections read reuse)",
+      "problem": "'No extra round-trip' depends on Next.js fetch request memoization requiring identical URL AND options; a differing revalidate/options shape in getHomeSections would cause a second request to /settings/public.",
+      "fix": "Require getHomeSections to use the exact same apiFetch('/settings/public', { revalidate: 30 }) options as getTheme/getSiteContent, or have getSiteContent return sections for getHomeSections to consume."
+    }
+  ],
+  "reviewDoc": "c:\\xampp\\htdocs\\Belzo\\.agents\\tasks\\home-sections-config\\design-review.md"
+}

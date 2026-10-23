@@ -1,0 +1,32 @@
+{
+  "name": "belzo-emart",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Belzo eMart — single-vendor B2C e-commerce portal (Phase 1: web storefront + admin)",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "dev:api": "pnpm --filter @belzo/api dev",
+    "dev:web": "pnpm --filter @belzo/web dev",
+    "deploy": "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1",
+    "deploy:all": "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1 -All",
+    "db:migrate": "pnpm --filter @belzo/api db:migrate",
+    "db:generate": "pnpm --filter @belzo/api db:generate",
+    "db:seed": "pnpm --filter @belzo/api db:seed",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\""
+  },
+  "devDependencies": {
+    "@types/node": "20.14.10",
+    "eslint": "8.57.0",
+    "prettier": "3.3.3",
+    "typescript": "5.5.4"
+  }
+}

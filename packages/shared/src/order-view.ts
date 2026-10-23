@@ -289,7 +289,7 @@ export function cancelEligibility(order: OrderDetail): boolean {
 /** Why Cancel is not offered for an order that is still on its way, else null. */
 export function cancelUnavailableReason(order: OrderDetail): string | null {
   if (canCustomerCancel(order.status) || !isLiveStatus(order.status)) return null;
-  return "Orders can't be cancelled once they are packed";
+  return "Orders can't be cancelled once they have shipped";
 }
 
 /** Max comment length so that "<label>: <comments>" stays within REASON_MAX_CHARS. */

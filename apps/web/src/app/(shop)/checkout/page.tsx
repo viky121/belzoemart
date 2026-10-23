@@ -11,7 +11,8 @@ import { breakupView, snapshotFromBreakup } from '@/lib/price-breakup';
 import { cartApi, type CartLine } from '@/lib/cart-api';
 import { placeholderImage, isUsableImageUrl } from '@/lib/category-theme';
 import { safeUuid } from '@/lib/uuid';
-import { openRazorpayCheckout, type RazorpayClientConfig } from '@/lib/razorpay';
+import { safeSession } from '@/lib/safe-storage';
+import { openRazorpayCheckout, verifyBody, type RazorpayClientConfig } from '@/lib/razorpay';
 
 interface Address {
   id: string;
@@ -94,7 +95,7 @@ export default function CheckoutPage() {
       .then((c) => setItems(c.items.filter((i) => !i.savedForLater)))
       .catch(() => setItems([]));
     if (typeof window !== 'undefined') {
-      setCoupon(window.sessionStorage.getItem('belzo_coupon') ?? '');
+      setCoupon(safeSession.get('belzo_coupon') ?? '');
     }
   }, [accessToken, loadAddresses, router]);
 
@@ -160,7 +161,7 @@ export default function CheckoutPage() {
         method: 'POST',
         body: { addressId, paymentMethod: method, couponCode: coupon || undefined },
       });
-      if (typeof window !== 'undefined') window.sessionStorage.removeItem('belzo_coupon');
+      safeSession.remove('belzo_coupon');
 
       const cfg = result.payment.clientConfig;
       // Live Razorpay → open the hosted checkout widget. Capture is confirmed
@@ -173,12 +174,21 @@ export default function CheckoutPage() {
           amount,
           description: `Belzo order ${result.orderId.slice(0, 8)}`,
           prefill: { name: addr?.fullName, contact: addr?.phone },
-          onSuccess: () =>
-            router.push(`/order-result?orderId=${result.orderId}&provider=razorpay`),
-          onDismiss: () => {
-            setBusy(false);
-            setError('Payment was cancelled. Your order is awaiting payment — you can retry from your orders.');
+          onSuccess: async (r) => {
+            // Ask the server to verify the signature and confirm with Razorpay right away,
+            // so the order doesn't depend on the webhook arriving. A failure here is fine:
+            // the result page keeps syncing.
+            try {
+              await authFetch(`/payments/verify`, { method: 'POST', body: verifyBody(result.orderId, r) });
+            } catch {
+              /* the result page re-checks with the gateway */
+            }
+            router.push(`/order-result?orderId=${result.orderId}&provider=razorpay`);
           },
+          // The order already exists (stock is held for it), so send the customer to a page
+          // where they can finish paying, instead of letting them place a duplicate.
+          onDismiss: () =>
+            router.push(`/order-result?orderId=${result.orderId}&provider=razorpay&dismissed=1`),
         });
         return; // keep the button busy while the widget is open
       }

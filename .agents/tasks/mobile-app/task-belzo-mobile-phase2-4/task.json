@@ -1,0 +1,7 @@
+{
+  "task_id": "task-belzo-mobile-phase2-4",
+  "task_description": "Belzo eMart Android app Phases 2-4: backward-compatible backend changes A1-A8 with specs, shared-helper extraction with web re-exports, and the apps/mobile Expo SDK 57 app wired to the real API, per the approved .agents/tasks/mobile-app/design.md, sequenced by .agents/tasks/mobile-app/plan.md. No APK is built; EAS needs the owner's Expo account.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004", "FEAT-005"],
+  "blocked_reason": null
+}

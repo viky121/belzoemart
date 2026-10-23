@@ -5,7 +5,16 @@ import type { AuthTokens } from '@belzo/shared';
 import type { Request, Response } from 'express';
 import { Public } from '../../common/auth/public.decorator';
 import { CustomerAuthService } from './customer-auth.service';
-import { EmailLoginDto, EmailRegisterDto, GoogleLoginDto, OtpRequestDto, OtpVerifyDto } from './dto';
+import {
+  EmailLoginDto,
+  GoogleLoginDto,
+  IdentifierLoginDto,
+  OtpRequestDto,
+  OtpVerifyDto,
+  PasswordResetDto,
+  PhoneLoginDto,
+  RegisterAccountDto,
+} from './dto';
 import { setRefreshCookie, clearRefreshCookie, readRefreshCookie } from './refresh-cookie';
 import { isMobileClient, readMobileLogoutToken, readMobileRefreshToken } from './client-platform';
 
@@ -26,7 +35,15 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('otp/request')
   requestOtp(@Body() dto: OtpRequestDto) {
-    return this.auth.requestOtp({ phone: dto.phone, email: dto.email });
+    return this.auth.requestOtp({ phone: dto.phone, email: dto.email }, dto.purpose);
+  }
+
+  /** Check a code WITHOUT signing in; returns a signed proof for sign-up / password reset. */
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('otp/prove')
+  proveOtp(@Body() dto: OtpVerifyDto) {
+    return this.auth.proveOtp(dto.requestId, dto.code);
   }
 
   @Public()
@@ -41,15 +58,51 @@ export class AuthController {
     return this.deliver(req, res, tokens, customer);
   }
 
+  /** Create an account: name, email, mobile (both verified by OTP) and a strong password entered twice. */
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')
   async register(
-    @Body() dto: EmailRegisterDto,
+    @Body() dto: RegisterAccountDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { tokens, customer } = await this.auth.registerEmail(dto.name, dto.email, dto.password);
+    const { tokens, customer } = await this.auth.registerAccount(dto);
     return this.deliver(req, res, tokens, customer);
+  }
+
+  /** Sign in with mobile number + password. */
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('login/phone')
+  async loginPhone(
+    @Body() dto: PhoneLoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { tokens, customer } = await this.auth.loginPhone(dto.phone, dto.password, req.ip);
+    return this.deliver(req, res, tokens, customer);
+  }
+
+  /** Sign in with mobile number OR email, plus the password. This is what the login screens use. */
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('login/identifier')
+  async loginIdentifier(
+    @Body() dto: IdentifierLoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { tokens, customer } = await this.auth.loginIdentifier(dto.identifier, dto.password, req.ip);
+    return this.deliver(req, res, tokens, customer);
+  }
+
+  /** Forgot password: set a new one after verifying the mobile number by OTP (`otp/prove`). */
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('password/reset')
+  resetPassword(@Body() dto: PasswordResetDto) {
+    return this.auth.resetPassword(dto.proof, dto.password);
   }
 
   @Public()

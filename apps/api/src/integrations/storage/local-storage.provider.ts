@@ -24,12 +24,14 @@ export class LocalStorageProvider implements StorageProvider {
   /**
    * Public URL for a stored object. Files are served by the API under
    * `/api/uploads/<key>` (see main.ts static assets), and the reverse proxy
-   * routes `/api/*` to the API. We prefix with PUBLIC_BASE_URL (or CDN_BASE_URL)
-   * so the URL is absolute and loads from any origin (storefront or admin).
+   * routes `/api/*` to the API. We return a HOST-RELATIVE path so images load
+   * same-origin over whatever host/scheme the page uses (the EC2 IP or
+   * belzoemart.com, HTTP or HTTPS) — avoiding mixed-content blocking. A CDN,
+   * when configured, is always an absolute origin.
    */
   getUrl(key: string): string {
-    const base = (process.env.CDN_BASE_URL || process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '');
-    return `${base}/api/uploads/${key}`;
+    const cdn = (process.env.CDN_BASE_URL || '').replace(/\/$/, '');
+    return cdn ? `${cdn}/api/uploads/${key}` : `/api/uploads/${key}`;
   }
 
   /**

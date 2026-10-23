@@ -88,6 +88,19 @@ export class ShipRocketProvider implements ShippingProvider {
     return { awb: res.awb_code ?? '', courier: res.courier_name ?? 'ShipRocket' };
   }
 
+  async cancelShipment(awb: string): Promise<void> {
+    if (!process.env.SHIPROCKET_EMAIL) {
+      throw new Error('ShipRocket not configured — set SHIPPING_PROVIDER=mock for local dev');
+    }
+    const token = await this.auth();
+    this.logger.log(`Cancelling ShipRocket shipment for AWB ${awb}`);
+    await this.http.request(
+      'shiprocket',
+      'https://apiv2.shiprocket.in/v1/external/orders/cancel/shipment/awbs',
+      { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: { awbs: [awb] } },
+    );
+  }
+
   async getTracking(awb: string): Promise<TrackingUpdate[]> {
     const token = await this.auth();
     const res = await this.http.request<{

@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { discountPct, resolveSlabPrice, type Money, type PriceSlabTier } from '@belzo/shared';
+import { discountPct, MAX_CART_QTY, resolveSlabPrice, type Money, type PriceSlabTier } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
-const MAX_QTY = 99;
+const MAX_QTY = MAX_CART_QTY;
 const clampQty = (q: number): number => Math.max(1, Math.min(MAX_QTY, Math.trunc(q)));
 
 export interface CartRef {

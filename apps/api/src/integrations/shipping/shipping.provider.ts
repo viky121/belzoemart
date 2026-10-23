@@ -48,6 +48,12 @@ export interface ShippingProvider {
   checkServiceability(pincode: string, weightGrams: number, cod: boolean): Promise<ServiceabilityResult>;
   createAwb(req: ShipmentRequest): Promise<AwbResult>;
   getTracking(awb: string, ctx?: TrackingContext): Promise<TrackingUpdate[]>;
+  /**
+   * Cancel a shipment with the courier by its AWB (e.g. when the order is
+   * cancelled before dispatch). Must be idempotent/safe to call for a shipment
+   * the courier may have already cancelled or picked up.
+   */
+  cancelShipment(awb: string): Promise<void>;
 }
 
 export const SHIPPING_PROVIDER = Symbol('SHIPPING_PROVIDER');

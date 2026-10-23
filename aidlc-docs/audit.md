@@ -1,0 +1,338 @@
+# AI-DLC Audit Log
+
+## Initial User Request
+**Timestamp**: 2026-09-15T00:00:00Z
+**User Input**: "Using AI-DLC, build ecommerce portal, i have added prompt below check and build, [MASTER BUILD PROMPT — Complete E-Commerce Portal (Web + Android App) — full text pasted by user, Section 0 project variables left as unfilled [[ ]] placeholders, followed by Sections 1-9 defining role/objective, functional requirements (customer side, admin panel, seller/vendor panel), non-functional requirements (security, compliance, performance, quality, accessibility), integrations checklist, deliverables, execution instructions, and additional information to be supplied by client]"
+**AI Response**: "Acknowledged. Beginning AI-DLC workflow: loaded common rules (process-overview, session-continuity, content-validation, question-format-guide) and extension opt-in files (security-baseline, resiliency-baseline, property-based-testing). Proceeding to Workspace Detection."
+**Context**: Workflow start — INCEPTION PHASE - Workspace Detection
+
+---
+
+## Requirements Analysis - Clarifying Questions Created
+**Timestamp**: 2026-09-15T00:05:00Z
+**AI Prompt**: "Created requirement-verification-questions.md with 15 scoping questions (covering Section 0 project variables: brand, business type, category, geography, languages, currency, tech stack, mobile approach, payment gateway, logistics partner, hosting, budget/timeline) plus 3 phasing/scope questions and 3 extension opt-in questions (Security Baseline, Resiliency Baseline, Property-Based Testing). Rationale logged: full master prompt scope (web + Android app + admin + multi-vendor seller panel + full integrations) is multi-month; phasing decision requested before requirements.md is drafted."
+**User Response**: [pending]
+**Context**: INCEPTION PHASE - Requirements Analysis - Step 6 (Gate: Await User Answers)
+
+---
+
+## Requirements Analysis - First-Round Answers Received
+**Timestamp**: 2026-09-15T00:20:00Z
+**User Input**: "done" (answers filled in requirement-verification-questions.md)
+**AI Response**: "Extracted answers: Q1 Brand=Belzo eMart; Q2=A (B2C); Q3=all categories (apparel/grocery/electronics/handicraft); Q4=A (Pan-India); Q5=B (English+Hindi); Q6=A (INR); Q7=A (Next.js + Node.js + PostgreSQL); Q8=C (Flutter, deferred); Q9=A (Razorpay); Q10=A (ShipRocket); Q11=A (AWS); Q12=A (tight budget/MVP); Q13=A (Phase 1 = Web storefront + Admin panel only); Q14=A (single-vendor, no seller panel); Q15=A (has integration accounts). Extensions: Security=A (enabled), Resiliency=A (enabled), PBT=A (enabled). Extension config updated in aidlc-state.md; full rule files for all three extensions loaded. No blocking contradictions. Note logged: integrations will use provider abstractions + env-driven sandbox config since live credentials cannot be held in local build env."
+**Context**: INCEPTION PHASE - Requirements Analysis - Step 6 answers processed
+
+---
+
+## Requirements Analysis - Resiliency Extension Decision Questions Created
+**Timestamp**: 2026-09-15T00:22:00Z
+**AI Prompt**: "Resiliency Baseline extension is enabled. Per RESILIENCY-02/03/04/08/14/15, created resiliency-decisions-questions.md capturing user-owned decisions (RTO/RPO & DR strategy, change management process, CI/CD tooling, rollback mechanism, deployment style, regional topology, incident response process, resiliency testing approach) required before requirements can be finalized."
+**User Response**: [pending]
+**Context**: INCEPTION PHASE - Requirements Analysis - Resiliency extension gate
+
+---
+
+## Requirements Analysis - Resiliency Decisions Confirmed
+**Timestamp**: 2026-09-15T00:30:00Z
+**User Input**: "continue" (accepted pre-filled resiliency defaults in resiliency-decisions-questions.md)
+**AI Response**: "Recorded resiliency decisions: R1=A (Backup & Restore, RTO/RPO hours); R2=A (single-region multi-zone); R3=B (propose lightweight change management); R4=B (propose CI/CD — GitHub Actions); R5=A (version-pinned rollback); R6=B (rolling deployment); R7=B (propose lightweight incident response + COE); R8=C (defer resiliency testing to Operations). Proceeding to generate requirements.md."
+**Context**: INCEPTION PHASE - Requirements Analysis - Resiliency gate cleared
+
+---
+
+## Requirements Analysis - requirements.md Generated
+**Timestamp**: 2026-09-15T00:35:00Z
+**AI Prompt**: "Requirements document generated at aidlc-docs/inception/requirements/requirements.md covering Phase 1 scope (Web storefront + Admin panel, single-vendor B2C, Next.js + NestJS + PostgreSQL on AWS, Razorpay + ShipRocket, EN/HI i18n, INR). Includes FR-1..FR-13, NFR-1..NFR-6 mapping all three enabled extensions, integrations table, assumptions, and explicit out-of-scope (Flutter app, multi-vendor seller panel, ERP/search deferred). Requesting review/approval."
+**User Response**: [pending]
+**Context**: INCEPTION PHASE - Requirements Analysis - Step 9 approval gate
+
+---
+
+## Requirements Analysis - Approved
+**Timestamp**: 2026-09-15T00:45:00Z
+**User Input**: "Approve & Continue"
+**AI Response**: "Requirements approved. User did not opt to add User Stories stage. Proceeding to Workflow Planning. User Stories will be marked SKIP with rationale (single-vendor MVP, requirements already detailed with FR/NFR IDs); this can be revisited in the plan."
+**Context**: INCEPTION PHASE - Requirements Analysis complete → Workflow Planning
+**Status**: Approved
+
+---
+
+## Workflow Planning - Execution Plan Created
+**Timestamp**: 2026-09-15T00:55:00Z
+**AI Prompt**: "Created execution-plan.md. Recommends: SKIP User Stories; EXECUTE Application Design, Units Generation, and full per-unit CONSTRUCTION loop (Functional Design, NFR Requirements, NFR Design, Infrastructure Design, Code Generation) + Build and Test. Proposed 7 units in dependency order: platform-core, identity, catalogue, cart-checkout, orders-fulfilment, engagement, admin. Risk=High. Requesting approval."
+**User Response**: [pending]
+**Context**: INCEPTION PHASE - Workflow Planning - Step 9 approval gate
+
+---
+
+## Workflow Planning - Approved
+**Timestamp**: 2026-09-15T01:00:00Z
+**User Input**: "Approve & Continue"
+**AI Response**: "Execution plan approved. Proceeding to Application Design. Creating application-design-plan.md with clarifying questions."
+**Context**: INCEPTION PHASE - Workflow Planning complete → Application Design
+**Status**: Approved
+
+---
+
+## Application Design - Plan & Questions Created
+**Timestamp**: 2026-09-15T01:05:00Z
+**AI Prompt**: "Created application-design-plan.md with 10 clarifying questions (A1 backend architecture, A2 frontend structure, A3 API style, A4 repo layout, A5 auth mechanism, A6 admin/customer identity separation, A7 async processing, A8 search, A9 integration abstraction, A10 additional constraints). Recommended options pre-marked. Awaiting answers."
+**User Response**: [pending]
+**Context**: INCEPTION PHASE - Application Design - Step 6/7 (await answers)
+
+---
+
+## Application Design - Answers Received
+**Timestamp**: 2026-09-15T01:15:00Z
+**User Input**: "done" (all answers A1-A10 = A)
+**AI Response**: "Confirmed: modular monolith NestJS (A1=A); single Next.js app with route-group shop/admin separation (A2=A); REST + OpenAPI (A3=A); monorepo apps/web + apps/api + packages/shared + infra (A4=A); JWT access + refresh rotation in httpOnly cookie (A5=A); separate admin_users vs customers (A6=A); Redis BullMQ workers (A7=A); PostgreSQL FTS behind SearchService abstraction (A8=A); provider ports + adapters + mock, env-selected (A9=A); no extra constraints (A10=A). No ambiguities. Generating design artifacts."
+**Context**: INCEPTION PHASE - Application Design - answers processed
+---
+
+## Application Design - Artifacts Generated
+**Timestamp**: 2026-09-15T01:25:00Z
+**AI Prompt**: "Generated application design artifacts in aidlc-docs/inception/application-design/: components.md (31 components incl. platform-core cross-cutting + domain + frontend), component-methods.md (interface signatures), services.md (8 orchestrators + business-transaction map), component-dependency.md (dependency matrix + place-order data flow + build order), application-design.md (consolidated: architecture decisions, tech stack, extension mapping, workload criticality). Requesting approval."
+**User Response**: [pending]
+**Context**: INCEPTION PHASE - Application Design - Step 12/13 approval gate
+**Extension Compliance (design stage)**:
+- Security: SECURITY-01/03/04/05/08/10/11/12/15 addressed in cross-cutting design; SECURITY-02/06/07/13/14 deferred to Infrastructure/NFR Design (network, IAM, CDN, alerting) — not yet applicable at app-design level (N/A here, tracked forward). No blocking findings at this stage.
+- Resiliency: RESILIENCY-01 (criticality + dependency map) done; RESILIENCY-02/08/11 decisions captured; RESILIENCY-06/10 patterns designed; RESILIENCY-05/09/12/13 deferred to Infrastructure Design. No blocking findings at this stage.
+- PBT: PBT-01 property targets identified in application-design.md section 5; framework selection (PBT-09) deferred to NFR Requirements. No blocking findings at this stage.
+
+---
+
+## Application Design - Approved
+**Timestamp**: 2026-09-15T01:35:00Z
+**User Input**: "Approve & Continue"
+**AI Response**: "Application design approved. Proceeding to Units Generation Part 1 (Planning). Creating unit-of-work-plan.md with decomposition questions."
+**Context**: INCEPTION PHASE - Application Design complete → Units Generation
+**Status**: Approved
+
+---
+
+## Units Generation - Part 1 Planning - Questions Created
+**Timestamp**: 2026-09-15T01:40:00Z
+**AI Prompt**: "Created unit-of-work-plan.md proposing 7 units (platform-core, identity, catalogue, cart-checkout, orders-fulfilment, engagement, admin) with 7 decomposition questions (U-1 granularity, U-2 build sequence, U-3 admin timing, U-4 storefront timing, U-5 definition of done, U-6 seed data, U-7 boundary changes). Recommended options pre-marked. Awaiting answers."
+**User Response**: [pending]
+**Context**: INCEPTION PHASE - Units Generation Part 1 - await answers
+
+---
+
+## Units Generation - Part 2 - Artifacts Generated
+**Timestamp**: 2026-09-15T01:50:00Z
+**User Input**: "done" (all U-1..U-7 = A)
+**AI Response**: "Generated unit artifacts: unit-of-work.md (7 units with responsibilities, DoD, monorepo code organization), unit-of-work-dependency.md (dependency matrix + strict build sequence U1..U7 + testing checkpoints + rollback), unit-of-work-story-map.md (FR + component coverage per unit). All 31 components and all FRs assigned. Requesting approval to enter CONSTRUCTION phase."
+**Context**: INCEPTION PHASE - Units Generation Part 2 - approval gate
+**Confirmed decisions**: 7 units accepted; strict dependency build order; admin UI last (U7); storefront UI incremental per unit; DoD = code+tests+PBT+build+OpenAPI+summary; idempotent seed data per unit.
+
+---
+
+## Units Generation - Approved → CONSTRUCTION PHASE
+**Timestamp**: 2026-09-15T02:00:00Z
+**User Input**: "Approve & Continue"
+**AI Response**: "Units approved. Entering CONSTRUCTION phase, unit U1 platform-core. Per-unit conditional assessment for U1: Functional Design SKIPPED (scaffolding, no business logic); NFR Requirements + NFR Design + Infrastructure Design consolidated into a single concise U1 design note (decisions already pinned in Application Design + resiliency answers); Code Generation to follow with Part 1 plan + approval gate. Units with business logic (U4, U5) will receive full Functional Design + PBT property design."
+**Context**: CONSTRUCTION PHASE - U1 platform-core start
+**Status**: Approved
+
+---
+
+## U1 platform-core - Design Note + Code Generation Plan (Part 1)
+**Timestamp**: 2026-09-15T02:10:00Z
+**AI Prompt**: "Functional Design SKIPPED for U1 (scaffolding). Created consolidated design note (construction/u1-platform-core/nfr-design/design-note.md) covering NFR Requirements (pinned tech stack incl. fast-check per PBT-09), NFR Design (security/resiliency platform patterns), and Infrastructure Design (AWS single-region multi-zone, CI/CD via GitHub Actions, rolling deploy, Backup&Restore). Created code generation plan (construction/plans/u1-platform-core-code-generation-plan.md) with 12 steps. Requesting approval of the U1 code generation plan before generating code."
+**User Response**: [pending]
+**Context**: CONSTRUCTION PHASE - U1 - Code Generation Part 1 approval gate
+
+---
+
+## U1 platform-core - Code Generation Plan Approved
+**Timestamp**: 2026-09-15T02:20:00Z
+**User Input**: "Continue to Next Stage"
+**AI Response**: "U1 code generation plan approved. Executing Part 2 — generating monorepo scaffold, packages/shared with PBT, NestJS api + worker + platform-core common modules, Prisma, Next.js web shell, docker-compose, CI/CD, docs."
+**Context**: CONSTRUCTION PHASE - U1 - Code Generation Part 2 start
+**Status**: Approved
+
+---
+
+## U1 platform-core - Code Generation Complete + Verified
+**Timestamp**: 2026-09-15T03:10:00Z
+**AI Response**: "Generated all 12 steps of U1 platform-core (monorepo scaffold, packages/shared, apps/api NestJS platform-core, apps/web Next.js shell, prisma, docker-compose, CI/CD, Dockerfiles, summary doc). VERIFICATION: installed packages/shared deps, ran tsc (TYPECHECK_OK) and jest. Initial run: 14/15 passed — a fast-check property test surfaced a real float-rounding bug (rupeesToMoney(1.005) -> 100 instead of 101 due to 1.005*100=100.4999...). Fixed rupeesToMoney with toFixed(6) normalization before Math.round. Re-ran: 15/15 tests pass (2 suites). Removed stray npm package-lock.json (project uses pnpm). Note: full monorepo install (api native deps like argon2) not run in this environment; api/web build+test deferred to Build and Test stage. Requesting approval to proceed to U2 identity."
+**Context**: CONSTRUCTION PHASE - U1 - Code Generation Part 2 complete, approval gate
+**Extension Compliance (U1)**: Security — no blocking findings (SECURITY-01/03/04/05/08/09/10/11/12/15 addressed at platform level). Resiliency — no blocking findings (RESILIENCY-04/05/06/10 addressed; infra items mapped). PBT — no blocking findings (PBT-02/03 tests implemented + PASSING; PBT-09 fast-check installed).
+
+---
+
+## U1 platform-core - Approved → U2 identity
+**Timestamp**: 2026-09-15T03:20:00Z
+**User Input**: "Continue to Next Stage"
+**AI Response**: "U1 approved. Starting U2 identity. Producing functional design (domain entities + business rules + PBT property identification for auth/RBAC/DPDP) and the U2 code generation plan, then awaiting approval to generate code."
+**Context**: CONSTRUCTION PHASE - U2 identity start
+**Status**: Approved
+
+---
+
+## U2 identity - Functional Design + Code Generation Plan (Part 1)
+**Timestamp**: 2026-09-15T03:35:00Z
+**AI Prompt**: "Created U2 functional design (domain-entities.md, business-rules.md with 14 business rules + PBT-01 testable properties table) and code generation plan (14 steps) at construction/plans/u2-identity-code-generation-plan.md. Requesting approval to generate U2 code."
+**User Response**: [pending]
+**Context**: CONSTRUCTION PHASE - U2 identity - approval gate (Functional Design + Code Gen Plan)
+
+---
+
+## U2 identity - Code Generation Complete + Verified
+**Timestamp**: 2026-09-15T05:30:00Z
+**AI Response**: "Generated all 14 steps of U2 identity: Prisma models + seed, SMS port/mock, token/password/RBAC/OTP/lockout/social/customer-auth/profile/address/pincode/admin-auth (TOTP MFA)/admin-user/DPDP services + worker, zod DTOs + global ZodValidationPipe, controllers (auth, admin-auth, me, addresses, dpdp, admin-users), IdentityModule + IdentityWorkerModule wiring, cookie-parser, web auth pages (login OTP/email, signup, account, admin login) + auth-context. VERIFICATION: pnpm install (argon2 built), prisma generate OK; API tests 28/28 PASS; API typecheck clean. Caught+fixed 2 real bugs: (1) randomUUID template-literal type on TokenService.issue familyId param; (2) RBAC prototype-chain lookup for role names like 'constructor'/'toString' (property test found it) — added hasOwnProperty guard. tsconfig now consumes @belzo/shared from built dist. Summary at construction/u2-identity/code/summary.md. Requesting approval to proceed to U3 catalogue."
+**Context**: CONSTRUCTION PHASE - U2 identity - Code Generation Part 2 complete, approval gate
+**Extension Compliance (U2)**: Security — no blocking findings (SECURITY-05/08/11/12/15). Resiliency — no blocking findings (RESILIENCY-10). PBT — no blocking findings (PBT-02/03/05 implemented + passing).
+
+---
+
+## U2 identity - Approved → U3 catalogue
+**Timestamp**: 2026-09-15T05:45:00Z
+**User Input**: "Continue to Next Stage"
+**AI Response**: "U2 approved. Starting U3 catalogue. Producing functional design (domain entities + business rules + PBT properties for inventory/search) and code generation plan, then awaiting approval to generate code."
+**Context**: CONSTRUCTION PHASE - U3 catalogue start
+**Status**: Approved
+
+---
+
+## U3 catalogue - Functional Design + Code Generation Plan (Part 1)
+**Timestamp**: 2026-09-15T05:55:00Z
+**AI Prompt**: "Created U3 functional design (domain-entities.md: Category/Brand/Attribute/Product/Variant/Inventory/StockMovement; business-rules.md: 12 rules + PBT properties table for inventory non-negativity/conservation, discountPct range, slug idempotence) and code generation plan (12 steps) at construction/plans/u3-catalogue-code-generation-plan.md. Requesting approval to generate U3 code."
+**User Response**: [pending]
+**Context**: CONSTRUCTION PHASE - U3 catalogue - approval gate (Functional Design + Code Gen Plan)
+
+---
+
+## U3 catalogue - Code Generation Complete + Verified
+**Timestamp**: 2026-09-15T07:00:00Z
+**AI Response**: "Generated all 12 steps of U3 catalogue: shared catalogue helpers/DTOs + PBT; Prisma models (Category tree/Brand/Attribute/Product/Variant/Inventory/StockMovement) + sample seed (4 categories, 8 products); storage port (local+S3 stub); inventory pure logic + stateful PBT + DB service w/ audit; category (cycle guard)/product (CRUD+CSV)/variant (price invariant)/brand/attribute services; SearchProvider port + PostgresSearchProvider; public + admin controllers; CatalogueModule wired; web storefront (home, category listing+sort, product detail+variants, search, header search) + product-card + catalogue-api + CSS. VERIFICATION: shared 19/19 tests pass + build OK; prisma generate OK; API typecheck clean; API tests 35/35 pass. Fixed 1 real bug: TS7022 circular-inference in category.service.wouldCreateCycle (explicit type annotation). Summary at construction/u3-catalogue/code/summary.md. Requesting approval to proceed to U4 cart-checkout."
+**Context**: CONSTRUCTION PHASE - U3 catalogue - Code Generation Part 2 complete, approval gate
+**Extension Compliance (U3)**: Security — no blocking findings (SECURITY-05/08/09). Resiliency — no blocking findings (RESILIENCY-10 ports/abstractions). PBT — no blocking findings (PBT-03/04/06 implemented + passing).
+
+---
+
+## U3 catalogue - Approved → U4 cart-checkout
+**Timestamp**: 2026-09-15T07:15:00Z
+**User Input**: "Continue to Next Stage"
+**AI Response**: "U3 approved. Starting U4 cart-checkout (critical revenue path). Producing full functional design (pricing/tax/coupon engine, cart state, checkout orchestration, Razorpay port) with detailed PBT property identification, then code generation plan, then awaiting approval."
+**Context**: CONSTRUCTION PHASE - U4 cart-checkout start
+**Status**: Approved
+
+---
+
+## U4 cart-checkout - Functional Design + Code Generation Plan (Part 1)
+**Timestamp**: 2026-09-15T07:30:00Z
+**AI Prompt**: "Created U4 functional design (domain-entities.md: Cart/CartItem/Coupon/CouponRedemption/Payment/WebhookEvent/Order/OrderItem; business-rules.md: 14 rules + PBT properties table covering GST split invariant, state-based CGST/SGST vs IGST, discount<=subtotal, grandTotal>=0, determinism, percent cap, free_shipping, PriceBreakup round-trip, checkout idempotency, cart stateful) and code generation plan (12 steps) at construction/plans/u4-cart-checkout-code-generation-plan.md. Requesting approval to generate U4 code."
+**User Response**: [pending]
+**Context**: CONSTRUCTION PHASE - U4 cart-checkout - approval gate (Functional Design + Code Gen Plan)
+
+---
+
+## U4 cart-checkout - Code Generation Complete + Verified
+**Timestamp**: 2026-09-15T08:30:00Z
+**AI Response**: "Generated all 12 steps of U4 cart-checkout: shared pricing/tax/coupon pure engine + PBT; Prisma models (Cart/CartItem/Coupon/CouponRedemption/Order/OrderItem/Payment/WebhookEvent) + demo coupons; Payment port (Mock + Razorpay HMAC); CartService (guest+user, merge); Coupon/Pricing/Checkout(idempotent)/Payment(webhook-only capture) services; controllers (cart/checkout/coupons/payments-webhook) + raw-body; web cart/checkout/order-result pages + PDP add-to-cart. VERIFICATION: shared 29/29 pass + build OK; prisma generate OK; API typecheck clean; API 38/38 pass (adds checkout idempotency tests). Fixed 2 bugs during build: broken inline preview mapping (await0 hack) and Money/number mismatch in pricing engine. Summary at construction/u4-cart-checkout/code/summary.md. Requesting approval to proceed to U5 orders-fulfilment."
+**Context**: CONSTRUCTION PHASE - U4 cart-checkout - Code Generation Part 2 complete, approval gate
+**Extension Compliance (U4)**: Security — no blocking findings (SECURITY-05/08/11/12/13; webhook-only capture). Resiliency — no blocking findings (RESILIENCY-10 circuit-breaker + queue decoupling + idempotent webhooks). PBT — no blocking findings (PBT-02/03/04 implemented + passing).
+
+---
+
+## U4 cart-checkout - Approved → U5 orders-fulfilment
+**Timestamp**: 2026-09-15T08:40:00Z
+**User Input**: "Continue to Next Stage"
+**AI Response**: "U4 approved. Starting U5 orders-fulfilment. Full functional design (order state machine, GST invoice, ShipRocket port, returns/refunds) with PBT for the state machine, then code generation plan, then approval gate."
+**Context**: CONSTRUCTION PHASE - U5 orders-fulfilment start
+**Status**: Approved
+
+---
+
+## U5 orders-fulfilment - Functional Design + Code Generation Plan (Part 1)
+**Timestamp**: 2026-09-15T08:50:00Z
+**AI Prompt**: "Created U5 functional design (domain-entities.md: Shipment/TrackingEvent/Invoice/ReturnRequest/ReturnItem + Order lifecycle; business-rules.md: 11 rules + PBT properties table for state machine validity/stateful, invoice number format, refund clamp, cancel predicate) and code generation plan (12 steps). Requesting approval to generate U5 code."
+**User Response**: [pending]
+**Context**: CONSTRUCTION PHASE - U5 orders-fulfilment - approval gate
+
+---
+
+## U5 orders-fulfilment - Code Generation Complete + Verified
+**Timestamp**: 2026-09-15T10:00:00Z
+**AI Response**: "Generated all 12 steps of U5 orders-fulfilment: shared state-machine helpers + PBT; Prisma models (Shipment/TrackingEvent/Invoice/InvoiceCounter/ReturnRequest/ReturnItem); Shipping port (Mock + ShipRocket); OrderService (validated transitions/cancel/reorder); InvoiceService (idempotent GST invoice) + FulfilmentService (AWB/tracking) + workers; ReturnService (refund clamp); customer + admin controllers; OrdersModule + OrdersWorkerModule wired; web order list + detail (tracking timeline, invoice, cancel, return, reorder). VERIFICATION: shared 35/35 pass + build; prisma generate OK; API typecheck clean; API 45/45 pass. No new bugs (clean build). Summary at construction/u5-orders-fulfilment/code/summary.md. Requesting approval to proceed to U6 engagement."
+**Context**: CONSTRUCTION PHASE - U5 orders-fulfilment - Code Generation Part 2 complete, approval gate
+**Extension Compliance (U5)**: Security — no blocking findings (SECURITY-05/08). Resiliency — no blocking findings (RESILIENCY-10 circuit-breaker + queue + idempotent invoice). PBT — no blocking findings (PBT-03/06 implemented + passing).
+
+---
+
+## U5 orders-fulfilment - Approved → U6 engagement
+**Timestamp**: 2026-09-15T10:10:00Z
+**User Input**: "Continue to Next Stage"
+**AI Response**: "U5 approved. Starting U6 engagement. Functional design (wishlist, reviews/Q&A, wallet ledger, referrals, notifications, CMS) with PBT for wallet ledger (balance>=0, idempotent earn/redeem by ref), then code generation plan, then approval gate."
+**Context**: CONSTRUCTION PHASE - U6 engagement start
+**Status**: Approved
+
+---
+
+## U6 engagement - Functional Design + Code Generation Plan (Part 1)
+**Timestamp**: 2026-09-15T10:20:00Z
+**AI Prompt**: "U6 functional design (business-rules.md: entities Wishlist/Review/Q&A/WalletAccount/WalletEntry/Referral/Notification/CmsPage/Banner + 9 business rules + PBT table for wallet balance>=0/idempotent/ledger + wishlist idempotence) done. Created code generation plan (12 steps) at construction/plans/u6-engagement-code-generation-plan.md. Requesting approval to generate U6 code."
+**User Response**: [pending]
+**Context**: CONSTRUCTION PHASE - U6 engagement - approval gate
+
+---
+
+## U6 engagement - Code Generation Complete + Verified
+**Timestamp**: 2026-09-15T11:30:00Z
+**AI Response**: "Generated all 12 steps of U6 engagement: shared wallet ledger + PBT; Prisma models (wishlist/review/qna/wallet/referral/notification/cms/banner) + CMS seed; notification channel ports (email/whatsapp/push mocks); wishlist/wallet/referral/review/qna/notification/cms/abandoned-cart services + notification dispatcher worker; customer/public/admin controllers; EngagementModule + EngagementWorkerModule wired; U5 refund_wallet hook connected (OrdersModule→EngagementModule, ReturnService credits wallet); web pages (wishlist, wallet, notifications, PDP reviews, CMS renderer, header/footer links). VERIFICATION: shared 39/39 pass + build OK; prisma generate OK; API typecheck clean; API 45/45 pass. Terminal was temporarily unresponsive mid-unit; verification re-run successfully after recovery. Summary at construction/u6-engagement/code/summary.md. Requesting approval to proceed to U7 admin."
+**Context**: CONSTRUCTION PHASE - U6 engagement - Code Generation Part 2 complete, approval gate
+**Extension Compliance (U6)**: Security — no blocking findings (SECURITY-05/08). Resiliency — no blocking findings (RESILIENCY-10 queue + best-effort fan-out). PBT — no blocking findings (PBT-03/04/06 wallet + wishlist passing).
+
+---
+
+## U6 engagement - Approved → U7 admin
+**Timestamp**: 2026-09-15T11:40:00Z
+**User Input**: "Continue to Next Stage"
+**AI Response**: "U6 approved. Starting U7 admin (final unit). Functional design (reporting, settings, audit log; admin UI assembly over existing domain endpoints) + code generation plan, then approval gate."
+**Context**: CONSTRUCTION PHASE - U7 admin start
+**Status**: Approved
+
+---
+
+## U7 admin - Functional Design + Code Generation Plan (Part 1)
+**Timestamp**: 2026-09-15T11:50:00Z
+**AI Prompt**: "U7 functional design (business-rules.md: Setting + AdminAuditLog entities, 9 rules for dashboard KPIs/sales/GST/inventory/returns/customer reports + CSV export + settings + audit; PBT for CSV escaping/GST reconciliation/AOV) done. Created code generation plan (12 steps: reporting/settings/audit backends + full admin UI). Requesting approval to generate U7 code."
+**User Response**: [pending]
+**Context**: CONSTRUCTION PHASE - U7 admin - approval gate
+
+---
+
+## U7 admin - Code Generation Complete + Verified
+**Timestamp**: 2026-09-15T13:00:00Z
+**AI Response**: "Generated all 12 steps of U7 admin: shared CSV serializer + PBT; Setting/AdminAuditLog models + settings seed; SettingsService (cache+audit) + AuditLogService + ReportingService (dashboard/sales/GST/inventory/returns/customers + CSV); admin controller (RBAC, ?format=csv); AdminModule wired; full admin web UI (shell+guard, dashboard, catalogue, orders, marketing, customers, reviews moderation, reports w/ CSV, settings). VERIFICATION: prisma generate OK; API typecheck clean; API 45/45 tests pass; WEB typecheck clean. Fixed: invalid report_viewer role → order_manager/marketing; reporting Prisma typing (OrderStatus enum, _sum?, _count guard). Summary at construction/u7-admin/code/summary.md. All 7 units complete. Requesting approval to proceed to Build and Test stage."
+**Context**: CONSTRUCTION PHASE - U7 admin - Code Generation Part 2 complete, approval gate
+**Extension Compliance (U7)**: Security — no blocking findings (SECURITY-05/08/13 audit). Resiliency — no blocking findings (RESILIENCY-05 dashboard alerts). PBT — no blocking findings (PBT-03 CSV/AOV passing).
+
+---
+
+## Build and Test - Complete + Verified
+**Timestamp**: 2026-09-15T13:40:00Z
+**User Input**: "Continue to Next Stage" (approved U7 → Build and Test)
+**AI Response**: "Executed full build + test across all workspaces. Results: @belzo/shared build OK + 42 tests pass; @belzo/api nest build OK + tsc clean + 45 tests pass; @belzo/web next build OK (all storefront+admin routes) + tsc clean. Total 87 tests pass. Fixed API nest build TS4053 declaration-emit errors by disabling declaration emit for the API app (declaration:false in apps/api/tsconfig.json — it's an application, not a consumed library). Created build-and-test docs: build-instructions.md, unit-test-instructions.md, integration-test-instructions.md, performance-test-instructions.md, build-and-test-summary.md. CONSTRUCTION phase complete. OPERATIONS is a placeholder (deployment/monitoring/DR drills deferred)."
+**Context**: CONSTRUCTION PHASE - Build and Test complete → OPERATIONS (placeholder)
+**Overall extension compliance**: Security/Resiliency/PBT — no blocking findings across all units (see build-and-test-summary.md).
+
+---
+
+## Local Run - Executed Successfully
+**Timestamp**: 2026-09-22T19:10:00Z
+**User Input**: "first run it locally"
+**AI Response**: "Brought the full stack up locally. Steps: created .env (DATABASE_URL remapped to port 5433 to avoid a pre-existing Postgres on 5432); started Docker Desktop; ran belzo-postgres (5433) + belzo-redis (6379) containers; prisma migrate dev (created initial migration) + seed (admin@belzo.local, customer@belzo.local, 4 categories, 8 products, coupons, CMS, settings); started API (:4000), worker, and web (:3000).
+FIXES applied to make it run: (1) copied .env to apps/api/.env + apps/web/.env.local (NestConfig/Next load env from app dir); (2) added dev dep pino-pretty (logger dev transport); (3) added class-validator + class-transformer (Nest ValidationPipe peers); (4) apps/api/tsconfig declaration:false (nest build .d.ts TS4053 on internal return types); (5) replaced next-intl server pipeline (getMessages/getLocale/getTranslations) with a server-safe i18n helper (src/lib/i18n.ts) using the same en/hi JSON — next-intl 3.17.2 threw 'Invalid value used as weak map key' under Next 14.2.5 + Node 24 on every route; removed next-intl plugin from next.config.mjs and deleted src/i18n/request.ts.
+VERIFICATION: API /health/ready => 200 {database:true,redis:true}; /products => 8 items; /categories => 4 roots. Web routes /, /search, /health, /admin/login, /page/about => all HTTP 200. Home SSR shows seeded categories + products; /health shows 'API: reachable (ok)'. All running as managed background processes."
+**Context**: OPERATIONS (local run) — app verified running end-to-end
+---
+
+## Local Purchase Flow Verification
+**Timestamp**: 2026-09-22T13:58:10Z
+**User Input**: "go thrugh full purchage"
+**AI Response**: "Executed a full end-to-end purchase against the locally-running stack (API :4000, worker, web :3000, Postgres :5433, Redis :6379). Flow verified: login (customer@belzo.local) -> product detail (variants) -> add 2 items to cart -> create default address (Bengaluru/KA) -> checkout preview (subtotal 299800, WELCOME10 discount 20000, GST cgst 22384 + sgst 22384 intra-state, shipping 0, grandTotal 324568 paise) -> place order with Idempotency-Key (order 9d8b8f05, payment provider=mock, providerOrderId mock_order_<oid>) -> mock payment webhook (x-webhook-signature = sha256 of raw body) returned {status: processed}. After ~6s the fulfilment worker transitioned the order pending->confirmed->packed: payment status=captured, shipment created (AWB MOCKAWB9D8B8F05, Belzo Express mock, tracking timeline packed/shipped/out_for_delivery), GST tax invoice generated (BELZO/2026/00002, invoiceUrl set). Invoice and tracking endpoints both returned correct data. Purchase flow fully working locally."
+**Context**: Operations / local run - full purchase flow demonstration
+
+---

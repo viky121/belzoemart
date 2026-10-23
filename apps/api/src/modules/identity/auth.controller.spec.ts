@@ -17,7 +17,9 @@ const rotated = { accessToken: 'at-2', refreshToken: 'rt-2', expiresIn: 900 };
 function makeAuth() {
   return {
     verifyOtp: jest.fn().mockResolvedValue({ tokens, customer }),
-    registerEmail: jest.fn().mockResolvedValue({ tokens, customer }),
+    registerAccount: jest.fn().mockResolvedValue({ tokens, customer }),
+ loginPhone: jest.fn().mockResolvedValue({ tokens, customer }),
+    loginIdentifier: jest.fn().mockResolvedValue({ tokens, customer }),
     loginEmail: jest.fn().mockResolvedValue({ tokens, customer }),
     loginGoogle: jest.fn().mockResolvedValue({ tokens, customer }),
     refresh: jest.fn().mockResolvedValue(rotated),
@@ -53,7 +55,25 @@ const MOBILE = { 'x-client-platform': 'mobile' };
 type LoginCall = (c: AuthController, req: Request, res: Response) => Promise<unknown>;
 const logins: [string, LoginCall][] = [
   ['otp/verify', (c, req, res) => c.verifyOtp({ requestId: 'r1', code: '123456' }, req, res)],
-  ['register', (c, req, res) => c.register({ name: 'Asha', email: 'a@x.in', password: 'password1' }, req, res)],
+  [
+    'register',
+    (c, req, res) =>
+      c.register(
+        {
+          name: 'Asha Rao',
+          email: 'a@x.in',
+          phone: '9412807767',
+          password: 'Belzo@2026',
+          confirmPassword: 'Belzo@2026',
+          phoneProof: 'p'.repeat(30),
+          emailProof: 'e'.repeat(30),
+        },
+        req,
+        res,
+      ),
+  ],
+  ['login/phone', (c, req, res) => c.loginPhone({ phone: '9412807767', password: 'Belzo@2026' }, req, res)],
+  ['login/identifier', (c, req, res) => c.loginIdentifier({ identifier: 'a@x.in', password: 'Belzo@2026' }, req, res)],
   ['login', (c, req, res) => c.login({ email: 'a@x.in', password: 'password1' }, req, res)],
   ['google', (c, req, res) => c.google({ idToken: 'g' }, req, res)],
 ];

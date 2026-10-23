@@ -1,6 +1,7 @@
 import type { HomeSection } from '@belzo/shared';
 import type { CategoryNodeDto, ProductCardDto } from '@belzo/shared';
 import { catalogueApi, type Paginated } from './catalogue-api';
+import { getCategoriesCached } from './server-catalogue';
 
 export { DEFAULT_SECTIONS, sanitizeHomeSections, getHomeSections } from '@belzo/shared';
 
@@ -34,7 +35,7 @@ function flattenCategories(nodes: CategoryNodeDto[]): Map<string, string> {
 export async function resolveHomeSections(sections: HomeSection[]): Promise<ResolvedSection[]> {
   const needsCategories = sections.some((s) => s.source.type === 'category');
   const categorySlugs = needsCategories
-    ? flattenCategories(await catalogueApi.categories().catch(() => [] as CategoryNodeDto[]))
+    ? flattenCategories(await getCategoriesCached())
     : new Map<string, string>();
 
   const resolved = await Promise.all(
