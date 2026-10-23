@@ -210,10 +210,10 @@ describe('payment summary and refund note', () => {
 
 describe('cancelUnavailableReason', () => {
   it('explains a missing Cancel only while the order is on its way', () => {
-    for (const s of ['packed', 'shipped', 'out_for_delivery'] as OrderStatus[]) {
-      expect(cancelUnavailableReason(makeOrder({ status: s }))).toBe("Orders can't be cancelled once they are packed");
+    for (const s of ['shipped', 'out_for_delivery'] as OrderStatus[]) {
+      expect(cancelUnavailableReason(makeOrder({ status: s }))).toBe("Orders can't be cancelled once they have shipped");
     }
-    for (const s of ['pending', 'confirmed', 'delivered', 'cancelled', 'returned'] as OrderStatus[]) {
+    for (const s of ['pending', 'confirmed', 'packed', 'delivered', 'cancelled', 'returned'] as OrderStatus[]) {
       expect(cancelUnavailableReason(makeOrder({ status: s }))).toBeNull();
     }
   });
