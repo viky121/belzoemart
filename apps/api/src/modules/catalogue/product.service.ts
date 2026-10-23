@@ -3,6 +3,7 @@ import {
   DEFAULT_PAGE_SIZE,
   discountPct,
   slugify,
+  variantUnitLabel,
   type ProductCardDto,
   type ProductDetailDto,
   type ProductQuery,
@@ -44,15 +45,10 @@ export class ProductService {
   private unitLabel(v?: {
     attributesJson?: unknown;
     weightGrams?: number;
+    weightValue?: number | null;
+    weightUnit?: string | null;
   }): string | null {
-    const attrs = (v?.attributesJson as Record<string, string> | undefined) ?? {};
-    for (const key of ['Weight', 'Net Weight', 'Volume', 'Size', 'Pack', 'Quantity']) {
-      const found = Object.entries(attrs).find(([k]) => k.toLowerCase() === key.toLowerCase());
-      if (found && found[1]) return String(found[1]);
-    }
-    const g = v?.weightGrams ?? 0;
-    if (g > 0) return g >= 1000 ? `${(g / 1000).toString()} kg` : `${g} g`;
-    return null;
+    return variantUnitLabel(v);
   }
 
   private toCard(p: {
@@ -62,12 +58,15 @@ export class ProductService {
     ratingAvg: number;
     ratingCount: number;
     images: { url: string }[];
+    brand?: { id: string; name: string } | null;
     variants: {
       id: string;
       mrp: number;
       sellingPrice: number;
       attributesJson?: unknown;
       weightGrams?: number;
+      weightValue?: number | null;
+      weightUnit?: string | null;
       isActive?: boolean;
     }[];
   }): ProductCardDto {
@@ -87,6 +86,8 @@ export class ProductService {
       ratingCount: p.ratingCount,
       defaultVariantId: hasId(v) ? v.id : null,
       unit: hasId(v) ? this.unitLabel(v) : null,
+      brand: p.brand?.name ?? null,
+      brandId: p.brand?.id ?? null,
     };
   }
 
@@ -105,6 +106,7 @@ export class ProductService {
         where: { status: 'published', id: { in: ids }, variants: { some: { isActive: true } } },
         include: {
           images: { orderBy: { position: 'asc' }, take: 1 },
+          brand: { select: { id: true, name: true } },
           variants: { where: { isActive: true } },
         },
       });
@@ -135,6 +137,7 @@ export class ProductService {
         where,
         include: {
           images: { orderBy: { position: 'asc' }, take: 1 },
+          brand: { select: { id: true, name: true } },
           variants: { where: { isActive: true } },
         },
         orderBy,
@@ -190,6 +193,7 @@ export class ProductService {
       slug: p.slug,
       description: p.description,
       brand: p.brand?.name ?? null,
+      brandId: p.brandId ?? null,
       categoryId: p.categoryId,
       hsnCode: p.hsnCode,
       taxRatePct: p.taxRatePct,
@@ -311,7 +315,7 @@ export class ProductService {
   /**
    * Apply percentage bulk tiers to EVERY active variant of a product at once.
    * Each variant's absolute slab price is derived from its own selling price
-   * (unitPrice = round(sellingPrice × (1 − discountPct/100))), so packs with
+   * (unitPrice = round(sellingPrice Ã— (1 âˆ’ discountPct/100))), so packs with
    * different base prices each get a correct tier price.
    */
   async applyPriceSlabs(
@@ -322,7 +326,7 @@ export class ProductService {
     const seen = new Set<number>();
     for (const t of sorted) {
       if (!Number.isInteger(t.minQty) || t.minQty < 2) {
-        throw new BadRequestException('Tier minQty must be an integer ≥ 2');
+        throw new BadRequestException('Tier minQty must be an integer â‰¥ 2');
       }
       if (seen.has(t.minQty)) throw new BadRequestException('Duplicate tier minQty');
       seen.add(t.minQty);
@@ -353,11 +357,11 @@ export class ProductService {
   /**
    * Apply a single edit to many products at once (admin bulk actions).
    *
-   * - `offer`  — derive each active variant's sellingPrice from its own MRP:
-   *              percent → round(mrp × (1 − value/100)); fixed → max(0, mrp − value paise).
-   * - `price`  — set an absolute sellingPrice (paise) on every active variant;
+   * - `offer`  â€” derive each active variant's sellingPrice from its own MRP:
+   *              percent â†’ round(mrp Ã— (1 âˆ’ value/100)); fixed â†’ max(0, mrp âˆ’ value paise).
+   * - `price`  â€” set an absolute sellingPrice (paise) on every active variant;
    *              a product whose MRP is below that price is reported, not changed.
-   * - `stock`  — set / increase / decrease the DEFAULT variant's available qty,
+   * - `stock`  â€” set / increase / decrease the DEFAULT variant's available qty,
    *              routed through InventoryService.adjust so the StockMovement audit
    *              trail is preserved (available is clamped at 0 on decrease).
    *
@@ -620,7 +624,7 @@ export class ProductService {
     let ok = 0;
 
     // Tolerant category resolution: an exact slug wins; otherwise match the
-    // category NAME or SLUG ignoring case, punctuation and "&" vs "and" — so
+    // category NAME or SLUG ignoring case, punctuation and "&" vs "and" â€” so
     // "tea-coffee", "Tea & Coffee" and "tea-and-coffee" all resolve to the same
     // category. Names that exist in more than one branch (e.g. "Ghee") are
     // reported as ambiguous with the exact slugs to choose from.
@@ -646,7 +650,7 @@ export class ProductService {
       if (matches.length === 1) return matches[0]!;
       if (matches.length > 1) {
         throw new Error(
-          `category "${raw}" is ambiguous — use one of: ${matches.map((m) => m.slug).join(', ')}`,
+          `category "${raw}" is ambiguous â€” use one of: ${matches.map((m) => m.slug).join(', ')}`,
         );
       }
       const hints = key
@@ -659,7 +663,7 @@ export class ProductService {
             .map((c) => c.slug)
         : [];
       throw new Error(
-        `unknown category "${raw}"` + (hints.length ? ` — did you mean: ${hints.join(', ')}?` : ''),
+        `unknown category "${raw}"` + (hints.length ? ` â€” did you mean: ${hints.join(', ')}?` : ''),
       );
     };
 

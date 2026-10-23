@@ -1,4 +1,4 @@
-import { pickAttr } from '@belzo/shared';
+import { isWeightUnit, pickAttr, type WeightUnit } from '@belzo/shared';
 
 /**
  * Pure helpers for the product editor's "Variants, price & stock" section.
@@ -15,6 +15,9 @@ export interface AdminVariantRow {
   attributesJson: Record<string, string> | null;
   priceSlabsJson: { minQty: number; unitPrice: number }[] | null;
   weightGrams: number;
+  /** Weight / pack size as entered by the admin, with its unit (null on older variants). */
+  weightValue?: number | null;
+  weightUnit?: string | null;
   imageUrl: string | null;
   /** Purchase price, paise. Admin-only; null when not recorded. */
   costPrice: number | null;
@@ -40,6 +43,8 @@ export interface VariantUpsertBody {
   sellingPrice: number;
   attributes: Record<string, string>;
   weightGrams: number;
+  weightValue: number | null;
+  weightUnit: WeightUnit | null;
   imageUrl: string | undefined;
   priceSlabs: { minQty: number; unitPrice: number }[];
   costPrice: number | null;
@@ -121,6 +126,9 @@ export function variantUpsertBody(v: AdminVariantRow, e: VariantEdit): VariantUp
     sellingPrice,
     attributes: v.attributesJson ?? {},
     weightGrams: v.weightGrams,
+    // Echoed back so a price/stock edit never clears the weight + unit.
+    weightValue: v.weightValue ?? null,
+    weightUnit: isWeightUnit(v.weightUnit) ? v.weightUnit : null,
     imageUrl: v.imageUrl ?? undefined,
     priceSlabs: v.priceSlabsJson ?? [],
     costPrice,

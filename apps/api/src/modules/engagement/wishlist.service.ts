@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { variantUnitLabel } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 /**
@@ -28,11 +29,7 @@ export class WishlistService {
       const v = byId.get(r.variantId);
       const mrp = v?.mrp ?? 0;
       const sellingPrice = v?.sellingPrice ?? 0;
-      const attrs = (v?.attributesJson as Record<string, string> | null) ?? {};
-      const unit =
-        ['Weight', 'Net Weight', 'Volume', 'Size', 'Pack', 'Quantity']
-          .map((key) => Object.entries(attrs).find(([k]) => k.toLowerCase() === key.toLowerCase()))
-          .find((e) => e && e[1])?.[1] ?? null;
+      const unit = variantUnitLabel(v);
       return {
         id: r.id,
         variantId: r.variantId,

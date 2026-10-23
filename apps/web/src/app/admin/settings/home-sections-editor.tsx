@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { adminFetch } from '@/lib/admin-api';
+import { ApiClientError } from '@/lib/api-client';
 import {
   homeSectionSchema,
   homeSectionsSchema,
@@ -45,13 +46,33 @@ function seedSections(stored: unknown): HomeSection[] {
   return valid.length > 0 ? valid : DEFAULT_SECTIONS.map((s) => ({ ...s }));
 }
 
-/** Admin manager for the shared home-page sections (both storefront themes). */
-export function HomeSectionsEditor() {
+/** A readable sentence for a validation problem, naming the section (not just "3.source.categoryId"). */
+function describeIssue(
+  sections: HomeSection[],
+  issue: { path: (string | number)[]; message: string },
+): string {
+  const idx = typeof issue.path[0] === 'number' ? issue.path[0] : -1;
+  const who = idx >= 0 ? `Section ${idx + 1} “${sections[idx]?.title?.trim() || 'untitled'}”` : 'Home sections';
+  const field = String(issue.path[issue.path.length - 1] ?? '');
+  if (field === 'title') return `${who} needs a title.`;
+  if (field === 'categoryId') return `${who}: choose a category (or change its source).`;
+  if (field === 'productIds') return `${who}: pick at least one product (or change its source).`;
+  return `${who}: ${issue.message}.`;
+}
+
+/** Admin manager for the shared home-page sections (both storefront themes). */export function HomeSectionsEditor() {
   const [sections, setSections] = useState<HomeSection[]>([]);
   const [categories, setCategories] = useState<{ id: string; label: string }[]>([]);
   const [products, setProducts] = useState<ProdRow[]>([]);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
+  const msgRef = useRef<HTMLParagraphElement>(null);
+
+  /** Show a result next to the Save button (the list can be long) and bring it into view. */
+  const notify = (text: string, ok: boolean) => {
+    setMsg({ text, ok });
+    requestAnimationFrame(() => msgRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+  };
 
   useEffect(() => {
     void adminFetch<Record<string, unknown>>('/admin/settings')
@@ -98,7 +119,7 @@ export function HomeSectionsEditor() {
     const parsed = homeSectionsSchema.safeParse(sections);
     if (!parsed.success) {
       const first = parsed.error.issues[0];
-      setMsg(`Cannot save: ${first ? `${first.path.join('.')} — ${first.message}` : 'invalid sections'}.`);
+      notify(first ? `Cannot save: ${describeIssue(sections, first)}` : 'Cannot save: some sections are invalid.', false);
       setBusy(false);
       return;
     }
@@ -107,9 +128,15 @@ export function HomeSectionsEditor() {
         method: 'PUT',
         body: { key: 'home.sections', value: parsed.data },
       });
-      setMsg('Home sections saved. Live on the storefront.');
-    } catch {
-      setMsg('Could not save home sections.');
+      notify('Home sections saved. Live on the storefront.', true);
+    } catch (e) {
+      const forbidden = e instanceof ApiClientError && e.payload.statusCode === 403;
+      notify(
+        forbidden
+          ? 'Could not save: only a Super Admin can change home sections here.'
+          : `Could not save home sections${e instanceof Error && e.message ? `: ${e.message}` : '.'}`,
+        false,
+      );
     } finally {
       setBusy(false);
     }
@@ -121,8 +148,6 @@ export function HomeSectionsEditor() {
       <p className="prod-form__hint">
         These named product rails appear on the storefront home page in both themes, in this order.
       </p>
-      {msg && <p role="status" className="prod-form__msg">{msg}</p>}
-
       {sections.map((s, i) => (
         <SectionRow
           key={s.id}
@@ -147,6 +172,17 @@ export function HomeSectionsEditor() {
         <button className="auth-btn" disabled={busy} onClick={save} data-testid="save-home-sections">
           {busy ? 'Saving…' : 'Save Home Sections'}
         </button>
+        {msg && (
+          <p
+            ref={msgRef}
+            role={msg.ok ? 'status' : 'alert'}
+            className={`prod-form__msg${msg.ok ? '' : ' prod-form__msg--err'}`}
+            style={{ marginTop: 10 }}
+            data-testid="home-sections-msg"
+          >
+            {msg.text}
+          </p>
+        )}
       </div>
     </section>
   );

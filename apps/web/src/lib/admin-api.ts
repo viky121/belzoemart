@@ -127,20 +127,36 @@ export async function adminUpload(
   form.append('file', prepared);
   form.append('folder', folder);
 
-  let res: Response;
-  try {
-    res = await fetch(`${apiBaseUrl()}/api/v1/admin/media/upload`, {
+  const send = (token: string | null) =>
+    fetch(`${apiBaseUrl()}/api/v1/admin/media/upload`, {
       method: 'POST',
       credentials: 'include',
-      headers: adminAccessToken ? { authorization: `Bearer ${adminAccessToken}` } : {},
+      headers: token ? { authorization: `Bearer ${token}` } : {},
       body: form,
     });
+
+  let res: Response;
+  try {
+    // The access token only lives 15 minutes and is kept in memory, so after a long form or a page reload
+    // it is missing/expired. Refresh it first (like adminFetch does) instead of failing the upload.
+    let token = adminAccessToken ?? (await refreshAdminToken());
+    res = await send(token);
+    if (res.status === 401) {
+      token = await refreshAdminToken();
+      if (token) res = await send(token);
+    }
+    // Several images in a row can trip the API rate limit (429): wait a moment and try once more.
+    if (res.status === 429) {
+      await new Promise((r) => setTimeout(r, 2000));
+      res = await send(adminAccessToken);
+    }
   } catch {
     // Network-level failure (connection reset/offline). Give an actionable hint
     // rather than the browser's opaque "Failed to fetch".
     throw new Error(
-      'Upload could not reach the server (the connection dropped). ' +
-        'This usually means the image was too large — try a smaller one.',
+      prepared.size > 5 * 1024 * 1024
+        ? 'Upload could not reach the server (the connection dropped). The image is large, try a smaller one.'
+        : 'Upload could not reach the server. Check your internet connection and try again.',
     );
   }
 

@@ -3,6 +3,12 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { adminFetch, adminUpload } from '@/lib/admin-api';
 import { MediaPicker } from '@/components/media-picker';
+import { EMPTY_WEIGHT, weightPayload, type WeightInput } from '@/lib/weight-form';
+import { WeightField } from './weight-field';
+
+/** The API keeps at most 10 images per product. */
+const MAX_PRODUCT_IMAGES = 10;
+const IMAGE_EXT = /\.(jpe?g|png|webp|gif|avif|svg|jfif)$/i;
 
 export interface CatNode {
   id: string;
@@ -151,7 +157,7 @@ export function ProductWizard({
   const [isReturnable, setIsReturnable] = useState(true);
 
   // Attributes
-  const [weight, setWeight] = useState('');
+  const [weight, setWeight] = useState<WeightInput>({ ...EMPTY_WEIGHT });
   const [fabric, setFabric] = useState('');
   const [size, setSize] = useState('');
   const [color, setColor] = useState('');
@@ -178,25 +184,37 @@ export function ProductWizard({
   const [publish, setPublish] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [uploadMsg, setUploadMsg] = useState<string | null>(null);
 
   const primaryList = categories;
   const subList = primary?.children ?? [];
   const finalList = sub?.children ?? [];
 
   async function uploadFiles(fileList: FileList | File[] | null) {
-    const files = Array.from(fileList ?? []).filter((f) => f.type.startsWith('image/'));
-    if (files.length === 0) return;
-    setUploading(true);
-    try {
-      for (const f of files) {
-        const { url } = await adminUpload(f, 'products');
-        setImages((cur) => [...cur, url]);
-      }
-    } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Image upload failed');
-    } finally {
-      setUploading(false);
+    setUploadMsg(null);
+    const all = Array.from(fileList ?? []);
+    if (all.length === 0) return;
+    // Some phone/Windows files have an empty MIME type, so fall back to the extension.
+    const files = all.filter((f) => f.type.startsWith('image/') || IMAGE_EXT.test(f.name));
+    const problems: string[] = [];
+    if (files.length < all.length) problems.push(`${all.length - files.length} file(s) skipped: not an image`);
+    const room = Math.max(0, MAX_PRODUCT_IMAGES - images.length);
+    const batch = files.slice(0, room);
+    if (batch.length < files.length) {
+      problems.push(`A product can have at most ${MAX_PRODUCT_IMAGES} images; ${files.length - batch.length} skipped`);
     }
+    if (batch.length > 0) setUploading(true);
+    // One bad file must not stop the rest, and every failure is reported next to the upload box.
+    for (const f of batch) {
+      try {
+        const { url } = await adminUpload(f, 'products');
+        setImages((cur) => (cur.includes(url) ? cur : [...cur, url]));
+      } catch (err) {
+        problems.push(`${f.name}: ${err instanceof Error ? err.message : 'upload failed'}`);
+      }
+    }
+    setUploading(false);
+    setUploadMsg(problems.length > 0 ? problems.join(' | ') : null);
   }
 
   async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
@@ -300,7 +318,7 @@ export function ProductWizard({
             sku: r.sku,
             mrp: toPaise(r.mrp),
             sellingPrice: toPaise(r.price),
-            weightGrams: !hasVariants && weight ? parseInt(weight, 10) : undefined,
+            ...(!hasVariants ? weightPayload(weight) : {}),
             attributes: Object.keys(attrs).length ? attrs : undefined,
           },
         });
@@ -567,6 +585,11 @@ export function ProductWizard({
               </span>
               <span className="wiz__drop-sub">PNG or JPG · drag &amp; drop or click · multiple allowed</span>
             </label>
+            {uploadMsg && (
+              <p className="prod-form__msg prod-form__msg--err" role="alert" data-testid="wiz-upload-error">
+                {uploadMsg}
+              </p>
+            )}
             <button
               type="button"
               className="mediapick__open"
@@ -875,10 +898,7 @@ export function ProductWizard({
           <div className="wiz__card">
             <h3>📐 Product Attributes</h3>
             <div className="prod-grid">
-              <div>
-                <label className="auth-label">Weight (in grams){!hasVariants ? ' *' : ''}</label>
-                <input className="auth-input" type="number" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="e.g. 500" />
-              </div>
+              <WeightField value={weight} onChange={setWeight} required={!hasVariants} testId="wiz-weight" />
               <div>
                 <label className="auth-label">Fabric</label>
                 <input className="auth-input" value={fabric} onChange={(e) => setFabric(e.target.value)} placeholder="e.g. Cotton" />

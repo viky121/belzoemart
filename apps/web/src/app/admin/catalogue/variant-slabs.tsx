@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { adminFetch, adminUpload } from '@/lib/admin-api';
+import { WeightField } from './weight-field';
+import { EMPTY_WEIGHT, initialWeight, weightPayload, type WeightInput } from '@/lib/weight-form';
 import {
   mergeVariantAttrs,
   pickAttr,
@@ -25,6 +27,8 @@ interface VariantRow {
   attributesJson: Record<string, string>;
   priceSlabsJson: SlabRow[];
   weightGrams: number;
+  weightValue?: number | null;
+  weightUnit?: string | null;
   imageUrl: string | null;
 }
 
@@ -52,11 +56,11 @@ export function VariantSlabsEditor({
     stock: '',
     size: '',
     color: '',
-    weight: '',
+    weight: { ...EMPTY_WEIGHT } as WeightInput,
     imageUrl: '',
   });
   const [meta, setMeta] = useState<
-    Record<string, { size: string; color: string; weight: string; imageUrl: string }>
+    Record<string, { size: string; color: string; weight: WeightInput; imageUrl: string }>
   >({});
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,7 +79,7 @@ export function VariantSlabsEditor({
     );
     setVariants(rows);
     const initial: Record<string, { minQty: string; price: string }[]> = {};
-    const m: Record<string, { size: string; color: string; weight: string; imageUrl: string }> = {};
+    const m: Record<string, { size: string; color: string; weight: WeightInput; imageUrl: string }> = {};
     for (const v of rows) {
       initial[v.id] = (v.priceSlabsJson ?? []).map((s) => ({
         minQty: String(s.minQty),
@@ -85,7 +89,7 @@ export function VariantSlabsEditor({
       m[v.id] = {
         size: pickAttr(attrs, 'size'),
         color: pickAttr(attrs, 'color', 'colour'),
-        weight: v.weightGrams ? String(v.weightGrams) : '',
+        weight: initialWeight(v),
         imageUrl: v.imageUrl ?? '',
       };
     }
@@ -138,7 +142,7 @@ export function VariantSlabsEditor({
           mrp: toPaise(nv.mrp),
           sellingPrice: toPaise(nv.price),
           attributes: buildAttrs(nv.size, nv.color),
-          weightGrams: parseInt(nv.weight || '0', 10) || 0,
+          ...weightPayload(nv.weight),
           imageUrl: nv.imageUrl || undefined,
         },
       });
@@ -149,7 +153,7 @@ export function VariantSlabsEditor({
           body: { delta: qty, ref: 'add-variant' },
         });
       }
-      setNv({ sku: '', mrp: '', price: '', stock: '', size: '', color: '', weight: '', imageUrl: '' });
+      setNv({ sku: '', mrp: '', price: '', stock: '', size: '', color: '', weight: { ...EMPTY_WEIGHT }, imageUrl: '' });
       setMsg('Variant added.');
       await reload();
     } catch (e) {
@@ -166,7 +170,7 @@ export function VariantSlabsEditor({
     const priceSlabs = rows
       .filter((r) => r.minQty && r.price)
       .map((r) => ({ minQty: parseInt(r.minQty, 10), unitPrice: toPaise(r.price) }));
-    const vm = meta[v.id] ?? { size: '', color: '', weight: '', imageUrl: '' };
+    const vm = meta[v.id] ?? { size: '', color: '', weight: { ...EMPTY_WEIGHT }, imageUrl: '' };
     try {
       await adminFetch('/admin/variants', {
         method: 'POST',
@@ -178,7 +182,7 @@ export function VariantSlabsEditor({
           sellingPrice: v.sellingPrice,
           // Keep other attributes (e.g. "Pack Of" from the bulk sheet); only Size/Color change.
           attributes: mergeVariantAttrs(v.attributesJson, vm.size, vm.color),
-          weightGrams: parseInt(vm.weight || '0', 10) || 0,
+          ...weightPayload(vm.weight, v.weightGrams),
           imageUrl: vm.imageUrl || undefined,
           priceSlabs,
         },
@@ -265,10 +269,7 @@ export function VariantSlabsEditor({
             <label className="auth-label">Color</label>
             <input className="auth-input" value={nv.color} onChange={(e) => setNv({ ...nv, color: e.target.value })} placeholder="Black" />
           </div>
-          <div>
-            <label className="auth-label">Weight (g)</label>
-            <input className="auth-input" type="number" value={nv.weight} onChange={(e) => setNv({ ...nv, weight: e.target.value })} />
-          </div>
+          <WeightField value={nv.weight} onChange={(weight) => setNv({ ...nv, weight })} testId="nv-weight" />
           <div>
             <label className="auth-label">Variant image</label>
             <input
@@ -420,17 +421,11 @@ export function VariantSlabsEditor({
                   }
                 />
               </div>
-              <div>
-                <label className="auth-label">Weight (g)</label>
-                <input
-                  className="auth-input"
-                  type="number"
-                  value={meta[v.id]?.weight ?? ''}
-                  onChange={(e) =>
-                    setMeta((mm) => ({ ...mm, [v.id]: { ...mm[v.id], weight: e.target.value } }))
-                  }
-                />
-              </div>
+              <WeightField
+                value={meta[v.id]?.weight ?? EMPTY_WEIGHT}
+                onChange={(weight) => setMeta((mm) => ({ ...mm, [v.id]: { ...mm[v.id], weight } }))}
+                testId={`weight-${v.id}`}
+              />
               <div>
                 <label className="auth-label">Variant image</label>
                 <input

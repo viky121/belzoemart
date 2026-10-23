@@ -85,6 +85,8 @@ describe('variant-edit — variantUpsertBody', () => {
       sellingPrice: 78000,
       attributes: { Size: '1 kg' },
       weightGrams: 1000,
+      weightValue: null,
+      weightUnit: null,
       imageUrl: '/uploads/tea.jpg',
       priceSlabs: [{ minQty: 5, unitPrice: 75000 }],
       costPrice: null,

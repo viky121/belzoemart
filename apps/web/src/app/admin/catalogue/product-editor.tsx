@@ -115,15 +115,20 @@ export function ProductEditor({
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0) return;
     setUploading(true);
-    try {
-      for (const f of files) {
+    setMsg(null);
+    // One bad file must not stop the rest; every failure is shown instead of vanishing.
+    const problems: string[] = [];
+    for (const f of files) {
+      try {
         const { url } = await adminUpload(f, 'products');
-        setImages((cur) => [...cur, url]);
+        setImages((cur) => (cur.includes(url) ? cur : [...cur, url]));
+      } catch (err) {
+        problems.push(`${f.name}: ${err instanceof Error ? err.message : 'upload failed'}`);
       }
-    } finally {
-      setUploading(false);
-      e.target.value = '';
     }
+    setUploading(false);
+    e.target.value = '';
+    if (problems.length > 0) setMsg(problems.join(' | '));
   }
 
   /**

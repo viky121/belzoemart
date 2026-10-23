@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { discountPct, MAX_CART_QTY, resolveSlabPrice, type Money, type PriceSlabTier } from '@belzo/shared';
+import { discountPct, MAX_CART_QTY, resolveSlabPrice, variantUnitLabel, type Money, type PriceSlabTier } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 const MAX_QTY = MAX_CART_QTY;
@@ -63,16 +63,7 @@ export class CartService {
       // Resolve the tier by the product's total quantity across all its packs.
       const tierQty = (v?.productId && productQty.get(v.productId)) || item.quantity;
       const unitPrice = resolveSlabPrice(base, slabs, tierQty);
-      const attrs = (v?.attributesJson as Record<string, string> | null) ?? {};
-      const unit =
-        ['Weight', 'Net Weight', 'Volume', 'Size', 'Pack', 'Quantity']
-          .map((key) => Object.entries(attrs).find(([k]) => k.toLowerCase() === key.toLowerCase()))
-          .find((e) => e && e[1])?.[1] ??
-        (v?.weightGrams
-          ? v.weightGrams >= 1000
-            ? `${v.weightGrams / 1000} kg`
-            : `${v.weightGrams} g`
-          : null);
+      const unit = variantUnitLabel(v);
       return {
         id: item.id,
         variantId: item.variantId,

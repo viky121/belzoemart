@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
-import { SHEET_FIELD_MAX } from '@belzo/shared';
+import { SHEET_FIELD_MAX, WEIGHT_UNITS } from '@belzo/shared';
 import { Roles } from '../../common/auth/roles.decorator';
 import { createZodDto } from '../identity/zod-dto';
 import { CategoryService } from './category.service';
@@ -57,6 +57,9 @@ const variantUpsertSchema = z.object({
   sellingPrice: z.number().int().min(0),
   attributes: z.record(z.string()).optional(),
   weightGrams: z.number().int().min(0).optional(),
+  // Weight / pack size as entered (e.g. 500 + "gm", 6 + "pc"). null clears it; undefined leaves it unchanged.
+  weightValue: z.number().min(0).max(1_000_000).nullable().optional(),
+  weightUnit: z.enum(WEIGHT_UNITS).nullable().optional(),
   imageUrl: z
     .string()
     .trim()
@@ -89,7 +92,19 @@ class ProductUpdateDto extends createZodDto(productUpdateSchema) {}
 
 const productImagesSchema = z.object({
   images: z
-    .array(z.object({ url: z.string().url(), alt: z.string().max(200).optional() }))
+    .array(
+      z.object({
+        // An absolute http(s) URL (S3/CDN) or a site-relative one ("/api/uploads/..." with local storage).
+        url: z
+          .string()
+          .trim()
+          .max(2048)
+          .refine((u) => /^https?:\/\/\S+$/i.test(u) || (u.startsWith('/') && !u.startsWith('//')), {
+            message: 'Invalid image URL',
+          }),
+        alt: z.string().max(200).optional(),
+      }),
+    )
     .max(10),
 });
 class ProductImagesDto extends createZodDto(productImagesSchema) {}

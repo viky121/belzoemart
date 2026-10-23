@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { weightToGrams, type WeightUnit } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 /**
@@ -96,12 +97,26 @@ export class VariantService {
     sellingPrice: number;
     attributes?: Record<string, string>;
     weightGrams?: number;
+    /** Weight / pack size as entered, with its unit. undefined = unchanged on update, null = clear. */
+    weightValue?: number | null;
+    weightUnit?: WeightUnit | null;
     imageUrl?: string;
     priceSlabs?: { minQty: number; unitPrice: number }[];
     /** Purchase price, paise. ADMIN-ONLY. undefined = leave unchanged on update. */
     costPrice?: number | null;
   }) {
     this.assertPrices(input.mrp, input.sellingPrice);
+    // A value needs a unit and vice versa. Mass/volume units set the courier weight (a count has no mass,
+    // so for count/pc the grams the caller sent, or the shop default when 0, still apply).
+    const hasValue = input.weightValue != null;
+    const hasUnit = input.weightUnit != null;
+    if (hasValue !== hasUnit) throw new BadRequestException('Enter the weight together with its unit');
+    const derivedGrams = hasValue && hasUnit ? weightToGrams(input.weightValue!, input.weightUnit!) : null;
+    const weightGrams = derivedGrams ?? input.weightGrams;
+    const weightFields = {
+      ...(input.weightValue !== undefined ? { weightValue: input.weightValue } : {}),
+      ...(input.weightUnit !== undefined ? { weightUnit: input.weightUnit } : {}),
+    };
     const priceSlabsJson = this.normaliseSlabs(input.priceSlabs, input.sellingPrice);
     // Variant.sku is unique: report a clash as 409 instead of a generic 500.
     const clash = await this.prisma.variant.findUnique({
@@ -135,7 +150,8 @@ export class VariantService {
           sellingPrice: input.sellingPrice,
           attributesJson: input.attributes ?? {},
           priceSlabsJson,
-          weightGrams: input.weightGrams,
+          weightGrams,
+          ...weightFields,
           imageUrl: input.imageUrl,
           ...(input.costPrice !== undefined ? { costPrice: input.costPrice } : {}),
         },
@@ -149,7 +165,8 @@ export class VariantService {
         sellingPrice: input.sellingPrice,
         attributesJson: input.attributes ?? {},
         priceSlabsJson,
-        weightGrams: input.weightGrams ?? 0,
+        weightGrams: weightGrams ?? 0,
+        ...weightFields,
         costPrice: input.costPrice ?? null,
       },
     });
