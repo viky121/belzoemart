@@ -19,6 +19,12 @@ export const envSchema = z.object({
 
   JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
   JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
+  /** Signs delivery-partner tokens. Must differ from the other secrets so a partner token never passes customer or admin routes (SECURITY-08). */
+  JWT_PARTNER_SECRET: z.string().min(32, 'JWT_PARTNER_SECRET must be at least 32 characters'),
+  /** Pepper for the delivery OTP hash. Changing it only invalidates codes in flight. */
+  DELIVERY_OTP_PEPPER: z.string().min(32, 'DELIVERY_OTP_PEPPER must be at least 32 characters'),
+  /** Partner refresh-token lifetime in seconds (default 7 days). */
+  PARTNER_REFRESH_TTL: z.coerce.number().int().positive().default(604_800),
   JWT_ACCESS_TTL: z.coerce.number().int().positive().default(900),
   JWT_REFRESH_TTL: z.coerce.number().int().positive().default(1_209_600),
 
@@ -34,6 +40,19 @@ export const envSchema = z.object({
   PAYMENT_PROVIDER: z.enum(['mock', 'live']).default('mock'),
   SHIPPING_PROVIDER: z.enum(['mock', 'live']).default('mock'),
   SMS_PROVIDER: z.enum(['mock', 'live']).default('mock'),
+  // Fast2SMS (used when SMS_PROVIDER=live). Key: Fast2SMS dashboard > Dev API.
+  FAST2SMS_API_KEY: z.string().optional().default(''),
+  /** "otp" = Fast2SMS OTP route ("Your OTP: 123456", no DLT needed); "dlt" = your DLT-approved template. */
+  FAST2SMS_ROUTE: z.enum(['otp', 'dlt', 'smart']).default('otp'),
+  /** Smart OTP route only: the "OTP ID" of the template linked under Fast2SMS > Smart OTP. */
+  FAST2SMS_OTP_ID: z.string().optional().default(''),
+  /** Smart OTP route: a template per purpose (registration / password reset / delivery). Each falls back to FAST2SMS_OTP_ID. */
+  FAST2SMS_OTP_ID_REGISTER: z.string().optional().default(''),
+  FAST2SMS_OTP_ID_RESET: z.string().optional().default(''),
+  FAST2SMS_OTP_ID_DELIVERY: z.string().optional().default(''),
+  /** DLT route only: approved 3-6 letter sender id and the approved OTP template's message id. */
+  FAST2SMS_SENDER_ID: z.string().optional().default(''),
+  FAST2SMS_DLT_MESSAGE_ID: z.string().optional().default(''),
   WHATSAPP_PROVIDER: z.enum(['mock', 'live']).default('mock'),
   EMAIL_PROVIDER: z.enum(['mock', 'live']).default('mock'),
   STORAGE_PROVIDER: z.enum(['local', 's3']).default('local'),
@@ -69,6 +88,33 @@ export const envSchema = z.object({
   SENTRY_DSN: z.string().optional().default(''),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 }).superRefine((env, ctx) => {
+  // The partner realm must have its own signing secret (SECURITY-08, SECURITY-12).
+  if (env.JWT_PARTNER_SECRET === env.JWT_ACCESS_SECRET || env.JWT_PARTNER_SECRET === env.JWT_REFRESH_SECRET) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['JWT_PARTNER_SECRET'],
+      message: 'JWT_PARTNER_SECRET must be different from JWT_ACCESS_SECRET and JWT_REFRESH_SECRET',
+    });
+  }
+  // Fail fast if live SMS is selected but Fast2SMS is not configured (SECURITY-09).
+  if (env.SMS_PROVIDER === 'live') {
+    const need: (keyof typeof env)[] = ['FAST2SMS_API_KEY'];
+    if (env.FAST2SMS_ROUTE === 'dlt') need.push('FAST2SMS_SENDER_ID', 'FAST2SMS_DLT_MESSAGE_ID');
+    // Smart OTP needs a template for registration and one for password reset (or one general template).
+    if (env.FAST2SMS_ROUTE === 'smart') {
+      if (!env.FAST2SMS_OTP_ID && !env.FAST2SMS_OTP_ID_REGISTER) need.push('FAST2SMS_OTP_ID');
+      if (!env.FAST2SMS_OTP_ID && !env.FAST2SMS_OTP_ID_RESET) need.push('FAST2SMS_OTP_ID_RESET');
+    }
+    for (const key of need) {
+      if (!env[key]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: `${key} is required when SMS_PROVIDER=live (FAST2SMS_ROUTE=${env.FAST2SMS_ROUTE})`,
+        });
+      }
+    }
+  }
   // Fail fast if Razorpay is selected but credentials are missing (SECURITY-09).
   if (env.PAYMENT_PROVIDER === 'live') {
     for (const key of ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET'] as const) {

@@ -1,4 +1,4 @@
-import { DEFAULT_MOBILE_HOME } from '@belzo/shared';
+import { DEFAULT_MOBILE_HOME, DEFAULT_MOBILE_MENU } from '@belzo/shared';
 import type { JwtPrincipal } from '../../common/auth/jwt.types';
 import { AdminMobileHomeController } from './admin-mobile-home.controller';
 import { PublicSettingsController } from './public-settings.controller';
@@ -47,6 +47,7 @@ describe('AdminMobileHomeController', () => {
       festivalDecor: true,
       festivalStart: '',
       festivalEnd: '',
+      menu: DEFAULT_MOBILE_MENU,
     });
     expect(set).toHaveBeenCalledWith('admin-1', 'mobile.home', saved);
     expect(store['mobile.home']).toMatchObject({ dealsEnabled: false, dealsTitle: 'Hot Deals' });
@@ -64,6 +65,7 @@ describe('festival theme', () => {
     dealsTitle: 'Deals of the Day',
     festivalStart: '',
     festivalEnd: '',
+    menu: DEFAULT_MOBILE_MENU,
   };
 
   it('stores the start/end dates, and serves them publicly', async () => {
@@ -148,5 +150,44 @@ describe('GET /settings/public → mobileHome', () => {
     const { svc } = fakeSettings();
     const res = await new PublicSettingsController(svc).publicSettings();
     expect(res.mobileHome).toEqual(DEFAULT_MOBILE_HOME);
+  });
+});
+
+describe('☰ app menu details', () => {
+  const home = {
+    heroBanners: [],
+    categories: [],
+    offerRows: [],
+    dealsEnabled: true,
+    dealsTitle: 'Deals of the Day',
+    festival: 'none' as const,
+    festivalGreeting: '',
+    festivalDecor: true,
+    festivalStart: '',
+    festivalEnd: '',
+  };
+
+  it('stores the admin-edited contact details and serves them publicly', async () => {
+    const { svc } = fakeSettings();
+    const menu = { ...DEFAULT_MOBILE_MENU, carePhone: '9000000001', careHours: 'Mon–Sat, 9 AM – 8 PM', storeHelpline: '07683 222222' };
+    const saved = await new AdminMobileHomeController(svc).put(ADMIN, { ...home, menu });
+    expect(saved.menu).toMatchObject({ carePhone: '9000000001', careHours: 'Mon–Sat, 9 AM – 8 PM' });
+    const pub = await new PublicSettingsController(svc).publicSettings();
+    expect((pub.mobileHome as { menu: { carePhone: string } }).menu.carePhone).toBe('9000000001');
+  });
+
+  it('never stores an unsafe link (the HTTP layer rejects it; the store falls back to the default)', async () => {
+    const { svc } = fakeSettings();
+    const saved = await new AdminMobileHomeController(svc).put(ADMIN, {
+      ...home,
+      menu: { ...DEFAULT_MOBILE_MENU, careWhatsappUrl: 'javascript:alert(1)' },
+    });
+    expect(saved.menu.careWhatsappUrl).toBe(DEFAULT_MOBILE_MENU.careWhatsappUrl);
+  });
+
+  it('an older stored config without a menu still serves the supplied defaults', async () => {
+    const { svc } = fakeSettings({ 'mobile.home': { dealsEnabled: false } });
+    const pub = await new PublicSettingsController(svc).publicSettings();
+    expect((pub.mobileHome as { menu: unknown }).menu).toEqual(DEFAULT_MOBILE_MENU);
   });
 });

@@ -6,6 +6,8 @@ const base = {
   REDIS_URL: 'redis://localhost:6379',
   JWT_ACCESS_SECRET: 'x'.repeat(32),
   JWT_REFRESH_SECRET: 'y'.repeat(32),
+  JWT_PARTNER_SECRET: 'p'.repeat(32),
+  DELIVERY_OTP_PEPPER: 'o'.repeat(32),
 };
 
 describe('validateEnv', () => {
@@ -23,6 +25,23 @@ describe('validateEnv', () => {
     );
   });
 
+  it('requires the delivery secrets, each at least 32 characters (fail closed, SP1)', () => {
+    const { JWT_PARTNER_SECRET, ...noPartner } = base;
+    const { DELIVERY_OTP_PEPPER, ...noPepper } = base;
+    expect(() => validateEnv(noPartner)).toThrow(/JWT_PARTNER_SECRET/);
+    expect(() => validateEnv(noPepper)).toThrow(/DELIVERY_OTP_PEPPER/);
+    expect(() => validateEnv({ ...base, JWT_PARTNER_SECRET: 'short' })).toThrow(/JWT_PARTNER_SECRET/);
+    expect(() => validateEnv({ ...base, DELIVERY_OTP_PEPPER: 'short' })).toThrow(/DELIVERY_OTP_PEPPER/);
+    expect(validateEnv(base).PARTNER_REFRESH_TTL).toBe(604_800);
+  });
+  it('rejects a partner secret equal to the access or refresh secret', () => {
+    expect(() => validateEnv({ ...base, JWT_PARTNER_SECRET: base.JWT_ACCESS_SECRET })).toThrow(
+      /must be different/,
+    );
+    expect(() => validateEnv({ ...base, JWT_PARTNER_SECRET: base.JWT_REFRESH_SECRET })).toThrow(
+      /must be different/,
+    );
+  });
   it('rejects a missing database url', () => {
     const { DATABASE_URL, ...withoutDb } = base;
     expect(() => validateEnv(withoutDb)).toThrow(/Invalid environment configuration/);
@@ -31,6 +50,26 @@ describe('validateEnv', () => {
   it('parses CORS_ORIGINS into a trimmed allowlist', () => {
     const env = validateEnv({ ...base, CORS_ORIGINS: 'https://a.com, https://b.com' });
     expect(env.CORS_ORIGINS).toEqual(['https://a.com', 'https://b.com']);
+  });
+});
+
+describe('validateEnv — live SMS (Fast2SMS)', () => {
+  it('requires the API key when SMS_PROVIDER=live', () => {
+    expect(() => validateEnv({ ...base, SMS_PROVIDER: 'live' })).toThrow(/FAST2SMS_API_KEY is required/);
+    expect(validateEnv({ ...base, SMS_PROVIDER: 'live', FAST2SMS_API_KEY: 'k' }).FAST2SMS_ROUTE).toBe('otp');
+  });
+  it('requires sender id and message id for the DLT route', () => {
+    const dlt = { ...base, SMS_PROVIDER: 'live', FAST2SMS_API_KEY: 'k', FAST2SMS_ROUTE: 'dlt' };
+    expect(() => validateEnv(dlt)).toThrow(/FAST2SMS_SENDER_ID is required/);
+    expect(() => validateEnv({ ...dlt, FAST2SMS_SENDER_ID: 'BELZOE', FAST2SMS_DLT_MESSAGE_ID: '1' })).not.toThrow();
+  });
+  it('requires the OTP id for the Smart OTP route', () => {
+    const smart = { ...base, SMS_PROVIDER: 'live', FAST2SMS_API_KEY: 'k', FAST2SMS_ROUTE: 'smart' };
+    expect(() => validateEnv(smart)).toThrow(/FAST2SMS_OTP_ID is required/);
+    expect(() => validateEnv({ ...smart, FAST2SMS_OTP_ID: '11111111' })).not.toThrow();
+  });
+  it('needs nothing while SMS is mocked', () => {
+    expect(() => validateEnv(base)).not.toThrow();
   });
 });
 

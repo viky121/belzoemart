@@ -7,6 +7,8 @@ export const QUEUES = {
   ABANDONED_CART: 'abandoned-cart',
   /** DPDP export/deletion jobs, consumed only by DpdpWorker. */
   DPDP: 'dpdp',
+  /** In-house delivery (U8): timeouts, OTP clean-up, partner presence, order-cancelled hook. */
+  DELIVERY: 'delivery',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

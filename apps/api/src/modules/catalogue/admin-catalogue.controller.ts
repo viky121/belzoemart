@@ -101,6 +101,28 @@ const productSlabsSchema = z.object({
 });
 class ProductSlabsDto extends createZodDto(productSlabsSchema) {}
 
+// Bulk edit (FR-8): apply one offer/price/stock change to many products at once.
+// `offer` sets sellingPrice from MRP (percent 0-95 or fixed paise off); `price`
+// sets an absolute sellingPrice (paise); `stock` adjusts the default variant's
+// available qty (set/increase/decrease) via the audited inventory path.
+const bulkEditSchema = z.object({
+  productIds: z.array(z.string().uuid()).min(1).max(500),
+  operation: z.discriminatedUnion('kind', [
+    z.object({
+      kind: z.literal('offer'),
+      mode: z.enum(['percent', 'fixed']),
+      value: z.number().min(0),
+    }),
+    z.object({ kind: z.literal('price'), value: z.number().int().min(0) }),
+    z.object({
+      kind: z.literal('stock'),
+      mode: z.enum(['set', 'increase', 'decrease']),
+      value: z.number().int().min(0),
+    }),
+  ]),
+});
+class BulkEditDto extends createZodDto(bulkEditSchema) {}
+
 const csvRowSchema = z.object({
   sku: z.string().min(1),
   title: z.string().min(1),
@@ -270,6 +292,12 @@ export class AdminCatalogueController {
   @Post('products/:id/price-slabs')
   applyProductSlabs(@Param('id') id: string, @Body() dto: ProductSlabsDto) {
     return this.products.applyPriceSlabs(id, dto.tiers);
+  }
+
+  /** Apply one offer / price / stock change to many products at once. */
+  @Post('products/bulk-edit')
+  bulkEdit(@Body() dto: BulkEditDto) {
+    return this.products.bulkEdit({ productIds: dto.productIds, operation: dto.operation });
   }
 
   @Get('brands')

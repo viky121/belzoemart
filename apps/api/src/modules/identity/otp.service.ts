@@ -1,8 +1,8 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { createHash, randomInt } from 'node:crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EMAIL_PROVIDER, type EmailProvider } from '../../integrations/notifications/channels';
-import { SMS_PROVIDER, type SmsProvider } from '../../integrations/sms/sms.provider';
+import { SMS_PROVIDER, type SmsProvider, type SmsPurpose } from '../../integrations/sms/sms.provider';
 
 export interface OtpChallenge {
   requestId: string;
@@ -42,11 +42,33 @@ export class OtpService {
     return phone.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').slice(-10);
   }
 
-  async request(target: OtpTarget): Promise<OtpChallenge> {
+  /**
+   * Every live SMS costs money, so cap them per number on top of the per-IP throttle:
+   * one every 30 s and at most 5 per hour. Only applied when a live SMS gateway is configured.
+   */
+  private async assertSmsAllowance(phone: string): Promise<void> {
+    const now = Date.now();
+    const recent = await this.prisma.otpRequest.findMany({
+      where: { phone, createdAt: { gte: new Date(now - 60 * 60 * 1000) } },
+      select: { createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    const last = recent[0];
+    if (last && now - last.createdAt.getTime() < 30_000) {
+      const wait = Math.ceil((30_000 - (now - last.createdAt.getTime())) / 1000);
+      throw new HttpException(`Please wait ${wait} seconds before requesting another code.`, HttpStatus.TOO_MANY_REQUESTS);
+    }
+    if (recent.length >= 5) {
+      throw new HttpException('Too many codes requested for this number. Try again in an hour.', HttpStatus.TOO_MANY_REQUESTS);
+    }
+  }
+
+  async request(target: OtpTarget, purpose?: SmsPurpose): Promise<OtpChallenge> {
     const phone = target.phone ? OtpService.normalizePhone(target.phone) : undefined;
     const email = target.email?.trim().toLowerCase();
     if (!phone && !email) throw new BadRequestException('Provide a phone number or email');
 
+    if (phone && (process.env.SMS_PROVIDER ?? 'mock') === 'live') await this.assertSmsAllowance(phone);
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
     const expiresAt = new Date(Date.now() + this.ttlMs);
     const record = await this.prisma.otpRequest.create({
@@ -54,20 +76,28 @@ export class OtpService {
     });
 
     let live = false;
-    if (phone) {
-      live = (process.env.SMS_PROVIDER ?? 'mock') === 'live';
-      await this.sms.send({
-        to: phone,
-        body: `Your Belzo eMart verification code is ${code}. Valid for 5 minutes.`,
-        templateId: 'BELZO_OTP',
-      });
-    } else if (email) {
-      live = (process.env.EMAIL_PROVIDER ?? 'mock') === 'live';
-      await this.email.send({
-        to: email,
-        subject: 'Your Belzo eMart verification code',
-        html: `<p>Your Belzo eMart verification code is <strong>${code}</strong>.</p><p>It is valid for 5 minutes.</p>`,
-      });
+    try {
+      if (phone) {
+        live = (process.env.SMS_PROVIDER ?? 'mock') === 'live';
+        await this.sms.send({
+          to: phone,
+          body: `Your Belzo eMart verification code is ${code}. Valid for 5 minutes.`,
+          templateId: 'BELZO_OTP',
+          otp: code,
+          purpose,
+        });
+      } else if (email) {
+        live = (process.env.EMAIL_PROVIDER ?? 'mock') === 'live';
+        await this.email.send({
+          to: email,
+          subject: 'Your Belzo eMart verification code',
+          html: `<p>Your Belzo eMart verification code is <strong>${code}</strong>.</p><p>It is valid for 5 minutes.</p>`,
+        });
+      }
+    } catch (err) {
+      // Nothing reached the customer: drop the unusable request so it does not count toward the SMS cooldown.
+      await this.prisma.otpRequest.delete({ where: { id: record.id } }).catch(() => undefined);
+      throw err;
     }
 
     return {

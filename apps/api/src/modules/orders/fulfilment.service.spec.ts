@@ -38,6 +38,7 @@ describe('FulfilmentService.createShipment — weight resolution', () => {
       variant: {
         findMany: async () => opts.variants,
       },
+      deliveryJob: { findFirst: async () => null },
     } as unknown as PrismaService;
 
     const shipping = {

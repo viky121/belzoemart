@@ -37,6 +37,8 @@ export class JwtAuthGuard implements CanActivate {
       const payload = await this.jwt.verifyAsync<JwtPrincipal>(token, {
         secret: process.env.JWT_ACCESS_SECRET,
       });
+      // Partner tokens use another secret and never reach here; refuse the kind anyway (defence in depth).
+      if (payload.kind === 'partner') throw new Error('partner token on a customer or admin route');
       request.user = payload;
       return true;
     } catch {

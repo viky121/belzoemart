@@ -1,7 +1,7 @@
 import type { AdminRole } from '@belzo/shared';
 
 /** Principal kind distinguishes customers from admin users. */
-export type PrincipalKind = 'customer' | 'admin';
+export type PrincipalKind = 'customer' | 'admin' | 'partner';
 
 /** Decoded JWT access-token payload attached to the request as `req.user`. */
 export interface JwtPrincipal {

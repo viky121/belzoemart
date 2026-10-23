@@ -24,10 +24,20 @@ export class QueueService implements OnModuleDestroy {
     }
   }
 
-  async enqueue<T>(queue: QueueName, jobName: string, data: T): Promise<void> {
+  async enqueue<T>(queue: QueueName, jobName: string, data: T, opts?: { jobId?: string }): Promise<void> {
     const q = this.queues.get(queue);
     if (!q) throw new Error(`Unknown queue: ${queue}`);
-    await q.add(jobName, data as object);
+    await q.add(jobName, data as object, opts?.jobId ? { jobId: opts.jobId } : undefined);
+  }
+
+  /**
+   * Register a job that repeats every `everyMs`. The job id is fixed per job name, so calling
+   * this on every worker start never creates a second schedule (idempotent).
+   */
+  async upsertScheduler(queue: QueueName, jobName: string, everyMs: number): Promise<void> {
+    const q = this.queues.get(queue);
+    if (!q) throw new Error(`Unknown queue: ${queue}`);
+    await q.add(jobName, {}, { repeat: { every: everyMs }, jobId: `scheduler:${jobName}` });
   }
 
   async onModuleDestroy(): Promise<void> {

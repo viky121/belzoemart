@@ -53,6 +53,6 @@ import { AdminCustomersController } from './admin-customers.controller';
     DataRequestService,
     AdminCustomerService,
   ],
-  exports: [RbacService, TokenService, PasswordService],
+  exports: [RbacService, TokenService, PasswordService, LockoutService],
 })
 export class IdentityModule {}

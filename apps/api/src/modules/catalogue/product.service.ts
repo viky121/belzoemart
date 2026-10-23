@@ -9,6 +9,7 @@ import {
 } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CategoryService } from './category.service';
+import { InventoryService } from './inventory.service';
 import { normCategoryKey } from './category-match';
 
 interface Paginated<T> {
@@ -27,6 +28,7 @@ export class ProductService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly categories: CategoryService,
+    private readonly inventory: InventoryService,
   ) {}
 
   private cheapestVariant<T extends { mrp: number; sellingPrice: number }>(
@@ -346,6 +348,103 @@ export class ProductService {
       ),
     );
     return { updated: variants.length };
+  }
+
+  /**
+   * Apply a single edit to many products at once (admin bulk actions).
+   *
+   * - `offer`  — derive each active variant's sellingPrice from its own MRP:
+   *              percent → round(mrp × (1 − value/100)); fixed → max(0, mrp − value paise).
+   * - `price`  — set an absolute sellingPrice (paise) on every active variant;
+   *              a product whose MRP is below that price is reported, not changed.
+   * - `stock`  — set / increase / decrease the DEFAULT variant's available qty,
+   *              routed through InventoryService.adjust so the StockMovement audit
+   *              trail is preserved (available is clamped at 0 on decrease).
+   *
+   * Per-product try/catch mirrors bulkUpsert: one bad product never aborts the
+   * rest. Returns a per-product result list for the UI.
+   */
+  async bulkEdit(input: {
+    productIds: string[];
+    operation:
+      | { kind: 'offer'; mode: 'percent' | 'fixed'; value: number }
+      | { kind: 'price'; value: number }
+      | { kind: 'stock'; mode: 'set' | 'increase' | 'decrease'; value: number };
+  }): Promise<{
+    ok: number;
+    failed: number;
+    results: { id: string; title: string; ok: boolean; message?: string }[];
+  }> {
+    const { operation } = input;
+    const ids = Array.from(new Set(input.productIds));
+    if (operation.value < 0 || !Number.isFinite(operation.value)) {
+      throw new BadRequestException('Value must be a non-negative number');
+    }
+    if (operation.kind === 'offer' && operation.mode === 'percent' && operation.value > 95) {
+      throw new BadRequestException('Discount must be between 0 and 95%');
+    }
+
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: ids } },
+      include: { variants: { where: { isActive: true } } },
+    });
+    const byId = new Map(products.map((p) => [p.id, p]));
+
+    const results: { id: string; title: string; ok: boolean; message?: string }[] = [];
+    for (const id of ids) {
+      const product = byId.get(id);
+      if (!product) {
+        results.push({ id, title: id, ok: false, message: 'Product not found' });
+        continue;
+      }
+      try {
+        if (product.variants.length === 0) {
+          throw new BadRequestException('Product has no variants');
+        }
+        if (operation.kind === 'stock') {
+          const target = product.variants[0];
+          const current = await this.inventory.getStock(target.id);
+          const delta =
+            operation.mode === 'set'
+              ? operation.value - current
+              : operation.mode === 'increase'
+                ? operation.value
+                : -operation.value;
+          if (delta !== 0) {
+            await this.inventory.adjust(target.id, delta, 'bulk-edit');
+          }
+        } else {
+          const updates = product.variants.map((v) => {
+            const next =
+              operation.kind === 'price'
+                ? operation.value
+                : operation.mode === 'percent'
+                  ? Math.round(v.mrp * (1 - operation.value / 100))
+                  : Math.max(0, v.mrp - operation.value);
+            if (next > v.mrp) {
+              throw new BadRequestException(
+                `Selling price (${next}) exceeds MRP (${v.mrp}) for SKU ${v.sku}`,
+              );
+            }
+            return this.prisma.variant.update({
+              where: { id: v.id },
+              data: { sellingPrice: next },
+            });
+          });
+          await this.prisma.$transaction(updates);
+        }
+        results.push({ id, title: product.title, ok: true });
+      } catch (e) {
+        results.push({
+          id,
+          title: product.title,
+          ok: false,
+          message: e instanceof Error ? e.message : 'Update failed',
+        });
+      }
+    }
+    const ok = results.filter((r) => r.ok).length;
+    return { ok, failed: results.length - ok, results };
   }
 
   /** Hard-delete a product (cascades variants, inventory, images). */

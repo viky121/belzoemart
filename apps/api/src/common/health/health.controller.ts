@@ -3,6 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/public.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { isWorkerAlive } from './worker-heartbeat';
 
 /**
  * Health checks (RESILIENCY-06).
@@ -26,7 +27,7 @@ export class HealthController {
   @Public()
   @Get('ready')
   async ready(): Promise<{ status: 'ok' | 'degraded'; checks: Record<string, boolean> }> {
-    const checks: Record<string, boolean> = { database: false, redis: false };
+    const checks: Record<string, boolean> = { database: false, redis: false, deliveryWorker: false };
 
     try {
       await this.prisma.$queryRaw`SELECT 1`;
@@ -40,6 +41,15 @@ export class HealthController {
       checks.redis = pong === 'PONG';
     } catch {
       checks.redis = false;
+    }
+
+    // The delivery worker must have written a heartbeat in the last 3 minutes. A soft check: it only
+    // turns the status to "degraded" (the endpoint still answers 200), so a stopped worker is visible
+    // without taking the API out of service.
+    try {
+      checks.deliveryWorker = await isWorkerAlive(this.redis.client, 'delivery');
+    } catch {
+      checks.deliveryWorker = false;
     }
 
     const healthy = Object.values(checks).every(Boolean);

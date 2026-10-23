@@ -71,6 +71,14 @@ export class TokenService {
     return { accessToken, refreshToken, expiresIn: this.accessTtl() };
   }
 
+  /** Sign a principal out everywhere: revokes all of their live refresh tokens (e.g. after a password reset). */
+  async revokeAllFor(principalId: string, kind: PrincipalKind): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { principalId, principalKind: kind, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
   /**
    * Rotate a refresh token. Verifies it exists, is unexpired and unrevoked.
    * On success revokes it and issues a new pair in the same family. On reuse of
@@ -84,6 +92,8 @@ export class TokenService {
     const existing = await this.prisma.refreshToken.findUnique({ where: { tokenHash } });
 
     if (!existing) throw new UnauthorizedException('Invalid refresh token');
+    // Delivery partners have their own realm and refresh path; their tokens never mint customer or admin tokens (SP1).
+    if (existing.principalKind === 'partner') throw new UnauthorizedException('Invalid refresh token');
 
     if (existing.revokedAt) {
       // Reuse detected — nuke the family.
@@ -137,7 +147,7 @@ export class TokenService {
   async revoke(refreshToken: string): Promise<void> {
     const tokenHash = this.hash(refreshToken);
     const existing = await this.prisma.refreshToken.findUnique({ where: { tokenHash } });
-    if (!existing) return;
+    if (!existing || existing.principalKind === 'partner') return;
     await this.prisma.refreshToken.updateMany({
       where: { familyId: existing.familyId, revokedAt: null },
       data: { revokedAt: new Date() },
