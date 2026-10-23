@@ -166,7 +166,7 @@ describe('PaymentGatewayService', () => {
 
   describe('status', () => {
     it('reports live config without revealing the secrets', async () => {
-      process.env.RAZORPAY_KEY_ID = 'rzp_live_Torv2igXd3g2jv';
+      process.env.RAZORPAY_KEY_ID = 'rzp_live_TestKeyId00000';
       process.env.RAZORPAY_KEY_SECRET = 'super-secret';
       process.env.RAZORPAY_WEBHOOK_SECRET = 'whsec';
       const { svc, prisma } = make();
@@ -184,7 +184,7 @@ describe('PaymentGatewayService', () => {
       });
       expect(JSON.stringify(s)).not.toContain('super-secret');
       expect(JSON.stringify(s)).not.toContain('whsec');
-      expect(s.keyHint).not.toBe('rzp_live_Torv2igXd3g2jv');
+      expect(s.keyHint).not.toBe('rzp_live_TestKeyId00000');
     });
 
     it('says where each credential comes from, and shows admin-entered keys without exposing them', async () => {
