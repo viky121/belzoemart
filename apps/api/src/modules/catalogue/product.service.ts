@@ -364,11 +364,11 @@ export class ProductService {
   /**
    * Apply a single edit to many products at once (admin bulk actions).
    *
-   * - `offer`  — derive each active variant's sellingPrice from its own MRP:
-   *              percent → round(mrp × (1 − value/100)); fixed → max(0, mrp − value paise).
-   * - `price`  — set an absolute sellingPrice (paise) on every active variant;
+   * - `offer`  â€” derive each active variant's sellingPrice from its own MRP:
+   *              percent â†’ round(mrp Ã— (1 âˆ’ value/100)); fixed â†’ max(0, mrp âˆ’ value paise).
+   * - `price`  â€” set an absolute sellingPrice (paise) on every active variant;
    *              a product whose MRP is below that price is reported, not changed.
-   * - `stock`  — set / increase / decrease the DEFAULT variant's available qty,
+   * - `stock`  â€” set / increase / decrease the DEFAULT variant's available qty,
    *              routed through InventoryService.adjust so the StockMovement audit
    *              trail is preserved (available is clamped at 0 on decrease).
    *

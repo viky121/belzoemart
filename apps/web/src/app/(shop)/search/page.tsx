@@ -47,9 +47,13 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
     ? await catalogueApi.search(qs.toString()).catch(() => EMPTY)
     : await catalogueApi.products(qs.toString()).catch(() => EMPTY);
 
+  // A brand link from a product page lands here with ?brandId=, so name the brand in the heading.
+  const brandName = searchParams.brandId ? brands.find((b) => b.id === searchParams.brandId)?.name : undefined;
   const heading = q
     ? `Results for “${q}”`
-    : sort === 'discount'
+    : brandName
+      ? brandName
+      : sort === 'discount'
       ? 'Deals of the Day'
       : sort === 'newest'
         ? 'New Arrivals'

@@ -127,9 +127,8 @@ export async function adminUpload(
   form.append('file', prepared);
   form.append('folder', folder);
 
-  let res: Response;
-  try {
-    res = await fetch(`${apiBaseUrl()}/api/v1/admin/media/upload`, {
+  const send = (token: string | null) =>
+    fetch(`${apiBaseUrl()}/api/v1/admin/media/upload`, {
       method: 'POST',
       credentials: 'include',
       headers: token ? { authorization: `Bearer ${token}` } : {},

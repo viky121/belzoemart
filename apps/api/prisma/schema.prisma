@@ -357,6 +357,8 @@ model Variant {
   priceSlabsJson Json     @default("[]")
   imageUrl       String?
   weightGrams    Int      @default(0)
+  weightValue    Float? // weight / pack size as entered by the admin
+  weightUnit     String? // kg | gm | count | pc | litre | ml
   costPrice      Int? // purchase price, paise; ADMIN-ONLY
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())

@@ -97,6 +97,9 @@ export interface ProductCardDto {
   defaultVariantId?: string | null;
   /** Pack/size label for the default variant, e.g. "1 kg", "1 L", "500 ml". */
   unit?: string | null;
+  /** Brand name + id, so a listing can link to "all products of this brand" (/search?brandId=). */
+  brand?: string | null;
+  brandId?: string | null;
 }
 
 export interface ProductDetailDto extends ProductCardDto {
