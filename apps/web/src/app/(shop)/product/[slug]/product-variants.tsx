@@ -177,6 +177,8 @@ export function ProductVariants({
           rootTestId="pdp-qty"
           testId="pdp-qty-value"
           value={qty}
+          min={limits.min}
+          max={limits.max}
           onCommit={setQty}
           onLiveChange={setQty}
         />

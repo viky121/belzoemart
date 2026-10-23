@@ -1,5 +1,14 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { discountPct, MAX_CART_QTY, resolveSlabPrice, variantUnitLabel, type Money, type PriceSlabTier } from '@belzo/shared';
+import {
+  discountPct,
+  effectiveOrderLimits,
+  MAX_CART_QTY,
+  orderLimitsMessage,
+  resolveSlabPrice,
+  variantUnitLabel,
+  type Money,
+  type PriceSlabTier,
+} from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 const MAX_QTY = MAX_CART_QTY;

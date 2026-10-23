@@ -21,3 +21,4 @@ export * from './cms-body';
 export * from './home-layout';
 export * from './delivery';
 export * from './weight';
+export * from './order-limits';

@@ -8,6 +8,7 @@ import { QtyStepper } from '@/components/qty-stepper';
 import { formatInr } from '@/lib/catalogue-api';
 import { placeholderImage, isUsableImageUrl } from '@/lib/category-theme';
 import { safeSession } from '@/lib/safe-storage';
+import { effectiveOrderLimits, orderLimitsHint } from '@belzo/shared';
 
 /** Cart page (FR-4.2): line cards, quantity, remove, summary, coupon, checkout. */
 export default function CartPage() {
@@ -16,6 +17,7 @@ export default function CartPage() {
   const [busy, setBusy] = useState(false);
   const [coupon, setCoupon] = useState('');
   const [couponMsg, setCouponMsg] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const view = await cartApi.get(accessToken ?? undefined).catch(() => null);
@@ -31,8 +33,13 @@ export default function CartPage() {
 
   async function update(variantId: string, quantity: number) {
     setBusy(true);
+    setNotice(null);
     try {
       setCart(await cartApi.update(variantId, quantity, accessToken ?? undefined));
+    } catch (e) {
+      // e.g. "You can buy at most 5 of ... per order": show it and put the real quantity back.
+      setNotice(e instanceof Error && e.message ? e.message : 'Could not update the quantity.');
+      await load();
     } finally {
       setBusy(false);
     }
@@ -96,10 +103,18 @@ export default function CartPage() {
       ) : (
         <div className="cartx__grid">
           <div className="cartx__main">
+            {notice && (
+              <p className="prod-form__msg prod-form__msg--err" role="alert" data-testid="cart-notice">
+                {notice}
+              </p>
+            )}
             <ul className="cartx__items" data-testid="cart-items">
               {active.map((item) => {
                 const real = isUsableImageUrl(item.imageUrl);
                 const hint = tierHint(item);
+                const limits = effectiveOrderLimits({ minOrderQty: item.minQty, maxOrderQty: item.maxQty });
+                const limitsHint = orderLimitsHint(limits);
+                const outOfRange = item.quantity < limits.min || item.quantity > limits.max;
                 return (
                   <li key={item.id} className="cline" data-testid={`cart-line-${item.sku}`}>
                     <div className="cline__img">
@@ -125,6 +140,15 @@ export default function CartPage() {
                           </>
                         )}
                       </div>
+                      {limitsHint && (
+                        <div className="cline__hint" data-testid={`cart-limits-${item.sku}`}>
+                          <span className={outOfRange ? 'cline__stock--out' : 'cline__hint-next'}>
+                            {outOfRange
+                              ? `Quantity must be between ${limits.min} and ${limits.max} to check out.`
+                              : limitsHint}
+                          </span>
+                        </div>
+                      )}
                       {hint && (
                         <div className="cline__hint" data-testid={`cart-tier-${item.sku}`}>
                           {hint.applied && <span className="cline__hint-on">✓ {hint.applied}</span>}
@@ -138,8 +162,10 @@ export default function CartPage() {
                         className="cline__qty"
                         testId={`cart-qty-${item.sku}`}
                         value={item.quantity}
+                        min={limits.min}
+                        max={limits.max}
                         disabled={busy}
-                        onCommit={(n) => update(item.variantId, n)}
+                        onCommit={(n) => update(item.variantId, Math.min(limits.max, Math.max(limits.min, n)))}
                       />
                       <span className="cline__linetotal">
                         {formatInr(item.unitPrice * item.quantity)}
