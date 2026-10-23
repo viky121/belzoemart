@@ -14,6 +14,7 @@ import { InventoryService } from '../catalogue/inventory.service';
 import { PaymentService } from '../checkout/payment.service';
 import { CartService } from '../cart/cart.service';
 import { FulfilmentService } from './fulfilment.service';
+import { notifyOrderStatus } from './order-events';
 
 /** Variant attributes JSON → plain string map ({} when not an object). */
 function toAttributes(json: unknown): Record<string, string> {

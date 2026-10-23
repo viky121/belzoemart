@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { ORDER_PROGRESS_STEPS, canTransition, progressRank, type OrderStatus } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { QueueService } from '../../common/queue/queue.service';

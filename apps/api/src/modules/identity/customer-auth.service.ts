@@ -5,11 +5,14 @@ import {
   HttpStatus,
   Injectable,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { AuthTokens, OtpPurpose, RegisterAccount } from '@belzo/shared';
 import { readProof, requireProof, signProof, type ProofKind } from './otp-proof';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { QUEUES } from '../../common/queue/queue.constants';
+import { QueueService } from '../../common/queue/queue.service';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 import { LockoutService } from './lockout.service';
@@ -37,6 +40,7 @@ export class CustomerAuthService {
     private readonly lockout: LockoutService,
     private readonly otp: OtpService,
     private readonly social: SocialAuthService,
+    @Optional() private readonly queue?: QueueService,
   ) {}
 
   private toSummary(c: {
@@ -158,6 +162,10 @@ export class CustomerAuthService {
         throw new ConflictException('This mobile number or email is already registered. Please sign in.');
       }
     }
+    // Welcome email. Best effort: a queue hiccup must never fail a sign-up that already succeeded.
+    await this.queue
+      ?.enqueue(QUEUES.NOTIFICATIONS, 'customer.welcome', { customerId: customer.id }, { jobId: `welcome-${customer.id}` })
+      .catch(() => undefined);
     return { tokens: await this.issueFor(customer.id), customer: this.toSummary(customer) };
   }
 

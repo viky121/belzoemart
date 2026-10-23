@@ -11,8 +11,22 @@ import type { EmailMessage, EmailProvider } from './channels';
 @Injectable()
 export class SmtpEmailProvider implements EmailProvider {
   private readonly logger = new Logger('SmtpEmailProvider');
-  private readonly from = process.env.EMAIL_FROM || process.env.SMTP_USER || '';
+  private readonly from = SmtpEmailProvider.buildFrom(
+    process.env.EMAIL_FROM || process.env.SMTP_USER || '',
+    process.env.EMAIL_FROM_NAME ?? 'Belzo eMart',
+  );
   private transport?: nodemailer.Transporter;
+
+  /**
+   * Sender shown to customers: `Belzo eMart <address>`. An EMAIL_FROM that already carries a
+   * display name (`Name <addr>`) is used as is; an empty EMAIL_FROM_NAME sends the bare address.
+   */
+  static buildFrom(address: string, displayName: string): string {
+    const addr = address.trim();
+    if (!addr || addr.includes('<')) return addr;
+    const name = displayName.trim().replace(/["\r\n<>]/g, '');
+    return name ? `"${name}" <${addr}>` : addr;
+  }
 
   private get tx(): nodemailer.Transporter {
     if (!this.transport) {
@@ -34,6 +48,15 @@ export class SmtpEmailProvider implements EmailProvider {
       to: msg.to,
       subject: msg.subject,
       html: msg.html,
+      ...(msg.attachments?.length
+        ? {
+            attachments: msg.attachments.map((a) => ({
+              filename: a.filename,
+              content: a.content,
+              contentType: a.contentType,
+            })),
+          }
+        : {}),
     });
     this.logger.log(`Email sent to ${msg.to} id=${info.messageId}`);
     return { messageId: info.messageId };
