@@ -336,3 +336,173 @@ VERIFICATION: API /health/ready => 200 {database:true,redis:true}; /products => 
 **Context**: Operations / local run - full purchase flow demonstration
 
 ---
+
+## Delivery Module (U8) - Request Logged, Analysis Done, Questions Issued
+**Timestamp**: 2026-10-23T09:30:00Z
+**User Input**: "/home/viky/Downloads/delivery-module, okay bhai ye delvery module hai, but ye php me hai, isko nextjs,rect me convert karo, and inbuild karo is project me"
+**AI Response**: "Workspace Detection: brownfield (existing Belzo monorepo, units U1-U7 complete and deployed). Analysed the PHP source (README, DOCUMENTATION, API, schema, permissions, folder layout; about 21,500 lines of PHP plus 20,000 lines of tests, 30 tables, 4 surfaces: admin panel, partner PWA, customer tracking, intake API/webhooks, plus cron jobs). Wrote aidlc-docs/inception/delivery-module/php-module-analysis.md (feature inventory, table-by-table mapping to the existing Prisma models, target architecture, risks). Requirements Analysis: request type Migration + New Feature, scope System-wide, complexity Complex, depth Comprehensive. Created aidlc-docs/inception/requirements/delivery-module-questions.md with 15 questions (phasing, intake API/webhooks, which orders, trigger point, replacing the mock shipping provider, staff roles, partner login, partner app form, SMS templates, COD/UPI, tracking, proof, language, tests, deployment). Stopped at the answers gate; no application code written."
+**Context**: INCEPTION - Requirements Analysis (U8 delivery-module), awaiting user answers
+---
+## Delivery Module (U8) - Partial Answers Received, Follow-up Questions Issued
+**Timestamp**: 2026-10-23T10:00:00Z
+**User Input**: "Baaki customer SMS (assigned, cancelled, delivered, failed): inke DLT templates abhi approved nahi hain. Ya to unka code taiyaar rakhunga par band, ya sirf in-app notification dunga., insabka sms nahi sirf mail jayega
+
+Sawal 1: phase-wise banana hai ya poora ek saath.
+
+answer: phasewise
+
+Sawal 3 aur 4: kaun se orders delivery module mein jayenge, aur kab.
+
+answer: admin se jasie hi assign hoga deilvery wale bande ko jisko assign hoga sirf use bande ko deikga aur kisi ko nahi
+
+Sawal 7 aur 8: delivery partner kaise login karega, aur uska app website par ho ya Android app mein.
+
+answer: Iske lea khud k delivery wala banda hai uska login hoga, admin se usko assign kar denge 
+
+Sawal 10: sirf cash, ya UPI QR bhi.
+
+answer: both"
+**AI Response**: "Recorded Q1=A, Q3=C, Q4=C, Q7=X (own staff, admin-created accounts; login method open), Q9=X (customer events by e-mail only, delivery OTP by SMS), Q10=B in delivery-module-questions.md. Q2, Q5, Q6, Q8 (form), Q11-Q15 unanswered; UPI VPA needed; new ambiguity: reject/timeout handling and partner pick rule. Created delivery-module-followup-questions.md (F1-F9). Waiting for answers before writing requirements.md."
+**Context**: INCEPTION - Requirements Analysis (U8), gate not passed
+---
+## Delivery Module (U8) - Follow-up Answers Received, Requirements Written
+**Timestamp**: 2026-10-23T10:30:00Z
+**User Input**: "ye wala done,**Aapko ye bharna hai:** `aidlc-docs/inception/requirements/delivery-module-followup-questions.md`" (file answers: F1=A, F2=A, F3=A, F4=A, F5=A, F6=A, F7=A, F8="jitne v amount ka payment hoga cod case me QR auto genrate ho jaye, utne amount ka and razorpay paymentgateway jo ki already implent hai uska detail ude karke, payment usi account me jaye", F9=A)
+**AI Response**: "Wrote delivery-module-requirements.md (DL-1 to DL-8, phases, NFRs, risks). F8 interpreted as a per-order fixed-amount Razorpay UPI QR (QR Codes API) paid into the connected Razorpay account, confirmed by webhook instead of a self-reported UTR. Asked the user to approve requirements."
+**Context**: INCEPTION - Requirements Analysis (U8), awaiting approval
+---
+## Delivery Module (U8) - Requirements Approved
+**Timestamp**: 2026-10-23T10:45:00Z
+**User Input**: "approve"
+**AI Response**: "Requirements approved. User Stories skipped (requirements itemised as DL-x with acceptance in text; same decision as earlier cycle). Proceeding to Workflow Planning."
+**Context**: INCEPTION - Requirements Analysis complete -> Workflow Planning
+---
+## Delivery Module (U8) - Workflow Plan Presented
+**Timestamp**: 2026-10-23T11:00:00Z
+**AI Prompt**: "Workflow plan created (execution-plan-delivery.md). Execute: Application Design, Units Generation, Functional Design, NFR Design, Code Generation, Build and Test. Skip: User Stories, NFR Requirements, Infrastructure Design. Proposed units U8.1 to U8.5. Ready to proceed with this plan?"
+**Context**: INCEPTION - Workflow Planning, awaiting approval
+---
+## Delivery Module (U8) - Workflow Plan Approved
+**Timestamp**: 2026-10-23T11:10:00Z
+**User Input**: "approve"
+**AI Response**: "Workflow plan approved. Starting Application Design for the delivery module."
+**Context**: INCEPTION - Workflow Planning approved -> Application Design
+---
+## Delivery Module (U8) - Application Design Plan and Questions Issued
+**Timestamp**: 2026-10-23T11:40:00Z
+**AI Response**: "Read the existing API (orders, fulfilment, shipping port, payment webhook, auth, RBAC, queues, notifications, storage). Created aidlc-docs/inception/plans/application-design-plan-delivery.md with the plan checklist, 9 findings and questions D1-D9. Waiting for answers."
+**Context**: INCEPTION - Application Design, awaiting answers
+---
+## Delivery Module (U8) - Application Design Answers and Artifacts
+**Timestamp**: 2026-10-23T12:10:00Z
+**User Input**: "a Sab"
+**AI Response**: "Recorded D1-D9 = A in application-design-plan-delivery.md. Generated components.md, component-methods.md, services.md, component-dependency.md, application-design.md under aidlc-docs/inception/application-design/delivery/. Carried 4 open points into Functional Design (returned-order path, COD invoice, numeric rules, Razorpay QR enablement). Presented for approval."
+**Context**: INCEPTION - Application Design complete, awaiting approval
+---
+## Delivery Module (U8) - Application Design Approved
+**Timestamp**: 2026-10-23T12:20:00Z
+**User Input**: "approve"
+**AI Response**: "Application design approved. Starting Units Generation."
+**Context**: INCEPTION - Application Design approved -> Units Generation
+---
+## Delivery Module (U8) - Unit of Work Plan Issued
+**Timestamp**: 2026-10-23T12:30:00Z
+**AI Response**: "Created aidlc-docs/inception/plans/unit-of-work-plan-delivery.md (checklist, 5 proposed units, questions U1-U3: build order, migration timing, depth of per-unit design). Waiting for answers."
+**Context**: INCEPTION - Units Generation Part 1 (Planning), awaiting answers
+---
+## Delivery Module (U8) - Units Generation Answers and Artifacts
+**Timestamp**: 2026-10-23T12:45:00Z
+**User Input**: "approve" (given in reply to unit-of-work-plan-delivery.md questions U1-U3; interpreted as accepting the recommended option A for all three, recorded in the plan)
+**AI Response**: "Generated unit-of-work.md, unit-of-work-dependency.md, unit-of-work-story-map.md under aidlc-docs/inception/application-design/delivery/. Units: U8.1 core, U8.2 collection+cash+proof, U8.3 admin, U8.4 partner PWA, U8.5 customer. Proof moved into U8.2 (completion gates). Android app needs no new screens. Presented for approval."
+**Context**: INCEPTION - Units Generation complete, awaiting approval
+---
+## Delivery Module (U8) - Units Generation Approved
+**Timestamp**: 2026-10-23T13:00:00Z
+**User Input**: "approve"
+**AI Response**: "Units approved. Entering CONSTRUCTION: U8.1 Delivery core, Functional Design first."
+**Context**: INCEPTION complete -> CONSTRUCTION U8.1 Functional Design
+---
+## Delivery Module (U8.1) - Functional Design Plan Issued
+**Timestamp**: 2026-10-23T13:20:00Z
+**AI Response**: "Created aidlc-docs/construction/plans/u8-1-delivery-core-functional-design-plan.md: checklist, 12 decisions taken from PHP defaults (incl. geofence dropped because Belzo addresses have no coordinates), questions FD1-FD5 (OTP validity, undeliverable order outcome, max attempts, OTP phone, partner data before accept). Waiting for answers."
+**Context**: CONSTRUCTION - U8.1 Functional Design, awaiting answers
+---
+## Delivery Module (U8.1) - Functional Design Answers and Artifacts
+**Timestamp**: 2026-10-23T14:00:00Z
+**User Input**: "A sab"
+**AI Response**: "Recorded FD1-FD5 = A in u8-1-delivery-core-functional-design-plan.md. Generated domain-entities.md, business-rules.md (BR-D1..BR-D81 plus 9 properties for PBT), business-logic-model.md under aidlc-docs/construction/u8-1-delivery-core/functional-design/. Refinements to earlier design: complete(otp) split into verifyOtp + complete; assign allowed for confirmed/packed/shipped/out_for_delivery orders without an active job (pending refused); cancel list gets 'arrived'; geofence dropped; undeliverable job cancels the order (order state machine gets shipped/out_for_delivery -> cancelled for the system action). Presented for approval."
+**Context**: CONSTRUCTION - U8.1 Functional Design complete, awaiting approval
+---
+## Delivery Module (U8.1) - Functional Design Approved
+**Timestamp**: 2026-10-23T14:15:00Z
+**User Input**: "Continue to Next Stage"
+**AI Response**: "U8.1 Functional Design approved. Starting NFR Design for U8.1."
+**Context**: CONSTRUCTION - U8.1 Functional Design -> NFR Design
+---
+## Delivery Module (U8.1) - NFR Design Plan Issued
+**Timestamp**: 2026-10-23T14:40:00Z
+**AI Response**: "Loaded Security, Resiliency and PBT extension rules. Added PBT-01 Testable Properties table (P1-P14) to U8.1 business-rules.md. Created aidlc-docs/construction/plans/u8-1-delivery-core-nfr-design-plan.md with inherited resiliency decisions, 7 design decisions and questions NQ1 (security event alerting) and NQ2 (GPS retention). Waiting for answers."
+**Context**: CONSTRUCTION - U8.1 NFR Design, awaiting answers
+---
+## Delivery Module (U8.1) - NFR Design Answers and Artifacts
+**Timestamp**: 2026-10-23T15:00:00Z
+**User Input**: "A dab" (read as "A sab": NQ1 = A, NQ2 = A)
+**AI Response**: "Recorded NQ1 and NQ2 = A. Generated nfr-design-patterns.md and logical-components.md under aidlc-docs/construction/u8-1-delivery-core/nfr-design/ with Security, Resiliency and PBT compliance tables. No blocking findings; platform-level rules marked inherited. Noted existing gap: U1 planned managed RDS, live host runs Postgres in Docker on one server (outside this unit). Presented for approval."
+**Context**: CONSTRUCTION - U8.1 NFR Design complete, awaiting approval
+---
+## Delivery Module (U8.1) - NFR Design Approved
+**Timestamp**: 2026-10-23T15:15:00Z
+**User Input**: "do as per standred and go for next"
+**AI Response**: "Read as approval of the NFR design (Continue to Next Stage). Starting Code Generation Part 1 (planning) for U8.1."
+**Context**: CONSTRUCTION - U8.1 NFR Design approved -> Code Generation planning
+---
+## Delivery Module (U8.1) - Code Generation Plan Presented
+**Timestamp**: 2026-10-23T15:40:00Z
+**AI Prompt**: "Code generation plan for U8.1 created at aidlc-docs/construction/plans/u8-1-delivery-core-code-generation-plan.md (17 steps: shared package, Prisma migration with triggers, config/queue/auth foundations, partner auth, partner and zone management, delivery OTP, order sync, transition engine and job service, orders integration, controllers, worker and health, DB check, docs, verification). Ready to proceed with code generation?"
+**Context**: CONSTRUCTION - U8.1 Code Generation Part 1 (planning), awaiting approval
+---
+## Delivery Module (U8.1) - Code Generation Plan Approved
+**Timestamp**: 2026-10-23T16:10:00Z
+**User Input**: "approve"
+**AI Response**: "Code generation plan approved. Before that, at the user's request the secrets JWT_PARTNER_SECRET and DELIVERY_OTP_PEPPER were generated on the server and appended to ~/belzo/.env.prod (backup .env.prod.bak-partner-*; values not shown; no container restarted). Starting Part 2 (generation) at Step 1."
+**Context**: CONSTRUCTION - U8.1 Code Generation Part 2
+---
+## Delivery Module (U8.1) - Code Generation Complete
+**Timestamp**: 2026-10-23T18:30:00Z
+**AI Response**: "Executed the approved 17-step plan. Created the shared delivery package, migration 20261023005134_delivery_core (tables, partial unique indexes, 3 triggers, checks), the DeliveryModule (partners, zones, partner auth realm, jobs, delivery OTP, order sync, settings, security events, admin and partner controllers, worker) and tests. Verification: shared 422 tests, api 880 tests with the database spec (18) passing, web 194, mobile 245 (one transient 2-failure run, then two clean reruns); tsc and eslint clean. Local end-to-end over HTTP with API, worker, Redis and Postgres succeeded. Findings: apps/api/.env REDIS_URL points at 6379 which is the SecAudit project's Redis; first smoke run wrote Belzo keys there, which were removed (only Belzo keys); later runs used 6380. Global exception filter now passes structured error codes. Scratch database dropped. Nothing deployed. Security, Resiliency and PBT: no blocking findings. Presented for approval."
+**Context**: CONSTRUCTION - U8.1 Code Generation complete, awaiting approval
+---
+## Delivery Module (U8.1) - Code Generation Approved
+**Timestamp**: 2026-10-23T18:45:00Z
+**User Input**: "Continue to Next Stage"
+**AI Response**: "U8.1 approved. Starting U8.2 (Collection, cash and proof) Functional Design: researching Razorpay QR Codes API, existing payment/invoice code and the PHP cash, proof and earnings rules."
+**Context**: CONSTRUCTION - U8.1 complete -> U8.2 Functional Design
+---
+## Delivery Module (U8.2) - Functional Design Plan Issued
+**Timestamp**: 2026-10-23T19:10:00Z
+**AI Response**: "Researched Razorpay QR Codes API (close_by min 15 minutes, qr_code.credited webhook, fetch-payments endpoint) and Belzo COD behaviour (COD Payment never captured, stock never converted, no invoice). Created aidlc-docs/construction/plans/u8-2-collection-cash-proof-functional-design-plan.md with 14 decisions and questions FQ1 (COD stock+invoice at collection), FQ2 (earnings), FQ3 (cash limit). Waiting for answers."
+**Context**: CONSTRUCTION - U8.2 Functional Design, awaiting answers
+---
+## Delivery Module (U8.2) - Functional Design Answers and Artifacts
+**Timestamp**: 2026-10-23T19:40:00Z
+**User Input**: "A sab"
+**AI Response**: "Recorded FQ1-FQ3 = A (COD stock+invoice, no earnings, no cash limit). Generated domain-entities.md, business-rules.md (BR-C1..BR-C55, properties Q1-Q12) and business-logic-model.md under aidlc-docs/construction/u8-2-collection-cash-proof/functional-design/. Refinement: COD stock conversion and GST invoice run when the delivery completes (cod.settle queue job), not at the moment of collection, so a voided cash collection cannot leave a sale and invoice behind. Earnings table and cash-limit setting dropped. Presented for approval."
+**Context**: CONSTRUCTION - U8.2 Functional Design complete, awaiting approval
+---
+## Delivery Module (U8.2) - Functional Design Approved
+**Timestamp**: 2026-10-23T20:00:00Z
+**User Input**: "Continue to Next Stage"
+**AI Response**: "U8.2 Functional Design approved. Starting NFR Design for U8.2."
+**Context**: CONSTRUCTION - U8.2 Functional Design -> NFR Design
+---
+## Delivery Module (U8.2) - NFR Design Plan Issued
+**Timestamp**: 2026-10-23T20:10:00Z
+**AI Response**: "Created aidlc-docs/construction/plans/u8-2-collection-cash-proof-nfr-design-plan.md: finding that the shared resilient HTTP client opens its circuit on the first non-2xx call per dependency name (so QR calls need their own breaker names), 13 decisions, questions NQ1 (proof retention) and NQ2 (alerting for money events). Waiting for answers."
+**Context**: CONSTRUCTION - U8.2 NFR Design, awaiting answers
+---
+## Delivery Module (U8.2) - NFR Design Answers and Artifacts
+**Timestamp**: 2026-10-23T20:30:00Z
+**User Input**: "A sab\"
+**AI Response**: "Recorded NQ1 = A (proof files deleted 1 year after delivery) and NQ2 = A (money alerts on dashboard, no e-mail). Added BR-C56 and DeliveryProof.purgedAt to the functional design; storage port needs delete(key). Generated nfr-design-patterns.md (SP10-SP16, RP7-RP12) and logical-components.md with Security, Resiliency and PBT compliance; no blocking findings. Presented for approval."
+**Context**: CONSTRUCTION - U8.2 NFR Design complete, awaiting approval
+---
