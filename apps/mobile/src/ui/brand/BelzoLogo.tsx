@@ -1,14 +1,14 @@
-import { SvgXml } from 'react-native-svg';
+import { Image } from 'expo-image';
 
-import { BELZO_LOGO_XML } from './belzo-logo.generated';
+/** The official Belzo eMart logo (transparent PNG, cropped square so the ring is centred). */
+const LOGO = require('../../../assets/brand/belzo-logo.png') as number;
 
-/** The official Belzo brand logo (the web SVG verbatim). Square viewBox 520×520. */
 export function BelzoLogo({ size = 96 }: { size?: number }) {
   return (
-    <SvgXml
-      xml={BELZO_LOGO_XML}
-      width={size}
-      height={size}
+    <Image
+      source={LOGO}
+      style={{ width: size, height: size }}
+      contentFit="contain"
       accessible
       accessibilityRole="image"
       accessibilityLabel="Belzo eMart"

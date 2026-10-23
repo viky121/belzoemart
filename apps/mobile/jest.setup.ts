@@ -54,8 +54,11 @@ jest.mock('react-native-svg', () => {
     default: View,
     Svg: View,
     SvgXml: View,
-    // Shapes used by Gradient and the festival diya glyph.
+    // Shapes used by Gradient, the festival diya glyph and the festival artwork.
     Path: View,
+    Circle: View,
+    Ellipse: View,
+    G: View,
     Rect: View,
     Defs: View,
     Stop: View,

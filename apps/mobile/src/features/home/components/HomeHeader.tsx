@@ -7,11 +7,12 @@ import { useBrand } from '@/theme/use-brand';
 import { Gradient } from '@/ui/Gradient';
 import { IconButton } from '@/ui/IconButton';
 import { BelzoLogo } from '@/ui/brand/BelzoLogo';
+import { BrandWordmark } from '@/ui/brand/BrandWordmark';
 import { FestivalDecor } from '@/ui/festival/FestivalDecor';
-import { FestivalGlyph } from '@/ui/festival/FestivalGlyph';
+import { FestivalArt } from '@/ui/festival/FestivalArt';
 
 /** Height the falling decorations travel through (the festive header is about this tall). */
-const DECOR_HEIGHT = 230;
+const DECOR_HEIGHT = 150;
 const WHITE = theme.colors.white;
 
 export interface HomeHeaderProps {
@@ -23,6 +24,8 @@ export interface HomeHeaderProps {
   onCart: () => void;
   onSearch: () => void;
   onPin: () => void;
+  /** Opens the ☰ menu (button hidden when omitted). */
+  onMenu?: () => void;
   /** Whether the Home tab is on screen (light status-bar icons are only set then). Default true. */
   focused?: boolean;
 }
@@ -39,26 +42,44 @@ export function HomeHeader({
   onCart,
   onSearch,
   onPin,
+  onMenu,
   focused = true,
 }: HomeHeaderProps) {
   const brand = useBrand();
   const fest = brand.active;
   const iconColor = fest ? WHITE : theme.colors.inkStrong;
 
+  const pin = (
+    <Pressable
+      style={[styles.pinRow, fest && styles.pinFestive]}
+      onPress={onPin}
+      accessibilityRole="button"
+      accessibilityLabel={pincode ? `Delivering to ${pincode}. Change PIN` : 'Set delivery PIN'}
+    >
+      <MaterialCommunityIcons
+        name="map-marker-outline"
+        size={14}
+        color={fest ? WHITE : theme.colors.primaryStrong}
+      />
+      <Text style={[styles.pinText, fest && { color: WHITE }]} numberOfLines={1}>
+        {pincode ? `Deliver to ${pincode}` : 'Set delivery PIN'}
+      </Text>
+      <MaterialCommunityIcons name="chevron-down" size={15} color={fest ? WHITE : theme.colors.muted} />
+    </Pressable>
+  );
+
   const content = (
     <>
       <View style={styles.row}>
-        <View style={styles.brand}>
-          {fest ? (
-            <View style={styles.logoChip}>
-              <BelzoLogo size={32} />
-            </View>
-          ) : (
-            <BelzoLogo size={38} />
-          )}
-          <Text style={[styles.wordmark, fest && { color: WHITE }]}>
-            Belzo <Text style={[styles.accent, fest && { color: brand.accent }]}>Mart</Text>
-          </Text>
+        <View style={[styles.brand, onMenu && styles.brandWithMenu]}>
+          {onMenu ? (
+            <IconButton icon="menu" label="Open menu" color={iconColor} onPress={onMenu} testID="home-menu" />
+          ) : null}
+          {/* On the festive gradient the brand sits in a white pill so the logo colours stay true. */}
+          <View style={fest ? styles.brandPill : styles.brandPlain}>
+            <BelzoLogo size={fest ? 30 : 38} />
+            <BrandWordmark size={fest ? 19 : 22} />
+          </View>
         </View>
         <View style={styles.icons}>
           <IconButton icon="bell-outline" label="Notifications" color={iconColor} badge={unread} onPress={onBell} />
@@ -75,16 +96,17 @@ export function HomeHeader({
       {fest ? (
         <View style={styles.greetRow} testID="festival-greeting">
           <View style={styles.greetText}>
-            <Text style={styles.greet} accessibilityRole="header">
+            <Text style={styles.greet} accessibilityRole="header" numberOfLines={1}>
               {brand.greeting}
             </Text>
-            {brand.greetingLocal ? <Text style={styles.greetLocal}>{brand.greetingLocal}</Text> : null}
+            {brand.greetingLocal ? (
+              <Text style={styles.greetLocal} numberOfLines={1}>
+                {brand.greetingLocal}
+              </Text>
+            ) : null}
+            {pin}
           </View>
-          {brand.motifs[0] ? (
-            <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-              <FestivalGlyph motif={brand.motifs[0]} size={46} color={brand.accent} accent={WHITE} />
-            </View>
-          ) : null}
+          <FestivalArt festival={brand.festival} motifs={brand.motifs} accent={brand.accent} />
         </View>
       ) : null}
 
@@ -100,22 +122,7 @@ export function HomeHeader({
         </Text>
       </Pressable>
 
-      <Pressable
-        style={styles.pinRow}
-        onPress={onPin}
-        accessibilityRole="button"
-        accessibilityLabel={pincode ? `Delivering to ${pincode}. Change PIN` : 'Set delivery PIN'}
-      >
-        <MaterialCommunityIcons
-          name="map-marker-outline"
-          size={15}
-          color={fest ? WHITE : theme.colors.primaryStrong}
-        />
-        <Text style={[styles.pinText, fest && { color: WHITE }]} numberOfLines={1}>
-          {pincode ? `Deliver to ${pincode}` : 'Set delivery PIN'}
-        </Text>
-        <MaterialCommunityIcons name="chevron-down" size={16} color={fest ? WHITE : theme.colors.muted} />
-      </Pressable>
+      {fest ? null : pin}
     </>
   );
 
@@ -147,28 +154,44 @@ const styles = StyleSheet.create({
   },
   festive: {
     paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.xs,
+    paddingTop: 2,
     paddingBottom: theme.spacing.md,
-    gap: theme.spacing.sm,
+    gap: 6,
     overflow: 'hidden',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  logoChip: { backgroundColor: WHITE, borderRadius: 12, padding: 3 },
-  wordmark: { fontSize: 22, lineHeight: 28, fontWeight: '800', color: theme.colors.inkStrong },
-  accent: { color: theme.colors.primaryStrong },
+  brandWithMenu: { gap: 2, marginLeft: -theme.spacing.sm },
+  brandPlain: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  brandPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 3,
+    paddingLeft: 4,
+    paddingRight: 12,
+    borderRadius: theme.radius.pill,
+    backgroundColor: WHITE,
+  },
   icons: { flexDirection: 'row', alignItems: 'center' },
-  greetRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
-  greetText: { flex: 1, gap: 2 },
-  greet: { fontSize: 24, lineHeight: 30, fontWeight: '800', color: WHITE },
-  greetLocal: { ...theme.typography.body, color: 'rgba(255,255,255,0.92)' },
+  greetRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
+  greetText: { flex: 1, gap: 1, alignItems: 'flex-start' },
+  greet: { fontSize: 18, lineHeight: 22, fontWeight: '800', color: WHITE },
+  greetLocal: { fontSize: 12, lineHeight: 16, color: 'rgba(255,255,255,0.92)' },
+  pinFestive: {
+    marginTop: 4,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
   search: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
-    minHeight: 46,
+    minHeight: 42,
     paddingHorizontal: theme.spacing.md,
     borderRadius: theme.radius.lg,
     borderWidth: 1,

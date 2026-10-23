@@ -7,6 +7,7 @@ import { afterAuth } from '@/navigation/after-auth';
 import type { RootScreenProps } from '@/navigation/types';
 import { theme } from '@/theme';
 import { Button, OtpField, Screen } from '@/ui';
+import { AuthLogo } from '@/ui/brand/AuthLogo';
 
 import { useRequestOtp, useVerifyOtp } from '../hooks';
 
@@ -49,7 +50,7 @@ export function OtpVerifyScreen({ navigation, route }: RootScreenProps<'OtpVerif
   }
 
   function doResend() {
-    resend.mutate(channel === 'phone' ? { phone: target } : { email: target }, {
+    resend.mutate(channel === 'phone' ? { phone: target, purpose: 'login' } : { email: target, purpose: 'login' }, {
       onSuccess: (res) => {
         setRequestId(res.requestId);
         setExpiresAt(Date.parse(res.expiresAt));
@@ -69,6 +70,7 @@ export function OtpVerifyScreen({ navigation, route }: RootScreenProps<'OtpVerif
 
   return (
     <Screen scroll padded>
+      <AuthLogo />
       <Text style={styles.heading} accessibilityRole="header">
         Enter the code
       </Text>

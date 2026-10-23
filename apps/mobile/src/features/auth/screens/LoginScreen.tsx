@@ -1,165 +1,99 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
-import { emailLoginSchema, emailSchema, phoneSchema } from '@belzo/shared';
-
 import { userMessage } from '@/api/errors';
-import { env } from '@/config/env';
 import { afterAuth } from '@/navigation/after-auth';
 import type { RootScreenProps } from '@/navigation/types';
 import { theme } from '@/theme';
-import { Button, Chip, Screen, TextField } from '@/ui';
+import { Button, Screen, TextField } from '@/ui';
+import { AuthLogo } from '@/ui/brand/AuthLogo';
 
-import { usePasswordLogin, useRequestOtp } from '../hooks';
+import { PasswordField } from '../components/PasswordField';
+import { useIdentifierLogin } from '../hooks';
+import { normalizeEmail, normalizeMobile } from '../identifiers';
 
-type Tab = 'phone' | 'emailOtp' | 'password';
+/** The mobile number or the email, normalized (used as the sign-in id). */
+function normalizeIdentifier(raw: string): string | null {
+  return raw.includes('@') ? normalizeEmail(raw) : normalizeMobile(raw);
+}
 
-const phoneForm = z.object({ phone: phoneSchema });
-const emailForm = z.object({ email: emailSchema });
+const formSchema = z.object({
+  identifier: z.string().refine((v) => normalizeIdentifier(v.trim()) !== null, 'Enter a valid mobile number or email'),
+  password: z.string().min(1, 'Enter your password'),
+});
+type FormValues = z.infer<typeof formSchema>;
 
-/** Login (design §11 Auth): Phone OTP (flag-gated), Email OTP, Email & password. No Google. */
+/** Sign in: mobile number OR email, plus the password. */
 export function LoginScreen({ navigation, route }: RootScreenProps<'Login'>) {
   const redirect = route.params?.redirect;
-  const [tab, setTab] = useState<Tab>(env.phoneOtpEnabled ? 'phone' : 'emailOtp');
-
-  const requestOtp = useRequestOtp();
-  const passwordLogin = usePasswordLogin();
-
-  const phoneCtrl = useForm<z.infer<typeof phoneForm>>({
-    resolver: zodResolver(phoneForm),
-    defaultValues: { phone: '' },
-  });
-  const emailCtrl = useForm<z.infer<typeof emailForm>>({
-    resolver: zodResolver(emailForm),
-    defaultValues: { email: '' },
-  });
-  const pwdCtrl = useForm<z.infer<typeof emailLoginSchema>>({
-    resolver: zodResolver(emailLoginSchema),
-    defaultValues: { email: '', password: '' },
+  const login = useIdentifierLogin();
+  const { control, handleSubmit, formState } = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { identifier: '', password: '' },
   });
 
-  function sendOtp(channel: 'phone' | 'email', target: string) {
-    requestOtp.mutate(
-      channel === 'phone' ? { phone: target } : { email: target },
-      {
-        onSuccess: (res) => {
-          navigation.navigate('OtpVerify', {
-            requestId: res.requestId,
-            target,
-            channel,
-            expiresAt: res.expiresAt,
-            devCode: res.devCode,
-            redirect,
-          });
-        },
-      },
+  function submit(values: FormValues) {
+    const identifier = normalizeIdentifier(values.identifier.trim());
+    if (!identifier) return;
+    login.mutate(
+      { identifier, password: values.password },
+      { onSuccess: () => navigation.dispatch(afterAuth(redirect)) },
     );
   }
 
-  function submitPassword(values: z.infer<typeof emailLoginSchema>) {
-    passwordLogin.mutate(values, {
-      onSuccess: () => navigation.dispatch(afterAuth(redirect)),
-    });
-  }
-
-  const otpError = requestOtp.isError ? userMessage(requestOtp.error) : '';
-  const pwdError = passwordLogin.isError ? userMessage(passwordLogin.error) : '';
+  const error = login.isError ? userMessage(login.error) : '';
 
   return (
     <Screen scroll padded>
+      <AuthLogo />
       <Text style={styles.heading} accessibilityRole="header">
         Sign in to Belzo
       </Text>
 
-      <View style={styles.tabs}>
-        {env.phoneOtpEnabled ? (
-          <Chip label="Phone OTP" selected={tab === 'phone'} onPress={() => setTab('phone')} />
+      <View>
+        <TextField
+          control={control}
+          name="identifier"
+          label="Mobile number or email"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="username"
+          placeholder="10-digit mobile number or email"
+          error={formState.errors.identifier?.message}
+        />
+        <PasswordField
+          control={control}
+          name="password"
+          label="Password"
+          autoComplete="current-password"
+          placeholder="Your password"
+          error={formState.errors.password?.message}
+          testID="login-password"
+        />
+        <Pressable
+          style={styles.forgot}
+          onPress={() => navigation.navigate('ForgotPassword', { redirect })}
+          accessibilityRole="link"
+          testID="login-forgot"
+        >
+          <Text style={styles.link}>Forgot password?</Text>
+        </Pressable>
+        <Button
+          title="Sign in"
+          fullWidth
+          loading={login.isPending}
+          onPress={handleSubmit(submit)}
+          testID="login-password-submit"
+        />
+        {error ? (
+          <Text style={styles.error} accessibilityLiveRegion="polite">
+            {error}
+          </Text>
         ) : null}
-        <Chip label="Email OTP" selected={tab === 'emailOtp'} onPress={() => setTab('emailOtp')} />
-        <Chip label="Password" selected={tab === 'password'} onPress={() => setTab('password')} />
       </View>
-
-      {tab === 'phone' ? (
-        <View>
-          <TextField
-            control={phoneCtrl.control}
-            name="phone"
-            label="Phone number"
-            keyboardType="phone-pad"
-            autoComplete="tel"
-            placeholder="10-digit mobile number"
-            error={phoneCtrl.formState.errors.phone?.message}
-          />
-          <Button
-            title="Send code"
-            fullWidth
-            loading={requestOtp.isPending}
-            onPress={phoneCtrl.handleSubmit((v) => sendOtp('phone', v.phone))}
-            testID="login-send-phone-otp"
-          />
-        </View>
-      ) : null}
-
-      {tab === 'emailOtp' ? (
-        <View>
-          <TextField
-            control={emailCtrl.control}
-            name="email"
-            label="Email"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            placeholder="you@example.com"
-            error={emailCtrl.formState.errors.email?.message}
-          />
-          <Button
-            title="Send code"
-            fullWidth
-            loading={requestOtp.isPending}
-            onPress={emailCtrl.handleSubmit((v) => sendOtp('email', v.email))}
-            testID="login-send-email-otp"
-          />
-        </View>
-      ) : null}
-
-      {tab === 'password' ? (
-        <View>
-          <TextField
-            control={pwdCtrl.control}
-            name="email"
-            label="Email"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            placeholder="you@example.com"
-            error={pwdCtrl.formState.errors.email?.message}
-          />
-          <TextField
-            control={pwdCtrl.control}
-            name="password"
-            label="Password"
-            secureTextEntry
-            autoComplete="current-password"
-            error={pwdCtrl.formState.errors.password?.message}
-          />
-          <Button
-            title="Sign in"
-            fullWidth
-            loading={passwordLogin.isPending}
-            onPress={pwdCtrl.handleSubmit(submitPassword)}
-            testID="login-password-submit"
-          />
-        </View>
-      ) : null}
-
-      {otpError || pwdError ? (
-        <Text style={styles.error} accessibilityLiveRegion="polite">
-          {otpError || pwdError}
-        </Text>
-      ) : null}
 
       <Pressable
         style={styles.linkRow}
@@ -169,17 +103,17 @@ export function LoginScreen({ navigation, route }: RootScreenProps<'Login'>) {
         <Text style={styles.muted}>New to Belzo? </Text>
         <Text style={styles.link}>Create an account</Text>
       </Pressable>
-
+      <Text style={styles.oldAccount}>
+        No password yet? Use &quot;Forgot password?&quot; to set one. Signed up earlier with only an email? Create an
+        account with the same email to add your mobile number.
+      </Text>
       <Text style={styles.legal}>
         By continuing you agree to our{' '}
         <Text style={styles.link} onPress={() => navigation.navigate('CmsPage', { slug: 'terms' })}>
           Terms
         </Text>{' '}
         and{' '}
-        <Text
-          style={styles.link}
-          onPress={() => navigation.navigate('CmsPage', { slug: 'privacy' })}
-        >
+        <Text style={styles.link} onPress={() => navigation.navigate('CmsPage', { slug: 'privacy' })}>
           Privacy Policy
         </Text>
         .
@@ -190,10 +124,11 @@ export function LoginScreen({ navigation, route }: RootScreenProps<'Login'>) {
 
 const styles = StyleSheet.create({
   heading: { ...theme.typography.heading, color: theme.colors.inkStrong, marginBottom: theme.spacing.lg },
-  tabs: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm, marginBottom: theme.spacing.lg },
+  forgot: { alignSelf: 'flex-end', marginTop: -theme.spacing.xs, marginBottom: theme.spacing.md, minHeight: 32, justifyContent: 'center' },
   error: { ...theme.typography.body, color: theme.colors.danger, marginTop: theme.spacing.md },
-  linkRow: { flexDirection: 'row', marginTop: theme.spacing.xl, alignItems: 'center' },
+  linkRow: { flexDirection: 'row', marginTop: theme.spacing.xl, alignItems: 'center', justifyContent: 'center' },
   muted: { ...theme.typography.body, color: theme.colors.muted },
   link: { ...theme.typography.body, color: theme.colors.primaryStrong, fontWeight: '700' },
+  oldAccount: { ...theme.typography.caption, color: theme.colors.muted, textAlign: 'center', marginTop: theme.spacing.sm },
   legal: { ...theme.typography.caption, color: theme.colors.muted, marginTop: theme.spacing.lg },
 });

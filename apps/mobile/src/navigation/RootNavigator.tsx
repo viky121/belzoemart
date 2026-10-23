@@ -14,6 +14,7 @@ import { OrdersListScreen } from '@/features/orders/screens/OrdersListScreen';
 import { ProfileEditScreen } from '@/features/profile/screens/ProfileEditScreen';
 import { PrivacyDataScreen } from '@/features/privacy/screens/PrivacyDataScreen';
 import { OtpVerifyScreen } from '@/features/auth/screens/OtpVerifyScreen';
+import { ForgotPasswordScreen } from '@/features/auth/screens/ForgotPasswordScreen';
 import { RegisterScreen } from '@/features/auth/screens/RegisterScreen';
 import { OnboardingScreen } from '@/features/onboarding/screens/OnboardingScreen';
 import { ImageViewerScreen } from '@/features/products/screens/ImageViewerScreen';
@@ -135,6 +136,11 @@ export function RootNavigator({ initialRouteName }: RootNavigatorProps) {
           name="Register"
           component={RegisterScreen}
           options={{ title: 'Create account' }}
+        />
+        <Stack.Screen
+          name="ForgotPassword"
+          component={ForgotPasswordScreen}
+          options={{ title: 'Reset password' }}
         />
         <Stack.Screen
           name="AddressForm"

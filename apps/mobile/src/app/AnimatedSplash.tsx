@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Animated, Dimensions, StyleSheet } from 'react-native';
+import { Animated, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BelzoLogo } from '@/ui/brand/BelzoLogo';
-import { BrandSplash } from '@/ui/brand/BrandSplash';
-
-const LOGO = Math.min(240, Dimensions.get('window').width * 0.6);
+import { BrandSplash, SPLASH_LOGO } from '@/ui/brand/BrandSplash';
 
 /** Branded launch animation: the logo springs in over the brand splash, then the screen fades out. */
 export function AnimatedSplash({ onDone }: { onDone: () => void }) {
@@ -32,7 +30,7 @@ export function AnimatedSplash({ onDone }: { onDone: () => void }) {
         bottomInset={insets.bottom}
         logo={
           <Animated.View style={{ opacity, transform: [{ scale }] }}>
-            <BelzoLogo size={LOGO} />
+            <BelzoLogo size={SPLASH_LOGO} />
           </Animated.View>
         }
       />

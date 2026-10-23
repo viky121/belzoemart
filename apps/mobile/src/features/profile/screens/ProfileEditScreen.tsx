@@ -9,6 +9,7 @@ import { Button, Chip, Screen } from '@/ui';
 import { useToast } from '@/ui/Toast';
 
 import type { ProfilePatch } from '../api';
+import { ProfilePhoto } from '../components/ProfilePhoto';
 import { useProfile, useUpdateProfile } from '../hooks';
 
 interface Fields {
@@ -80,6 +81,7 @@ export function ProfileEditScreen({ navigation }: RootScreenProps<'ProfileEdit'>
 
   return (
     <Screen scroll padded>
+      <ProfilePhoto />
       <Field label="Full name" value={fields.name} onChange={(v) => set('name', v)} placeholder="Your name" />
       <Field label="Email" value={fields.email} onChange={(v) => set('email', v)} placeholder="you@example.com" keyboardType="email-address" />
       <Field label="Phone" value={fields.phone} onChange={(v) => set('phone', v)} placeholder="10-digit mobile" keyboardType="phone-pad" />

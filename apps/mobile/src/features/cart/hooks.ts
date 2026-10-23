@@ -31,11 +31,18 @@ export function useAddToCart() {
   const identity = useCartIdentity();
   const toast = useToast();
   return useMutation({
-    mutationFn: ({ variantId, quantity = 1 }: { variantId: string; quantity?: number }) =>
-      addToCart(variantId, quantity),
-    onSuccess: (view) => {
+    mutationFn: ({
+      variantId,
+      quantity = 1,
+    }: {
+      variantId: string;
+      quantity?: number;
+      /** Skip the "Added to cart" toast (product cards show the stepper instead). */
+      silent?: boolean;
+    }) => addToCart(variantId, quantity),
+    onSuccess: (view, vars) => {
       queryClient.setQueryData(qk.cart(identity), view);
-      toast.show({ message: 'Added to cart', tone: 'success' });
+      if (!vars.silent) toast.show({ message: 'Added to cart', tone: 'success' });
     },
     onError: () => toast.show({ message: 'Could not add to cart. Please try again.', tone: 'error' }),
   });

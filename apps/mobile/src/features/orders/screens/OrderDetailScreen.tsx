@@ -18,7 +18,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { RootScreenProps } from '@/navigation/types';
 import { theme } from '@/theme';
-import { Button, EmptyState, ErrorState, Screen } from '@/ui';
+import { useBrand } from '@/theme/use-brand';
+import { Button, Card, EmptyState, ErrorState, Screen } from '@/ui';
 import { OrderStatusBadge } from '@/ui/OrderStatusBadge';
 import { OrderStepper } from '@/ui/OrderStepper';
 import { RemoteImage } from '@/ui/RemoteImage';
@@ -82,25 +83,27 @@ export function OrderDetailScreen({ navigation, route }: RootScreenProps<'OrderD
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.body}>
-        <View style={styles.headerRow}>
-          <View style={styles.flex}>
-            <Pressable
-              onPress={() => {
-                void Clipboard.setStringAsync(order.id);
-                toast.show({ message: 'Order ID copied' });
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={`Order ${shortOrderId(order.id)}. Tap to copy the full id`}
-            >
-              <Text style={styles.orderId}>{shortOrderId(order.id)}</Text>
-            </Pressable>
-            <Text style={styles.date}>Placed {formatDateTime(order.createdAt)}</Text>
+        <Card>
+          <View style={styles.headerRow}>
+            <View style={styles.flex}>
+              <Pressable
+                onPress={() => {
+                  void Clipboard.setStringAsync(order.id);
+                  toast.show({ message: 'Order ID copied' });
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Order ${shortOrderId(order.id)}. Tap to copy the full id`}
+              >
+                <Text style={styles.orderId}>{shortOrderId(order.id)}</Text>
+              </Pressable>
+              <Text style={styles.date}>Placed {formatDateTime(order.createdAt)}</Text>
+            </View>
+            <OrderStatusBadge status={order.status} />
           </View>
-          <OrderStatusBadge status={order.status} />
-        </View>
-        {order.status === 'cancelled' && order.cancelledReason ? (
-          <Text style={styles.cancelReason}>Cancelled: {order.cancelledReason}</Text>
-        ) : null}
+          {order.status === 'cancelled' && order.cancelledReason ? (
+            <Text style={styles.cancelReason}>Cancelled: {order.cancelledReason}</Text>
+          ) : null}
+        </Card>
 
         <Section title="Progress">
           <OrderStepper steps={steps} />
@@ -215,23 +218,31 @@ export function OrderDetailScreen({ navigation, route }: RootScreenProps<'OrderD
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const brand = useBrand();
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+    <Card style={styles.section}>
+      <View style={styles.sectionHead}>
+        <View style={[styles.sectionBar, { backgroundColor: brand.active ? brand.accent : brand.primary }]} />
+        <Text style={styles.sectionTitle} accessibilityRole="header">
+          {title}
+        </Text>
+      </View>
       {children}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  body: { padding: theme.spacing.lg, gap: theme.spacing.md },
-  headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  body: { paddingBottom: theme.spacing.xxl },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: theme.spacing.md },
   flex: { flex: 1 },
   orderId: { ...theme.typography.title, color: theme.colors.inkStrong, fontWeight: '700' },
   date: { ...theme.typography.caption, color: theme.colors.muted },
-  cancelReason: { ...theme.typography.body, color: theme.colors.danger },
-  section: { gap: theme.spacing.sm, borderTopWidth: 1, borderTopColor: theme.colors.border, paddingTop: theme.spacing.md },
-  sectionTitle: { ...theme.typography.title, color: theme.colors.inkStrong },
+  cancelReason: { ...theme.typography.body, color: theme.colors.danger, marginTop: theme.spacing.sm },
+  section: { gap: theme.spacing.sm },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
+  sectionBar: { width: 4, height: 16, borderRadius: 2 },
+  sectionTitle: { fontSize: 16, lineHeight: 22, fontWeight: '800', color: theme.colors.inkStrong },
   item: { flexDirection: 'row', gap: theme.spacing.md, alignItems: 'center' },
   itemTitle: { ...theme.typography.body, color: theme.colors.inkStrong, fontWeight: '600' },
   itemMeta: { ...theme.typography.caption, color: theme.colors.muted },
@@ -246,6 +257,6 @@ const styles = StyleSheet.create({
   gst: { ...theme.typography.caption, color: theme.colors.muted },
   returnRow: { gap: 2 },
   returnStatus: { ...theme.typography.body, color: theme.colors.inkStrong, fontWeight: '600' },
-  actions: { gap: theme.spacing.sm, marginTop: theme.spacing.md },
+  actions: { gap: theme.spacing.sm, marginTop: theme.spacing.lg, paddingHorizontal: theme.spacing.md },
   hint: { ...theme.typography.caption, color: theme.colors.muted },
 });

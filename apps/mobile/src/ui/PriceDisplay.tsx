@@ -11,6 +11,8 @@ export interface PriceDisplayProps {
   /** MRP in paise; struck through only when higher than price. */
   mrp?: number | null;
   size?: 'sm' | 'md' | 'lg';
+  /** Hide the inline "X% OFF" chip (the caller shows it elsewhere, e.g. on a card image). */
+  hideBadge?: boolean;
 }
 
 /** Accessible price summary: "Price ₹X, MRP ₹Y, Z% off". */
@@ -26,7 +28,7 @@ export function priceA11yLabel(price: number, mrp?: number | null): string {
 
 const SIZES = { sm: 14, md: 18, lg: 22 } as const;
 
-export function PriceDisplay({ price, mrp, size = 'md' }: PriceDisplayProps) {
+export function PriceDisplay({ price, mrp, size = 'md', hideBadge = false }: PriceDisplayProps) {
   const showMrp = mrp != null && mrp > price;
   const pct = showMrp ? discountPct(mrp as Money, price as Money) : 0;
   const fontSize = SIZES[size];
@@ -52,7 +54,7 @@ export function PriceDisplay({ price, mrp, size = 'md' }: PriceDisplayProps) {
           {formatInr(mrp)}
         </Text>
       ) : null}
-      <DiscountBadge pct={pct} />
+      {hideBadge ? null : <DiscountBadge pct={pct} />}
     </View>
   );
 }

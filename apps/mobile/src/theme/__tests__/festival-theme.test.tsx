@@ -16,6 +16,7 @@ import { colors } from '@/theme/tokens';
 import { useBrand } from '@/theme/use-brand';
 import { Button } from '@/ui/Button';
 import { Chip } from '@/ui/Chip';
+import { FestivalArt } from '@/ui/festival/FestivalArt';
 import { FestivalDecor } from '@/ui/festival/FestivalDecor';
 import { FestivalGlyph, MOTIF_ICON } from '@/ui/festival/FestivalGlyph';
 
@@ -193,6 +194,20 @@ describe('festival glyphs', () => {
         ))}
       </>,
       { navigation: false },
+    );
+  });
+
+  it('draws artwork for every festival', async () => {
+    await renderWithProviders(
+      <>
+        {MOBILE_FESTIVALS.filter((f) => f !== 'none').map((f) => (
+          <FestivalArt key={f} festival={f} motifs={FESTIVAL_THEMES[f].motifs} accent="#fff" />
+        ))}
+      </>,
+      { navigation: false },
+    );
+    expect(screen.getAllByTestId('festival-art', { includeHiddenElements: true })).toHaveLength(
+      MOBILE_FESTIVALS.length - 1,
     );
   });
 

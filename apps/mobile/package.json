@@ -12,8 +12,7 @@
     "doctor": "expo-doctor",
     "config:dev": "expo config --type public",
     "export:android": "expo export --platform android --output-dir dist",
-    "assets:placeholder": "node scripts/generate-placeholder-assets.mjs",
-    "brand:sync": "node scripts/sync-brand.mjs"
+    "assets:placeholder": "node scripts/generate-placeholder-assets.mjs"
   },
   "dependencies": {
     "@belzo/shared": "workspace:*",

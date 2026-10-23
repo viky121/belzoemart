@@ -71,14 +71,30 @@ export function CouponBox({ subtotal }: CouponBoxProps) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.md, gap: theme.spacing.xs },
+  // A card of its own, matching the item and bill cards.
+  wrap: {
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    padding: theme.spacing.md,
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
   row: { flexDirection: 'row', gap: theme.spacing.sm, alignItems: 'center' },
   input: {
     flex: 1,
     minHeight: theme.touch.minTouch,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.md,
+    borderStyle: 'dashed',
+    borderColor: theme.colors.slate,
+    borderRadius: theme.radius.lg,
     paddingHorizontal: theme.spacing.md,
     color: theme.colors.ink,
     backgroundColor: theme.colors.surface,

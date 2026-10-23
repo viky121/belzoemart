@@ -55,6 +55,7 @@ export type RootStackParamList = {
     redirect?: RedirectTarget;
   };
   Register: { redirect?: RedirectTarget } | undefined;
+  ForgotPassword: { redirect?: RedirectTarget } | undefined;
   AddressForm: { addressId?: string; selectForCheckout?: boolean } | undefined;
   // presentation: 'fullScreenModal'
   ImageViewer: { images: string[]; index: number };

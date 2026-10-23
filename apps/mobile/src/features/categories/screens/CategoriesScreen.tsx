@@ -24,7 +24,7 @@ function subtitleFor(node: CategoryNodeDto): string {
   return kids.length > 0 ? kids.join(', ') : 'Shop all products';
 }
 
-/** Categories (Belzo Mart design): list of categories with thumbnail, subcategories and chevron. */
+/** Categories (Belzo eMart design): list of categories with thumbnail, subcategories and chevron. */
 export function CategoriesScreen() {
   const navigation = useNavigation<Nav>();
   const { data, isLoading, isError, error, refetch } = useCategories();
@@ -83,7 +83,7 @@ export function CategoriesScreen() {
         data={tiles}
         keyExtractor={(c) => c.id}
         style={styles.list}
-        ItemSeparatorComponent={() => <View style={styles.sep} />}
+        contentContainerStyle={styles.listBody}
         renderItem={({ item: tile, index }) => {
           const item = tile.node;
           const sub = subtitleFor(item);
@@ -96,7 +96,7 @@ export function CategoriesScreen() {
             >
               <View style={[styles.thumb, { backgroundColor: brand.tints[index % brand.tints.length] }]}>
                 {tile.iconUrl ? (
-                  <RemoteImage uri={tile.iconUrl} width={64} height={64} radius={theme.radius.lg} fallbackLabel={tile.name} />
+                  <RemoteImage uri={tile.iconUrl} width={64} height={64} radius={32} fallbackLabel={tile.name} />
                 ) : (
                   <MaterialCommunityIcons name={iconForCategory(tile.name)} size={30} color={brand.primary} />
                 )}
@@ -109,7 +109,9 @@ export function CategoriesScreen() {
                   {sub}
                 </Text>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={22} color={theme.colors.mutedSoft} />
+              <View style={[styles.chev, { backgroundColor: brand.primaryBg }]}>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={brand.primary} />
+              </View>
             </Pressable>
           );
         }}
@@ -127,26 +129,41 @@ const styles = StyleSheet.create({
     paddingRight: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
     backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   headerTitle: { fontSize: 20, lineHeight: 26, fontWeight: '800', color: theme.colors.inkStrong },
   pad: { padding: theme.spacing.lg },
-  list: { backgroundColor: theme.colors.surface },
+  list: { backgroundColor: theme.colors.bg },
+  listBody: { paddingTop: theme.spacing.md, paddingBottom: 96, gap: 10 },
+  // Each category is its own soft card on the grey page.
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    marginHorizontal: theme.spacing.md,
+    padding: theme.spacing.md,
     backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
-  pressed: { backgroundColor: theme.colors.surface2 },
-  sep: { height: 1, backgroundColor: theme.colors.border2, marginLeft: theme.spacing.lg + 64 + theme.spacing.md },
+  pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
+  chev: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   thumb: {
     width: 64,
     height: 64,
-    borderRadius: theme.radius.lg,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',

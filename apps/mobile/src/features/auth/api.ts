@@ -1,10 +1,12 @@
 import {
-  emailLoginSchema,
-  emailRegisterSchema,
   mobileAuthResponseSchema,
   otpRequestSchema,
   otpVerifySchema,
+  passwordResetSchema,
+  identifierLoginSchema,
+  registerAccountSchema,
   type MobileAuthResponse,
+  type OtpPurpose,
 } from '@belzo/shared';
 
 import { apiRequest } from '@/api/client';
@@ -28,12 +30,20 @@ function parseAuth(json: unknown): MobileAuthResponse {
   throw new ApiError({ kind: 'parse', message: 'Invalid auth response' });
 }
 
-/** Request a phone or email OTP. Returns the request id, expiry and (dev builds) the demo code. */
-export function requestOtp(input: { phone?: string; email?: string }): Promise<OtpRequestResult> {
+/**
+ * Request a phone or email OTP. `purpose` makes the server check the account first: "register" refuses a
+ * number that is already registered, "reset" / "login" only go to existing accounts.
+ */
+export function requestOtp(input: {
+  phone?: string;
+  email?: string;
+  purpose?: OtpPurpose;
+}): Promise<OtpRequestResult> {
   const body = otpRequestSchema.parse(input);
   return apiRequest<OtpRequestResult>('/auth/otp/request', { method: 'POST', body });
 }
 
+/** Sign in with a code sent to an existing account's mobile number. */
 export async function verifyOtp(input: {
   requestId: string;
   code: string;
@@ -42,19 +52,45 @@ export async function verifyOtp(input: {
   return parseAuth(await apiRequest<unknown>('/auth/otp/verify', { method: 'POST', body }));
 }
 
-export async function loginPassword(input: {
-  email: string;
-  password: string;
-}): Promise<MobileAuthResponse> {
-  const body = emailLoginSchema.parse(input);
-  return parseAuth(await apiRequest<unknown>('/auth/login', { method: 'POST', body }));
+export interface OtpProof {
+  /** Signed receipt that this number / email was verified; sent when creating the account / resetting the password. */
+  proof: string;
+  kind: 'phone' | 'email';
+  value: string;
 }
 
+/** Check a code WITHOUT signing in (sign-up and forgot-password). */
+export function proveOtp(input: { requestId: string; code: string }): Promise<OtpProof> {
+  const body = otpVerifySchema.parse(input);
+  return apiRequest<OtpProof>('/auth/otp/prove', { method: 'POST', body });
+}
+
+/** Sign in with mobile number OR email, plus the password. */
+export async function loginWithIdentifier(input: { identifier: string; password: string }): Promise<MobileAuthResponse> {
+  const body = identifierLoginSchema.parse(input);
+  return parseAuth(await apiRequest<unknown>('/auth/login/identifier', { method: 'POST', body }));
+}
+
+/** Create an account: name, email, mobile (verified by OTP), password twice. */
 export async function registerAccount(input: {
   name: string;
   email: string;
+  phone: string;
   password: string;
+  confirmPassword: string;
+  phoneProof: string;
+  emailProof: string;
 }): Promise<MobileAuthResponse> {
-  const body = emailRegisterSchema.parse(input);
+  const body = registerAccountSchema.parse(input);
   return parseAuth(await apiRequest<unknown>('/auth/register', { method: 'POST', body }));
+}
+
+/** Forgot password: new password after verifying the mobile number by OTP. */
+export function resetPassword(input: {
+  proof: string;
+  password: string;
+  confirmPassword: string;
+}): Promise<{ success: true }> {
+  const body = passwordResetSchema.parse(input);
+  return apiRequest<{ success: true }>('/auth/password/reset', { method: 'POST', body });
 }

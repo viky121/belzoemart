@@ -1,4 +1,4 @@
-import { resolveSlabPrice, type ProductCardDto } from '@belzo/shared';
+import { formatInr, resolveSlabPrice, type ProductCardDto } from '@belzo/shared';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
@@ -13,7 +13,17 @@ import type { RootScreenProps } from '@/navigation/types';
 import { useRecentlyViewedStore } from '@/store/recently-viewed';
 import { useSessionStore } from '@/store/session';
 import { theme } from '@/theme';
-import { Button, EmptyState, ErrorState, PriceDisplay, QuantitySelector, Rating, Screen } from '@/ui';
+import { useBrand } from '@/theme/use-brand';
+import {
+  Button,
+  Card,
+  EmptyState,
+  ErrorState,
+  PriceDisplay,
+  QuantitySelector,
+  Rating,
+  Screen,
+} from '@/ui';
 import { ProductRail } from '@/ui/ProductRail';
 import { DetailSkeleton } from '@/ui/Skeleton';
 
@@ -24,10 +34,24 @@ import { SlabTable } from '../components/SlabTable';
 import { VariantPicker } from '../components/VariantPicker';
 import { useProduct, useRelated, useReviews } from '../hooks';
 
+/** Card heading with a small brand-coloured bar, matching the Home section headers. */
+function CardTitle({ title }: { title: string }) {
+  const brand = useBrand();
+  return (
+    <View style={styles.cardTitleRow}>
+      <View style={[styles.cardTitleBar, { backgroundColor: brand.active ? brand.accent : brand.primary }]} />
+      <Text style={styles.heading} accessibilityRole="header">
+        {title}
+      </Text>
+    </View>
+  );
+}
+
 /** Product detail (design §11): gallery, variants, slab price, delivery, reviews, related, Add/Buy. */
 export function ProductDetailScreen({ navigation, route }: RootScreenProps<'ProductDetail'>) {
   const { idOrSlug } = route.params;
   const insets = useSafeAreaInsets();
+  const brand = useBrand();
 
   const product = useProduct(idOrSlug);
   const reviews = useReviews(product.data?.id);
@@ -85,6 +109,8 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
   const variants = p.variants;
   const variant = variants.find((v) => v.id === selectedId) ?? variants.find((v) => v.inStock) ?? variants[0];
   const price = variant ? resolveSlabPrice(variant.sellingPrice, variant.priceSlabs, qty) : p.sellingPrice;
+  const mrp = variant?.mrp ?? p.mrp;
+  const saving = mrp != null && mrp > price ? mrp - price : 0;
   const inStock = variant?.inStock ?? false;
   const added = confirmedKey !== null && confirmedKey === `${variant?.id ?? ''}:${qty}`;
 
@@ -123,71 +149,90 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <Gallery images={images} fallbackLabel={p.title} onOpenImage={(i) => navigation.navigate('ImageViewer', { images, index: i })} />
+        <Gallery
+          images={images}
+          fallbackLabel={p.title}
+          onOpenImage={(i) => navigation.navigate('ImageViewer', { images, index: i })}
+        />
 
-        <View style={styles.section}>
-          {p.brand ? <Text style={styles.brand}>{p.brand}</Text> : null}
+        <Card>
+          {p.brand ? <Text style={[styles.brand, { color: brand.primary }]}>{p.brand}</Text> : null}
           <Text style={styles.title}>{p.title}</Text>
           <Rating value={p.ratingAvg} count={p.ratingCount} />
 
-          <View style={styles.block}>
-            <PriceDisplay price={price} mrp={variant?.mrp ?? p.mrp} size="lg" />
+          <View style={styles.divider} />
+          <PriceDisplay price={price} mrp={mrp} size="lg" />
+          {saving > 0 ? (
+            <Text style={[styles.saving, { color: brand.primary }]}>You save {formatInr(saving)} on this pack</Text>
+          ) : null}
+          <View
+            style={[
+              styles.stockChip,
+              { backgroundColor: inStock ? theme.colors.successBg : theme.colors.dangerBg },
+            ]}
+          >
+            <View
+              style={[
+                styles.stockDot,
+                { backgroundColor: inStock ? theme.colors.brandStrong : theme.colors.danger },
+              ]}
+            />
             <Text style={[styles.stock, { color: inStock ? theme.colors.brandStrong : theme.colors.danger }]}>
               {inStock ? 'In stock' : 'Out of stock'}
             </Text>
           </View>
+        </Card>
 
-          {variants.length > 1 ? (
-            <View style={styles.block}>
-              <VariantPicker variants={variants} selectedId={variant?.id ?? ''} onSelect={setSelectedId} />
-            </View>
-          ) : null}
+        {variants.length > 1 ? (
+          <Card>
+            <VariantPicker variants={variants} selectedId={variant?.id ?? ''} onSelect={setSelectedId} />
+          </Card>
+        ) : null}
 
-          {variant && variant.priceSlabs.length > 0 ? (
-            <View style={styles.block}>
-              <SlabTable slabs={variant.priceSlabs} />
-            </View>
-          ) : null}
+        {variant && variant.priceSlabs.length > 0 ? (
+          <Card>
+            <SlabTable slabs={variant.priceSlabs} />
+          </Card>
+        ) : null}
 
-          <View style={[styles.block, styles.qtyRow]}>
+        <Card>
+          <View style={styles.qtyRow}>
             <Text style={styles.qtyLabel}>Quantity</Text>
             <QuantitySelector value={qty} onChange={setQty} min={1} max={99} disabled={!inStock} label={p.title} />
           </View>
+          <View style={styles.divider} />
+          <DeliveryCheck />
+        </Card>
 
-          <View style={styles.block}>
-            <DeliveryCheck />
-          </View>
+        {p.description ? (
+          <Card>
+            <CardTitle title="Description" />
+            <Text style={styles.body2}>{p.description}</Text>
+          </Card>
+        ) : null}
 
-          {p.description ? (
-            <View style={styles.block}>
-              <Text style={styles.heading}>Description</Text>
-              <Text style={styles.body2}>{p.description}</Text>
-            </View>
-          ) : null}
+        {attrs.length > 0 ? (
+          <Card>
+            <CardTitle title="Details" />
+            {attrs.map(([k, v], i) => (
+              <View key={k} style={[styles.attrRow, i === attrs.length - 1 && styles.attrLast]}>
+                <Text style={styles.attrKey}>{k}</Text>
+                <Text style={styles.attrVal}>{v}</Text>
+              </View>
+            ))}
+          </Card>
+        ) : null}
 
-          {attrs.length > 0 ? (
-            <View style={styles.block}>
-              <Text style={styles.heading}>Details</Text>
-              {attrs.map(([k, v]) => (
-                <View key={k} style={styles.attrRow}>
-                  <Text style={styles.attrKey}>{k}</Text>
-                  <Text style={styles.attrVal}>{v}</Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
+        {p.shgName || p.story ? (
+          <Card>
+            <CardTitle title={p.shgName ? `Made by ${p.shgName}` : 'Our story'} />
+            {p.story ? <Text style={styles.body2}>{p.story}</Text> : null}
+          </Card>
+        ) : null}
 
-          {p.shgName || p.story ? (
-            <View style={styles.block}>
-              <Text style={styles.heading}>{p.shgName ? `Made by ${p.shgName}` : 'Our story'}</Text>
-              {p.story ? <Text style={styles.body2}>{p.story}</Text> : null}
-            </View>
-          ) : null}
-
-          {p.isReturnable === false ? (
-            <Text style={styles.notReturnable}>This product is not returnable.</Text>
-          ) : null}
-        </View>
+        {p.isReturnable === false ? (
+          <Text style={styles.notReturnable}>This product is not returnable.</Text>
+        ) : null}
 
         <ReviewsList reviews={reviews.data ?? []} />
 
@@ -202,7 +247,7 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
 
       {added ? (
         <Pressable
-          style={styles.addedBar}
+          style={[styles.addedBar, { backgroundColor: brand.primary }]}
           onPress={() => navigation.navigate('Cart')}
           accessibilityRole="button"
           accessibilityLabel="Added to cart. View cart"
@@ -264,13 +309,22 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.bg },
   body: { paddingBottom: theme.spacing.xl },
-  section: {
-    padding: theme.spacing.lg,
-    gap: theme.spacing.xs,
-    backgroundColor: theme.colors.surface,
-  },
   title: { fontSize: 20, lineHeight: 26, fontWeight: '800', color: theme.colors.inkStrong },
-  brand: { ...theme.typography.caption, color: theme.colors.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  brand: { fontSize: 12, lineHeight: 16, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: theme.colors.border, marginVertical: theme.spacing.md },
+  saving: { ...theme.typography.body, fontWeight: '700', marginTop: theme.spacing.xs },
+  stockChip: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: theme.spacing.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: theme.radius.pill,
+  },
+  stockDot: { width: 7, height: 7, borderRadius: 4 },
+  stock: { fontSize: 12.5, lineHeight: 17, fontWeight: '800' },
   floatBtn: {
     position: 'absolute',
     width: 40,
@@ -304,30 +358,49 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
-  block: { marginTop: theme.spacing.md, gap: theme.spacing.sm },
-  stock: { ...theme.typography.body, fontWeight: '700' },
   qtyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  qtyLabel: { ...theme.typography.body, color: theme.colors.inkStrong, fontWeight: '600' },
-  heading: { ...theme.typography.title, color: theme.colors.inkStrong },
+  qtyLabel: { ...theme.typography.bodyLg, color: theme.colors.inkStrong, fontWeight: '700' },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.sm },
+  cardTitleBar: { width: 4, height: 16, borderRadius: 2 },
+  heading: { fontSize: 16, lineHeight: 22, fontWeight: '800', color: theme.colors.inkStrong },
   body2: { ...theme.typography.body, color: theme.colors.ink, lineHeight: 22 },
-  attrRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+  attrRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: theme.spacing.md,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.border,
+  },
+  attrLast: { borderBottomWidth: 0 },
   attrKey: { ...theme.typography.body, color: theme.colors.muted, textTransform: 'capitalize' },
-  attrVal: { ...theme.typography.body, color: theme.colors.ink, flexShrink: 1, textAlign: 'right' },
-  notReturnable: { ...theme.typography.caption, color: theme.colors.danger, marginTop: theme.spacing.md },
+  attrVal: { ...theme.typography.body, color: theme.colors.inkStrong, fontWeight: '600', flexShrink: 1, textAlign: 'right' },
+  notReturnable: {
+    ...theme.typography.caption,
+    color: theme.colors.danger,
+    marginTop: theme.spacing.md,
+    marginHorizontal: theme.spacing.lg,
+  },
+  // Two buttons side by side, lifted off the page with a soft upward shadow.
   footer: {
+    flexDirection: 'row',
     gap: theme.spacing.sm,
     paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
+    paddingTop: theme.spacing.md,
     backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -3 },
+    elevation: 14,
   },
-  footerBtn: { width: '100%', minHeight: 48 },
+  footerBtn: { flex: 1, minHeight: 50 },
   addedBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
-    backgroundColor: theme.colors.brandStrong,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.sm,
   },

@@ -1,8 +1,9 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { theme } from '@/theme';
 
 import { IconButton } from './IconButton';
+import { QtyValue } from './QtyValue';
 
 export interface QuantitySelectorProps {
   value: number;
@@ -50,17 +51,18 @@ export function QuantitySelector({
         testID="qty-decrement"
       />
       <View style={styles.value}>
-        {busy ? (
-          <ActivityIndicator size="small" color={theme.colors.primaryStrong} />
-        ) : (
-          <Text
-            style={styles.valueText}
-            testID="qty-value"
-            maxFontSizeMultiplier={theme.maxFontSizeMultiplier}
-          >
-            {value}
-          </Text>
-        )}
+        <QtyValue
+          value={value}
+          onCommit={onChange}
+          min={min}
+          max={max}
+          disabled={inactive}
+          busy={busy}
+          label={label}
+          color={busy ? theme.colors.primaryStrong : theme.colors.ink}
+          textStyle={styles.valueText}
+          width={44}
+        />
       </View>
       <IconButton
         icon="plus"

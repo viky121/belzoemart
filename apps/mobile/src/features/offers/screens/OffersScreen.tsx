@@ -1,13 +1,16 @@
-import type { ProductCardDto } from '@belzo/shared';
+import { discountPct, type Money, type ProductCardDto } from '@belzo/shared';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { FlashList } from '@shopify/flash-list';
 import { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { useProducts } from '@/features/products/hooks';
+import { useCardCart } from '@/features/cart/use-card-cart';
 import { useCardWishlist } from '@/features/wishlist/use-card-wishlist';
 import type { RootStackParamList } from '@/navigation/types';
 import { theme } from '@/theme';
+import { useBrand } from '@/theme/use-brand';
 import { EmptyState, ErrorState, ProductCard, Screen } from '@/ui';
 import { IconButton } from '@/ui/IconButton';
 import { ProductGridSkeleton } from '@/ui/Skeleton';
@@ -19,9 +22,17 @@ export function OffersScreen() {
   const navigation = useNavigation<Nav>();
   const list = useProducts({ sort: 'discount' });
   const heart = useCardWishlist();
+  const cardCart = useCardCart();
+  const brand = useBrand();
   const products = useMemo(
     () => (list.data?.pages.flatMap((p) => p.items) ?? []).filter((p) => (p.mrp ?? 0) > p.sellingPrice),
     [list.data],
+  );
+
+  // Biggest discount among the loaded offers, shown as a headline chip.
+  const topPct = products.reduce(
+    (max, p) => Math.max(max, p.mrp != null ? discountPct(p.mrp as Money, p.sellingPrice as Money) : 0),
+    0,
   );
 
   const open = (p: ProductCardDto) => navigation.navigate('ProductDetail', { idOrSlug: p.slug });
@@ -34,6 +45,12 @@ export function OffersScreen() {
             Offers
           </Text>
           <Text style={styles.sub}>Best deals on your everyday essentials</Text>
+          {topPct > 0 ? (
+            <View style={[styles.topChip, { backgroundColor: brand.primaryBg }]}>
+              <MaterialCommunityIcons name="tag-heart-outline" size={14} color={brand.primary} />
+              <Text style={[styles.topChipText, { color: brand.primary }]}>Up to {topPct}% OFF</Text>
+            </View>
+          ) : null}
         </View>
         <IconButton icon="magnify" label="Search" onPress={() => navigation.navigate('Search')} />
       </View>
@@ -61,6 +78,7 @@ export function OffersScreen() {
                 onPress={() => open(item)}
                 wishlisted={heart.isWishlisted(item)}
                 onToggleWishlist={() => heart.onToggle(item)}
+                {...cardCart.cardProps(item)}
               />
             </View>
           )}
@@ -83,13 +101,28 @@ const styles = StyleSheet.create({
     paddingRight: theme.spacing.sm,
     paddingVertical: theme.spacing.sm,
     backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
-  headText: { flex: 1 },
+  headText: { flex: 1, alignItems: 'flex-start', gap: 1 },
+  topChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: theme.radius.pill,
+  },
+  topChipText: { fontSize: 12, lineHeight: 16, fontWeight: '800' },
   title: { ...theme.typography.heading, color: theme.colors.inkStrong },
   sub: { ...theme.typography.caption, color: theme.colors.muted },
-  grid: { padding: theme.spacing.sm },
+  grid: { padding: theme.spacing.sm, paddingBottom: 96 },
   cell: { flex: 1, padding: theme.spacing.xs },
   footer: { paddingVertical: theme.spacing.lg },
 });

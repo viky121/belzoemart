@@ -6,9 +6,13 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 
 import { useCategories } from '@/features/categories/hooks';
 import { findBySlug, flattenCategories } from '@/features/categories/tree';
+import { ViewCartBar } from '@/features/cart/components/ViewCartBar';
+import { useCardCart } from '@/features/cart/use-card-cart';
 import { useCardWishlist } from '@/features/wishlist/use-card-wishlist';
+import { useBottomInset } from '@/lib/use-bottom-inset';
 import type { RootScreenProps } from '@/navigation/types';
 import { theme } from '@/theme';
+import { useBrand } from '@/theme/use-brand';
 import { Button, Chip, EmptyState, ErrorState, ProductCard, Screen } from '@/ui';
 import { IconButton } from '@/ui/IconButton';
 import { ProductGridSkeleton } from '@/ui/Skeleton';
@@ -33,30 +37,45 @@ const PRICE_SORTS: { key: ProductSort; label: string }[] = [
 type SheetKind = 'sort' | 'brand' | 'price' | null;
 
 function DropChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const brand = useBrand();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={[styles.drop, active && styles.dropOn]}
+      style={[styles.drop, active && { borderColor: brand.primary, backgroundColor: brand.primaryBg }]}
     >
-      <Text style={[styles.dropText, active && styles.dropTextOn]} numberOfLines={1}>
+      <Text style={[styles.dropText, active && styles.dropTextOn, active && { color: brand.primary }]} numberOfLines={1}>
         {label}
       </Text>
-      <MaterialCommunityIcons
-        name="chevron-down"
-        size={16}
-        color={active ? theme.colors.primaryStrong : theme.colors.ink}
-      />
+      <MaterialCommunityIcons name="chevron-down" size={16} color={active ? brand.primary : theme.colors.ink} />
     </Pressable>
   );
 }
 
-/** Product list (Belzo Mart design): subcategory pills, Sort/Brand/Price chips, 2-column grid. */
+/** One selectable row in the Sort / Price sheets; the chosen row is tinted with a check. */
+function OptionRow({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const brand = useBrand();
+  return (
+    <Pressable
+      style={[styles.sortRow, selected && { backgroundColor: brand.primaryBg }]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+    >
+      <Text style={[styles.sortLabel, selected && { color: brand.primary, fontWeight: '700' }]}>{label}</Text>
+      {selected ? <MaterialCommunityIcons name="check-circle" size={20} color={brand.primary} /> : null}
+    </Pressable>
+  );
+}
+
+/** Product list (Belzo eMart design): subcategory pills, Sort/Brand/Price chips, 2-column grid. */
 export function ProductListScreen({ navigation, route }: RootScreenProps<'ProductList'>) {
   const params = route.params ?? {};
   const categories = useCategories();
   const heart = useCardWishlist();
+  const cardCart = useCardCart();
+  const bottomInset = useBottomInset();
 
   const resolvedCategoryId = useMemo(() => {
     if (params.categoryId) return params.categoryId;
@@ -165,6 +184,7 @@ export function ProductListScreen({ navigation, route }: RootScreenProps<'Produc
                 onPress={() => onPressProduct(item)}
                 wishlisted={heart.isWishlisted(item)}
                 onToggleWishlist={() => heart.onToggle(item)}
+                {...cardCart.cardProps(item)}
               />
             </View>
           )}
@@ -176,24 +196,20 @@ export function ProductListScreen({ navigation, route }: RootScreenProps<'Produc
         />
       )}
 
+      <ViewCartBar bottom={bottomInset} />
+
       <Sheet visible={sheet === 'sort'} title="Sort by" onClose={() => setSheet(null)}>
         <View style={styles.sheetBody}>
           {SORTS.map((s) => (
-            <Pressable
+            <OptionRow
               key={s.key}
-              style={styles.sortRow}
+              label={s.label}
+              selected={s.key === sort}
               onPress={() => {
                 setSort(s.key);
                 setSheet(null);
               }}
-              accessibilityRole="button"
-              accessibilityState={{ selected: s.key === sort }}
-            >
-              <Text style={[styles.sortLabel, s.key === sort && styles.sortLabelActive]}>{s.label}</Text>
-              {s.key === sort ? (
-                <MaterialCommunityIcons name="check" size={20} color={theme.colors.primaryStrong} />
-              ) : null}
-            </Pressable>
+            />
           ))}
         </View>
       </Sheet>
@@ -201,21 +217,15 @@ export function ProductListScreen({ navigation, route }: RootScreenProps<'Produc
       <Sheet visible={sheet === 'price'} title="Price" onClose={() => setSheet(null)}>
         <View style={styles.sheetBody}>
           {PRICE_SORTS.map((s) => (
-            <Pressable
+            <OptionRow
               key={s.key}
-              style={styles.sortRow}
+              label={s.label}
+              selected={s.key === sort}
               onPress={() => {
                 setSort(s.key);
                 setSheet(null);
               }}
-              accessibilityRole="button"
-              accessibilityState={{ selected: s.key === sort }}
-            >
-              <Text style={[styles.sortLabel, s.key === sort && styles.sortLabelActive]}>{s.label}</Text>
-              {s.key === sort ? (
-                <MaterialCommunityIcons name="check" size={20} color={theme.colors.primaryStrong} />
-              ) : null}
-            </Pressable>
+            />
           ))}
           {isPriceSort ? (
             <Button
@@ -249,10 +259,15 @@ const styles = StyleSheet.create({
   headerIcons: { flexDirection: 'row', alignItems: 'center' },
   toolbar: {
     backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     paddingVertical: theme.spacing.sm,
     gap: theme.spacing.sm,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   pills: { gap: theme.spacing.sm, paddingHorizontal: theme.spacing.lg },
   drops: { gap: theme.spacing.sm, paddingHorizontal: theme.spacing.lg },
@@ -262,15 +277,15 @@ const styles = StyleSheet.create({
     gap: 4,
     minHeight: 36,
     paddingHorizontal: theme.spacing.md,
-    borderRadius: theme.radius.md,
+    borderRadius: theme.radius.pill,
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
   },
-  dropOn: { borderColor: theme.colors.primaryStrong, backgroundColor: theme.colors.primaryBg },
   dropText: { ...theme.typography.body, color: theme.colors.ink, maxWidth: 140 },
-  dropTextOn: { color: theme.colors.primaryStrong, fontWeight: '700' },
-  grid: { padding: theme.spacing.sm },
+  dropTextOn: { fontWeight: '700' },
+  // Extra bottom room so the last row clears the floating "View cart" bar.
+  grid: { padding: theme.spacing.sm, paddingBottom: 96 },
   cell: { flex: 1, padding: theme.spacing.xs },
   footer: { paddingVertical: theme.spacing.lg },
   sheetBody: { paddingVertical: theme.spacing.md, gap: theme.spacing.md },
@@ -279,8 +294,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     minHeight: theme.touch.minTouch,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.radius.lg,
   },
   sortLabel: { ...theme.typography.bodyLg, color: theme.colors.ink },
-  sortLabelActive: { color: theme.colors.primaryStrong, fontWeight: '700' },
   brandChips: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm },
 });

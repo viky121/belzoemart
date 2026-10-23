@@ -1,5 +1,5 @@
 import type { HeroContent } from '@belzo/shared';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
   Pressable,
@@ -17,6 +17,9 @@ import { RemoteImage } from '@/ui/RemoteImage';
 
 const WIDTH = Dimensions.get('window').width - theme.spacing.lg * 2;
 const HEIGHT = 170;
+const AUTO_SCROLL_MS = 4000;
+/** How long the slide animation takes at most before we make sure we are back on banner 1. */
+const SLIDE_SETTLE_MS = 700;
 
 export interface HeroBannerProps {
   banners: Banner[];
@@ -38,22 +41,88 @@ function Dots({ count, active }: { count: number; active: number }) {
 /** Rounded banner carousel with page dots; falls back to a "Big Savings" promo card. */
 export function HeroBanner({ banners, hero, onOpenHref }: HeroBannerProps) {
   const [page, setPage] = useState(0);
+  const scroller = useRef<ScrollView>(null);
+  // Index the carousel is showing; a ref so the timer never reads a stale page.
+  const current = useRef(0);
+  // True while a finger is on the carousel, so auto-advance never fights the user.
+  const touching = useRef(false);
+  const count = banners.length;
+  // Endless forward loop: a copy of the first banner sits after the last one. Sliding onto the copy
+  // looks exactly like sliding to banner 1, then we silently jump to the real banner 1. So the
+  // carousel always moves the same way and never visibly rewinds.
+  const looping = count > 1;
+  const slides = looping ? [...banners, banners[0]!] : banners;
+
+  /** `index` is the scroll position (0..count, where `count` is the copy of the first banner). */
+  const settle = useCallback(
+    (index: number) => {
+      if (looping && index >= count) {
+        scroller.current?.scrollTo({ x: 0, animated: false });
+        current.current = 0;
+        setPage(0);
+        return;
+      }
+      current.current = index;
+      setPage(index);
+    },
+    [count, looping],
+  );
+
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) =>
-    setPage(Math.round(e.nativeEvent.contentOffset.x / WIDTH));
+    settle(Math.round(e.nativeEvent.contentOffset.x / WIDTH));
+
+  // Slide forward every few seconds, forever.
+  useEffect(() => {
+    if (!looping) return;
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
+    const timer = setInterval(() => {
+      if (touching.current) return;
+      const next = current.current + 1;
+      scroller.current?.scrollTo({ x: next * WIDTH, animated: true });
+      current.current = next;
+      setPage(next % count);
+      // The scroll-end event can be missed for programmatic scrolls; make sure we land on banner 1.
+      if (next >= count) {
+        settleTimer = setTimeout(() => {
+          if (current.current >= count) settle(count);
+        }, SLIDE_SETTLE_MS);
+      }
+    }, AUTO_SCROLL_MS);
+    return () => {
+      clearInterval(timer);
+      if (settleTimer) clearTimeout(settleTimer);
+    };
+  }, [count, looping, settle]);
+
+  // A new set of banners remounts the ScrollView (see `key` below); this runs on that mount and
+  // makes the position bookkeeping start from the first banner again.
+  const onCarouselLayout = () => {
+    current.current = 0;
+    setPage(0);
+  };
 
   if (banners.length > 0) {
     return (
       <View style={styles.wrap}>
         <ScrollView
+          key={count}
+          ref={scroller}
+          onLayout={onCarouselLayout}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
+          onScrollBeginDrag={() => {
+            touching.current = true;
+          }}
+          onScrollEndDrag={() => {
+            touching.current = false;
+          }}
           onMomentumScrollEnd={onScroll}
           style={styles.carousel}
         >
-          {banners.map((b) => (
+          {slides.map((b, i) => (
             <Pressable
-              key={b.id}
+              key={i === count ? `${b.id}-loop` : b.id}
               onPress={() => onOpenHref(b.linkUrl)}
               accessibilityRole="button"
               accessibilityLabel={b.title ?? 'Promotion'}

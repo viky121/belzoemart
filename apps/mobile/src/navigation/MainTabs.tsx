@@ -1,9 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { ComponentProps } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { useBottomInset } from '@/lib/use-bottom-inset';
 import type { CartView } from '@/api/types';
+import { ViewCartBar } from '@/features/cart/components/ViewCartBar';
 import { CategoriesScreen } from '@/features/categories/screens/CategoriesScreen';
 import { PincodeGate } from '@/features/home/components/PincodeGate';
 import { HomeScreen } from '@/features/home/screens/HomeScreen';
@@ -25,14 +27,25 @@ const ICONS: Record<keyof MainTabParamList, { on: IconName; off: IconName }> = {
   AccountTab: { on: 'account', off: 'account-outline' },
 };
 
+const tabStyles = StyleSheet.create({
+  pill: { width: 52, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+});
+
 /** Active units in the cached cart (no fetch here; the Cart feature owns the query). */
 export function cartUnits(view: CartView | undefined): number {
   return (view?.items ?? []).filter((l) => !l.savedForLater).reduce((n, l) => n + l.quantity, 0);
 }
 
-/** Bottom tabs per the Belzo Mart design: Home / Categories / Offers / Account. Cart lives in the header. */
+/** Bottom tabs per the Belzo eMart design: Home / Categories / Offers / Account. Cart lives in the header. */
 export function MainTabs() {
   const brand = useBrand();
+  const bottomInset = useBottomInset();
+  const { fontScale } = useWindowDimensions();
+  // Edge-to-edge (SDK 57): the system navigation bar draws over the app, so the tab bar has to
+  // add the bottom inset itself or Android's back/home/recents buttons sit on top of the tabs.
+  // The content height also grows a little with the user's font size so labels never clip.
+  const contentHeight = Math.round(56 * Math.min(Math.max(fontScale, 1), 1.3));
+  const bottomPad = bottomInset;
   return (
     <View style={{ flex: 1 }}>
       <Tab.Navigator
@@ -41,22 +54,33 @@ export function MainTabs() {
           headerShown: false,
           tabBarActiveTintColor: brand.primary,
           tabBarInactiveTintColor: theme.colors.mutedSoft,
-          tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+          tabBarLabelStyle: { fontSize: 11, fontWeight: '700', marginTop: 2 },
+          tabBarItemStyle: { paddingTop: 2 },
           tabBarStyle: {
             backgroundColor: theme.colors.surface,
-            borderTopColor: theme.colors.border,
-            borderTopWidth: 1,
-            height: 62,
+            borderTopWidth: 0,
+            borderTopLeftRadius: 22,
+            borderTopRightRadius: 22,
+            height: contentHeight + bottomPad,
             paddingTop: 6,
-            paddingBottom: 8,
+            paddingBottom: bottomPad,
+            // Soft shadow lifting the bar off the page (elevation on Android, shadow on iOS).
+            elevation: 16,
+            shadowColor: '#0f172a',
+            shadowOpacity: 0.12,
+            shadowRadius: 12,
+            shadowOffset: { width: 0, height: -3 },
           },
           tabBarAllowFontScaling: true,
           tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? ICONS[route.name].on : ICONS[route.name].off}
-              color={color}
-              size={size}
-            />
+            // The active tab gets a soft pill behind its icon, in the brand (or festival) tint.
+            <View style={[tabStyles.pill, focused && { backgroundColor: brand.primaryBg }]}>
+              <MaterialCommunityIcons
+                name={focused ? ICONS[route.name].on : ICONS[route.name].off}
+                color={color}
+                size={size}
+              />
+            </View>
           ),
         })}
       >
@@ -65,6 +89,8 @@ export function MainTabs() {
         <Tab.Screen name="OffersTab" component={OffersScreen} options={{ title: 'Offers' }} />
         <Tab.Screen name="AccountTab" component={AccountScreen} options={{ title: 'Account' }} />
       </Tab.Navigator>
+      {/* Sibling (not a tab-bar child) so Android still delivers touches outside the bar's bounds. */}
+      <ViewCartBar bottom={contentHeight + bottomPad} />
       <PincodeGate />
     </View>
   );

@@ -59,6 +59,40 @@ describe('ProductCard', () => {
     expect(onAdd).toHaveBeenCalledTimes(1);
   });
 
+  it('swaps Add for a quantity stepper once the product is in the cart', async () => {
+    const onChangeQuantity = jest.fn();
+    await renderWithProviders(
+      <ProductCard
+        product={product}
+        onPress={jest.fn()}
+        onAdd={jest.fn()}
+        quantity={2}
+        onChangeQuantity={onChangeQuantity}
+      />,
+    );
+    expect(screen.queryByTestId('product-card-add')).toBeNull();
+    expect(screen.getByTestId('qty-value')).toHaveTextContent('2');
+    await fireEvent.press(screen.getByTestId('product-card-inc'));
+    expect(onChangeQuantity).toHaveBeenLastCalledWith(3);
+    await fireEvent.press(screen.getByTestId('product-card-dec'));
+    expect(onChangeQuantity).toHaveBeenLastCalledWith(1);
+  });
+
+  it('stepping down from 1 asks to remove (0)', async () => {
+    const onChangeQuantity = jest.fn();
+    await renderWithProviders(
+      <ProductCard
+        product={product}
+        onPress={jest.fn()}
+        onAdd={jest.fn()}
+        quantity={1}
+        onChangeQuantity={onChangeQuantity}
+      />,
+    );
+    await fireEvent.press(screen.getByTestId('product-card-dec'));
+    expect(onChangeQuantity).toHaveBeenCalledWith(0);
+  });
+
   it('hides the Add button without a defaultVariantId', async () => {
     await renderWithProviders(
       <ProductCard

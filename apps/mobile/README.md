@@ -49,6 +49,18 @@ pnpm --filter @belzo/mobile android      # build & launch on a connected device/
 The first `android` run compiles the native project and installs the dev client. Subsequent JS
 changes reload over Metro.
 
+## Publishing a new app version (in-app "Download new app")
+The app checks `https://<site>/app-version.json` (file: `apps/web/public/app-version.json`) and
+shows a "New version available" banner on Home plus a "Download new app" row in Account. The web
+site has the same link at `/download` (also in the footer).
+1. Bump `version` in `app.config.ts`.
+2. Build an APK: `eas build -p android --profile preview` (needs `eas login`), download the `.apk`.
+3. Put the APK at `apps/web/public/downloads/belzo-emart.apk` (or host it anywhere).
+4. Edit `apps/web/public/app-version.json`: `version` (same as step 1), `apkUrl`
+   (`/downloads/belzo-emart.apk` or a full URL) and a short `notes` line.
+5. Deploy the web (`pnpm deploy`). Installed apps with an older version then show the banner.
+An empty `apkUrl` hides the download option everywhere.
+
 ## Scripts
 
 | Script           | What it does                                                  |

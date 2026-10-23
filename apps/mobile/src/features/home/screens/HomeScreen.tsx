@@ -12,14 +12,17 @@ import {
 import { useIsFocused, useNavigation, type NavigationProp } from '@react-navigation/native';
 import { skipToken, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { qk } from '@/api/query-keys';
 import type { Banner, CartView } from '@/api/types';
+import { UpdateBanner } from '@/features/app-update/UpdateBanner';
 import { useCategories } from '@/features/categories/hooks';
+import { MenuDrawer } from '@/features/menu/MenuDrawer';
 import { useUnreadCount } from '@/features/notifications/hooks';
 import { useProducts } from '@/features/products/hooks';
+import { useCardCart } from '@/features/cart/use-card-cart';
 import { useCardWishlist } from '@/features/wishlist/use-card-wishlist';
 import type { RootStackParamList } from '@/navigation/types';
 import { usePincodeStore } from '@/store/pincode';
@@ -30,6 +33,7 @@ import { useBrand } from '@/theme/use-brand';
 import { OfflineBanner } from '@/ui/OfflineBanner';
 import { ProductCard } from '@/ui/ProductCard';
 import { ProductRail } from '@/ui/ProductRail';
+import { SectionHeader } from '@/ui/SectionHeader';
 
 import { CategoryShortcuts } from '../components/CategoryShortcuts';
 import { HeroBanner } from '../components/HeroBanner';
@@ -42,7 +46,7 @@ import { useOpenHref } from '../use-open-href';
 
 type Nav = NavigationProp<RootStackParamList>;
 
-/** Home tab (Belzo Mart design): header, search, banner, category grid, Deals of the Day. */
+/** Home tab (Belzo eMart design): header, search, banner, category grid, Deals of the Day. */
 export function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const queryClient = useQueryClient();
@@ -54,6 +58,7 @@ export function HomeScreen() {
   const banners = useHomeBanners();
   const categories = useCategories();
   const heart = useCardWishlist();
+  const cardCart = useCardCart();
 
   const pincode = usePincodeStore((s) => s.pincode);
   const isCustomer = useSessionStore((s) => s.status === 'authenticated');
@@ -69,6 +74,7 @@ export function HomeScreen() {
   const dealItems = (deals.data?.pages[0]?.items ?? []).slice(0, 6);
 
   const [pinSheet, setPinSheet] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const themeName: ThemeName = settings.data?.theme === 'classic' ? 'classic' : 'emart';
@@ -149,6 +155,7 @@ export function HomeScreen() {
         onCart={() => navigation.navigate('Cart')}
         onSearch={() => navigation.navigate('Search')}
         onPin={() => setPinSheet(true)}
+        onMenu={() => setMenuOpen(true)}
         focused={focused}
       />
 
@@ -158,6 +165,7 @@ export function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.body}
       >
+        <UpdateBanner />
         <HeroBanner banners={heroBanners} hero={content.hero} onOpenHref={openHref} />
         <OfferRows rows={rowsAfterHero} onOpenHref={openHref} />
 
@@ -166,21 +174,12 @@ export function HomeScreen() {
 
         {mobileHome.dealsEnabled && dealItems.length > 0 ? (
           <View style={styles.section}>
-            <View style={styles.sectionHead}>
-              <Text style={styles.sectionTitle} accessibilityRole="header">
-                {mobileHome.dealsTitle}
-              </Text>
-              <Pressable
-                onPress={() =>
-                  navigation.navigate('ProductList', { sort: 'discount', title: mobileHome.dealsTitle })
-                }
-                accessibilityRole="link"
-                accessibilityLabel="View all deals"
-                hitSlop={8}
-              >
-                <Text style={[styles.viewAll, { color: brand.primary }]}>View All ›</Text>
-              </Pressable>
-            </View>
+            <SectionHeader
+              title={mobileHome.dealsTitle}
+              onAction={() =>
+                navigation.navigate('ProductList', { sort: 'discount', title: mobileHome.dealsTitle })
+              }
+            />
             <View style={styles.grid}>
               {dealItems.map((item) => (
                 <View key={item.id} style={styles.gridCell}>
@@ -189,6 +188,7 @@ export function HomeScreen() {
                     onPress={() => onPressProduct(item)}
                     wishlisted={heart.isWishlisted(item)}
                     onToggleWishlist={() => heart.onToggle(item)}
+                    {...cardCart.cardProps(item)}
                   />
                 </View>
               ))}
@@ -199,33 +199,42 @@ export function HomeScreen() {
         <OfferRows rows={rowsAfterDeals} onOpenHref={openHref} />
 
         {sections.map((section) => (
-          <HomeRail key={section.id} section={section} onPressProduct={onPressProduct} onViewAll={onViewAll} />
+          <HomeRail
+            key={section.id}
+            section={section}
+            onPressProduct={onPressProduct}
+            onViewAll={onViewAll}
+            cardProps={cardCart.cardProps}
+          />
         ))}
 
         {recentIds.length > 0 ? (
-          <ProductRail title="Recently viewed" products={recent.data ?? []} onPressProduct={onPressProduct} />
+          <ProductRail
+            title="Recently viewed"
+            products={recent.data ?? []}
+            onPressProduct={onPressProduct}
+            cardProps={cardCart.cardProps}
+          />
         ) : null}
       </ScrollView>
 
       <PincodeSheet visible={pinSheet} onClose={() => setPinSheet(false)} />
+      <MenuDrawer
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onChangeLocation={() => setPinSheet(true)}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.surface },
-  scroll: { flex: 1, backgroundColor: theme.colors.surface },
-  body: { paddingTop: theme.spacing.xs, paddingBottom: theme.spacing.xl },
-  section: { marginTop: theme.spacing.sm },
-  sectionHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.lg,
-    marginBottom: theme.spacing.sm,
-  },
-  sectionTitle: { fontSize: 18, lineHeight: 24, fontWeight: '800', color: theme.colors.inkStrong },
-  viewAll: { ...theme.typography.body, color: theme.colors.primaryStrong, fontWeight: '700' },
+  // Light grey page so the white category card and product cards lift off the background.
+  scroll: { flex: 1, backgroundColor: theme.colors.bg },
+  // Bottom room so the last section clears the floating "View cart" bar.
+  body: { paddingTop: theme.spacing.sm, paddingBottom: 96 },
+  section: { marginTop: theme.spacing.lg },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

@@ -26,15 +26,17 @@ export function SlabTable({ slabs }: SlabTableProps) {
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+  // Lives inside a Card, so no border of its own.
+  wrap: { gap: theme.spacing.xs },
+  heading: { fontSize: 16, lineHeight: 22, fontWeight: '800', color: theme.colors.inkStrong, marginBottom: 2 },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    paddingHorizontal: theme.spacing.md,
     borderRadius: theme.radius.md,
-    padding: theme.spacing.md,
-    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.primaryBg,
   },
-  heading: { ...theme.typography.body, color: theme.colors.inkStrong, fontWeight: '700' },
-  row: { flexDirection: 'row', justifyContent: 'space-between' },
   qty: { ...theme.typography.body, color: theme.colors.ink },
   price: { ...theme.typography.body, color: theme.colors.brandStrong, fontWeight: '700' },
   note: { ...theme.typography.caption, color: theme.colors.muted, marginTop: theme.spacing.xs },

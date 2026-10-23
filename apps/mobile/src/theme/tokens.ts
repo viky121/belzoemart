@@ -3,7 +3,7 @@
  * eMart overrides. Filled buttons read only `button.*` (WCAG AA for white 16 sp labels).
  */
 export const colors = {
-  // Belzo Mart identity: deep-green primary + orange accent (mockup §redesign).
+  // Belzo eMart identity: deep-green primary + orange accent (mockup §redesign).
   primary: '#1b7a5e',
   primaryStrong: '#136b53',
   primaryDeep: '#0d5a44',
@@ -21,7 +21,9 @@ export const colors = {
   orange: '#f4601a',
   orangeStrong: '#e2550f',
   yellow: '#ff9f00',
-  logoOrange: '#f4601a',
+  // Text colours of the official Belzo eMart logo ("Belzo" navy, "eMart" orange).
+  logoNavy: '#003270',
+  logoOrange: '#ee4700',
   bg: '#f3f5f8',
   surface: '#ffffff',
   surface2: '#f7f9fb',
