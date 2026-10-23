@@ -1,4 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import type { RenderedEmail } from '../../integrations/notifications/email-templates';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EMAIL_PROVIDER, PUSH_PROVIDER, WHATSAPP_PROVIDER, type EmailProvider, type PushProvider, type WhatsAppProvider } from '../../integrations/notifications/channels';
 import { SMS_PROVIDER, type SmsProvider } from '../../integrations/sms/sms.provider';
@@ -8,6 +9,7 @@ type NotificationType =
   | 'order.payment_failed'
   | 'order.shipped'
   | 'order.delivered'
+  | 'customer.welcome'
   | 'dpdp.export'
   | 'abandoned_cart'
   | 'generic';
@@ -24,6 +26,8 @@ interface RenderedTemplate {
  */
 @Injectable()
 export class NotificationService {
+  private readonly logger = new Logger('NotificationService');
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(EMAIL_PROVIDER) private readonly email: EmailProvider,
@@ -43,6 +47,8 @@ export class NotificationService {
         return { title: hi ? 'ऑर्डर भेजा गया' : 'Order shipped', body: `Order ${data.orderId} is on its way.` };
       case 'order.delivered':
         return { title: hi ? 'ऑर्डर वितरित' : 'Order delivered', body: `Order ${data.orderId} delivered. Rate your purchase!` };
+      case 'customer.welcome':
+        return { title: hi ? 'बेल्ज़ो ईमार्ट में आपका स्वागत है' : 'Welcome to Belzo eMart', body: hi ? 'आपका खाता तैयार है।' : 'Your account is ready.' };
       case 'abandoned_cart':
         return { title: hi ? 'आपका कार्ट इंतज़ार कर रहा है' : 'Your cart is waiting', body: 'Complete your purchase before items sell out.' };
       default:
@@ -60,6 +66,10 @@ export class NotificationService {
     data?: Record<string, string>;
     locale?: string;
     contact?: { email?: string; phone?: string };
+    /** Fully rendered email to use instead of the plain title/body one (rich order/welcome mails). */
+    email?: RenderedEmail;
+    /** Skip the SMS/WhatsApp channels (e.g. welcome mail needs no text message). */
+    emailOnly?: boolean;
   }): Promise<void> {
     const tpl = this.render(input.type, input.data ?? {}, input.locale ?? 'en');
 
@@ -71,9 +81,14 @@ export class NotificationService {
       this.push.send({ customerId: input.customerId, title: tpl.title, body: tpl.body }),
     ];
     if (input.contact?.email) {
-      tasks.push(this.email.send({ to: input.contact.email, subject: tpl.title, html: `<p>${tpl.body}</p>` }));
+      const mail = input.email ?? { subject: tpl.title, html: `<p>${tpl.body}</p>` };
+      tasks.push(
+        this.email.send({ to: input.contact.email, subject: mail.subject, html: mail.html }).catch((err: unknown) => {
+          this.logger.error(`Email "${mail.subject}" failed: ${err instanceof Error ? err.message : String(err)}`);
+        }),
+      );
     }
-    if (input.contact?.phone) {
+    if (input.contact?.phone && !input.emailOnly) {
       tasks.push(this.sms.send({ to: input.contact.phone, body: `${tpl.title}: ${tpl.body}`, templateId: 'BELZO_TXN' }));
       tasks.push(this.whatsapp.send({ to: input.contact.phone, template: input.type, body: tpl.body }));
     }

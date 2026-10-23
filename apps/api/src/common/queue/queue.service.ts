@@ -24,10 +24,15 @@ export class QueueService implements OnModuleDestroy {
     }
   }
 
-  async enqueue<T>(queue: QueueName, jobName: string, data: T): Promise<void> {
+  /**
+   * `opts.jobId` makes the job idempotent: BullMQ ignores a second add with the same id while the
+   * first is still retained, so a repeated trigger (e.g. an admin status click plus a courier sync)
+   * does not email the customer twice.
+   */
+  async enqueue<T>(queue: QueueName, jobName: string, data: T, opts?: { jobId?: string }): Promise<void> {
     const q = this.queues.get(queue);
     if (!q) throw new Error(`Unknown queue: ${queue}`);
-    await q.add(jobName, data as object);
+    await q.add(jobName, data as object, opts?.jobId ? { jobId: opts.jobId } : undefined);
   }
 
   async onModuleDestroy(): Promise<void> {

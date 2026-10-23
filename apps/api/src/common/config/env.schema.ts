@@ -68,6 +68,8 @@ export const envSchema = z.object({
   SMTP_USER: z.string().optional().default(''),
   SMTP_PASS: z.string().optional().default(''),
   EMAIL_FROM: z.string().optional().default(''),
+  /** Display name customers see as the sender ("Belzo eMart <address>"). Empty = bare address. */
+  EMAIL_FROM_NAME: z.string().optional().default('Belzo eMart'),
 
   // Object storage (used when STORAGE_PROVIDER=s3).
   S3_REGION: z.string().optional().default('ap-south-1'),

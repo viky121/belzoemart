@@ -3,10 +3,16 @@
  * have an interface with a mock adapter (SMS reuses the U2 SmsProvider). Live
  * adapters (SES, WhatsApp Business API, FCM) are dropped in at deploy.
  */
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType: string;
+}
 export interface EmailMessage {
   to: string;
   subject: string;
   html: string;
+  attachments?: EmailAttachment[];
 }
 export interface EmailProvider {
   send(msg: EmailMessage): Promise<{ messageId: string }>;

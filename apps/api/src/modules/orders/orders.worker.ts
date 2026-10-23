@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { Worker } from 'bullmq';
 import { RedisService } from '../../common/redis/redis.service';
 import { QUEUES } from '../../common/queue/queue.constants';
-import { InvoiceService } from './invoice.service';
+import { InvoiceMailService } from './invoice-mail.service';
 import { FulfilmentService } from './fulfilment.service';
 
 interface OrderJob {
@@ -22,7 +22,7 @@ export class OrdersWorker implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly redis: RedisService,
-    private readonly invoices: InvoiceService,
+    private readonly invoiceMail: InvoiceMailService,
     private readonly fulfilment: FulfilmentService,
   ) {}
 
@@ -32,7 +32,7 @@ export class OrdersWorker implements OnModuleInit, OnModuleDestroy {
         QUEUES.INVOICES,
         async (job) => {
           if (job.name === 'order.confirmed') {
-            await this.invoices.generate((job.data as OrderJob).orderId);
+            await this.invoiceMail.generateAndEmail((job.data as OrderJob).orderId);
           }
         },
         { connection: this.redis.client },

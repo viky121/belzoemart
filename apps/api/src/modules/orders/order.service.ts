@@ -1,10 +1,12 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { canCustomerCancel, canTransition, reconcileTracking, type OrderStatus } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { InventoryService } from '../catalogue/inventory.service';
 import { PaymentService } from '../checkout/payment.service';
 import { CartService } from '../cart/cart.service';
+import { QueueService } from '../../common/queue/queue.service';
 import { FulfilmentService } from './fulfilment.service';
+import { notifyOrderStatus } from './order-events';
 
 /** Variant attributes JSON → plain string map ({} when not an object). */
 function toAttributes(json: unknown): Record<string, string> {
@@ -29,6 +31,7 @@ export class OrderService {
     private readonly payments: PaymentService,
     private readonly cart: CartService,
     private readonly fulfilment: FulfilmentService,
+    @Optional() private readonly queue?: QueueService,
   ) {}
 
   /** Resolve display image, slug, returnability and variant attributes for a set of variant ids. */
@@ -255,7 +258,9 @@ export class OrderService {
     if (!canTransition(order.status, to)) {
       throw new BadRequestException(`Illegal transition ${order.status} → ${to}`);
     }
-    return this.prisma.order.update({ where: { id: orderId }, data: { status: to } });
+    const updated = await this.prisma.order.update({ where: { id: orderId }, data: { status: to } });
+    await notifyOrderStatus(this.queue, orderId, to);
+    return updated;
   }
 
   /**

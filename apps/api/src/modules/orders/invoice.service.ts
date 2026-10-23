@@ -7,9 +7,11 @@ import { SettingsService } from '../admin/settings.service';
 import {
   buildInvoiceDocument,
   renderInvoiceHtml,
+  type InvoiceDocument,
   type InvoiceOrder,
   type InvoiceSeller,
 } from './invoice-document';
+import { renderInvoicePdf } from './invoice-pdf';
 
 export const INVOICE_KEY = (orderId: string) => `invoices/${orderId}.html`;
 /** Invoices are overwritten in place on regenerate, so they must not be cached as immutable. */
@@ -109,6 +111,34 @@ export class InvoiceService {
     number: string,
     invoiceDate: Date,
   ): Promise<string> {
+    const html = renderInvoiceHtml(await this.buildDocument(order, number, invoiceDate));
+    const { url } = await this.storage.put({
+      key: INVOICE_KEY(order.id),
+      body: Buffer.from(html, 'utf8'),
+      contentType: 'text/html; charset=utf-8',
+      cacheControl: INVOICE_CACHE_CONTROL,
+    });
+    return url;
+  }
+
+  /**
+   * The existing invoice as a PDF (same data as the HTML invoice, so both always agree). Used to
+   * attach the invoice to the customer's email. Throws NotFound when the order has no invoice yet.
+   */
+  async renderPdf(orderId: string): Promise<{ pdf: Buffer; number: string }> {
+    const existing = await this.prisma.invoice.findUnique({ where: { orderId } });
+    if (!existing) throw new NotFoundException('Invoice not found');
+    const order = await this.loadOrder(orderId);
+    const doc = await this.buildDocument(order, existing.number, existing.createdAt);
+    return { pdf: await renderInvoicePdf(doc), number: existing.number };
+  }
+
+  /** Assemble the invoice data (seller, parties, tax split) for `order`. */
+  private async buildDocument(
+    order: InvoiceOrder & { customerId: string; addressId: string },
+    number: string,
+    invoiceDate: Date,
+  ): Promise<InvoiceDocument> {
     const variantIds = [...new Set(order.items.map((i) => i.variantId))];
     // Address/customer may be gone (deleted / DPDP-anonymised): render '-' instead of failing.
     const [address, customer, variants, seller] = await Promise.all([
@@ -126,16 +156,7 @@ export class InvoiceService {
       variants.map((v) => [v.id, v.product?.hsnCode ?? ''] as [string, string]),
     );
 
-    const html = renderInvoiceHtml(
-      buildInvoiceDocument({ number, invoiceDate, order, hsnByVariant, address, customer, seller }),
-    );
-    const { url } = await this.storage.put({
-      key: INVOICE_KEY(order.id),
-      body: Buffer.from(html, 'utf8'),
-      contentType: 'text/html; charset=utf-8',
-      cacheControl: INVOICE_CACHE_CONTROL,
-    });
-    return url;
+    return buildInvoiceDocument({ number, invoiceDate, order, hsnByVariant, address, customer, seller });
   }
 
   /**
