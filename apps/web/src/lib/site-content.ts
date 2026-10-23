@@ -32,7 +32,7 @@ export const DEFAULT_HOME = DEFAULT_HOME_EMART;
 
 export const DEFAULT_FOOTER: FooterContent = {
   description:
-    'Belzo E Mart is your trusted online store for groceries, personal care, home care and FMCG products. Shop smart, live better.',
+    'Belzo eMart is your trusted online store for groceries, personal care, home care and FMCG products. Shop smart, live better.',
   phone: '+91 98765 43210',
   email: 'support@belzoemart.com',
   hours: 'Mon–Sun · 9:00 AM – 9:00 PM',
@@ -41,7 +41,7 @@ export const DEFAULT_FOOTER: FooterContent = {
   instagram: '#',
   youtube: '#',
   linkedin: '#',
-  copyright: 'Belzo E Mart',
+  copyright: 'Belzo eMart',
 };
 
 export interface SiteContent {

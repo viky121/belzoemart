@@ -813,7 +813,10 @@ nav.main a:hover {
 
 .product-card__image {
   position: relative;
-  height: 190px;
+  /* Square tile that scales with the card width (was a fixed 190px height). */
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
   display: grid;
   place-items: center;
   border-radius: 6px;
@@ -1175,9 +1178,19 @@ nav.main a:hover {
   object-fit: cover;
 }
 
+/* Grid columns must be allowed to shrink below their content (a wide price table or a long
+   title would otherwise push the whole product page wider than the phone screen). */
+.pdp__info {
+  min-width: 0;
+}
+.pdp__info h1 {
+  overflow-wrap: anywhere;
+}
 @media (max-width: 720px) {
   .pdp {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    padding: 14px;
   }
 }
 
@@ -1463,6 +1476,8 @@ nav.main a:hover {
   .hero__slide--image {
     min-height: 0;
     aspect-ratio: 5 / 2;
+    /* The text-slide padding above must not apply here, or the picture shows white side strips. */
+    padding: 0;
   }
   .hero__arrow {
     width: 26px;
@@ -2392,6 +2407,43 @@ nav.main a:hover {
 .buybox__row .buybox__actions {
   flex: 1;
   min-width: 240px;
+}
+
+/* Product page on phones. (After the base rules above so these win.) */
+@media (max-width: 720px) {
+  .pdp-price {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+  .trust-row {
+    gap: 6px;
+  }
+  .trust-item {
+    min-width: 0;
+    padding: 10px 4px;
+  }
+  .trust-item__title {
+    font-size: 0.74rem;
+  }
+  .trust-item__sub {
+    font-size: 0.66rem;
+  }
+  /* Quantity on its own line, then the two buttons side by side at full width. */
+  .buybox__row .buybox__actions {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .btn-cart,
+  .btn-buy {
+    min-width: 0;
+    padding: 0 8px;
+    font-size: 0.92rem;
+    white-space: nowrap;
+  }
+  .pdp-specs li span {
+    width: 120px;
+    flex: none;
+  }
 }
 
 /* ============================================================
@@ -4179,6 +4231,10 @@ a.em-promo--image:hover {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* It is a <ul>: drop the browser's 40px indent, which squeezed the cards on phones. */
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .cline {
@@ -6852,4 +6908,514 @@ a.offer-banner:hover {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* ============================================================
+   Product images on phones
+   Cards were one giant ~330px tile per row (grid min 180-200px) and rail cards stayed
+   a fixed 200px; the product page hero wasted space on padding. Keep these LAST so they
+   win over the base and eMart-theme rules above.
+   ============================================================ */
+/* A 1fr grid track can grow past the screen if its content is wide; let it shrink. */
+.plp-main {
+  min-width: 0;
+}
+@media (max-width: 720px) {
+  /* 2 cards per row, like the app (phones and large phones / small tablets). */
+  .product-grid,
+  .theme-root[data-theme='emart'] .product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding: 8px 0;
+  }
+  .product-card,
+  .theme-root[data-theme='emart'] .product-card {
+    padding: 8px;
+    min-width: 0;
+  }
+  /* Square tile that scales with the card (no fixed 190px height). */
+  .product-card__image,
+  .theme-root[data-theme='emart'] .product-card__image {
+    height: auto;
+    aspect-ratio: 1 / 1;
+  }
+  .product-card__image img,
+  .theme-root[data-theme='emart'] .product-card__image img {
+    padding: 6px;
+  }
+  .product-card__image img.is-dummy,
+  .theme-root[data-theme='emart'] .product-card__image img.is-dummy {
+    padding: 0;
+  }
+  .product-card__wish {
+    width: 26px;
+    height: 26px;
+    top: 6px;
+    right: 6px;
+    font-size: 0.85rem;
+  }
+  .product-card__off,
+  .theme-root[data-theme='emart'] .product-card__off {
+    top: 6px;
+    left: 6px;
+    font-size: 0.6rem;
+    padding: 3px 7px;
+  }
+  .product-card__title,
+  .theme-root[data-theme='emart'] .product-card__title {
+    font-size: 0.82rem;
+    min-height: 2.4em;
+  }
+  .product-card__add {
+    height: 34px;
+    font-size: 0.8rem;
+  }
+
+  /* Horizontal rails: show about 2.3 cards so it is clear they scroll. */
+  .rail__item {
+    min-width: clamp(140px, 42vw, 200px);
+    max-width: clamp(140px, 42vw, 200px);
+  }
+
+  /* Product page: bigger picture, smaller frame. */
+  .pdp__hero-img {
+    padding: 8px;
+  }
+  .pdp__hero-img.is-dummy {
+    padding: 0;
+  }
+  .pdp__thumb {
+    width: 56px;
+    height: 56px;
+  }
+}
+
+/* Phones: classic header. Logo + nav on the first line, search on its own full-width line
+   (the wrapper, not just the form, has to move or the search box is pushed off screen). */
+@media (max-width: 560px) {
+  .site-header .row {
+    gap: 8px;
+  }
+  .header-search-wrap {
+    order: 3;
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+  .brand__badge {
+    height: 44px;
+    padding: 4px 10px;
+  }
+  nav.main {
+    gap: 0;
+    min-width: 0;
+  }
+  nav.main a {
+    padding: 8px 5px;
+  }
+  .btn-login {
+    padding: 7px 12px !important;
+    margin-right: 2px;
+  }
+
+  /* Rails swipe on touch; the arrow buttons only cover the first card. */
+  .rail__arrow {
+    display: none;
+  }
+}
+
+/* Cart on phones: picture + details on the first row, quantity / total / remove on a row of their own.
+   (Three columns left the title only a few characters wide, one word per line.) */
+@media (max-width: 720px) {
+  .cartx__head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .cartx__main {
+    min-width: 0;
+  }
+  .cline {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px 12px;
+    padding: 12px;
+  }
+  .cline__img {
+    width: 72px;
+    height: 72px;
+  }
+  .cline__info {
+    min-width: 0;
+    gap: 2px;
+  }
+  .cline__title {
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 0.95rem;
+    line-height: 1.3;
+  }
+  .cline__pricem {
+    flex-wrap: wrap;
+  }
+  .cline__actions {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-2, #eef1f5);
+  }
+  .cline__linetotal {
+    margin-left: auto;
+  }
+  .cartx__coupon {
+    flex-wrap: wrap;
+  }
+  .cartx__coupon input {
+    min-width: 0;
+    flex: 1 1 140px;
+  }
+}
+
+/* Checkout on phones. The steps (<ol>) and order items (<ul>) carried the browser's 40px indent,
+   the address form kept two cramped columns, and the order summary stayed "sticky" under the form. */
+.cox__steps,
+.cox__items {
+  list-style: none;
+  padding: 0;
+}
+.cox__steps {
+  margin: 0 0 20px;
+}
+.cox__items {
+  margin: 0 0 12px;
+}
+@media (max-width: 720px) {
+  .cox__main,
+  .cox__side {
+    min-width: 0;
+  }
+  .cox {
+    padding-top: 12px;
+  }
+  .cox__title {
+    font-size: 1.3rem;
+  }
+  .cox__steps {
+    gap: 6px 14px;
+    margin-bottom: 14px;
+  }
+  .cox__steps li {
+    font-size: 0.76rem;
+  }
+  .cox__card,
+  .cox__summary {
+    padding: 14px;
+  }
+  .cox__summary {
+    position: static;
+  }
+  .addr-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .addr-form__actions {
+    flex-wrap: wrap;
+  }
+  .co-addr {
+    padding: 10px 12px;
+  }
+  .co-coupon input {
+    min-width: 0;
+    flex: 1;
+  }
+}
+
+/* My account / orders / wishlist on phones.
+   Lists lose the browser's 40px indent, order rows stack (photo + details, then status + link),
+   the wishlist shows two cards per row, and the account sidebar becomes a compact 2-column menu. */
+.ord__list,
+.acct-orders {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+@media (max-width: 720px) {
+  .acctx {
+    padding-top: 12px;
+    gap: 14px;
+  }
+  .acctx__nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .acctx__nav a,
+  .acctx__logout {
+    padding: 9px 10px;
+    font-size: 0.82rem;
+  }
+  .acctx__logout {
+    grid-column: 1 / -1;
+  }
+
+  .acct-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 16px;
+  }
+  .acct-card__head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .acct-info > div {
+    gap: 12px;
+  }
+  .acct-info strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+  .acct-orders a {
+    flex-wrap: wrap;
+    gap: 4px 10px;
+  }
+
+  .ord {
+    padding-top: 12px;
+  }
+  .ord__head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .ord__head h1 {
+    font-size: 1.3rem;
+  }
+  .ord__search {
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .ord__tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .ord__tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .ord__tab {
+    flex: none;
+    white-space: nowrap;
+  }
+  .ord-row {
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 10px 12px;
+    padding: 12px;
+    align-items: start;
+  }
+  .ord-row__img {
+    width: 64px;
+    height: 64px;
+  }
+  .ord-row__sku {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .ord-row__right {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-2, #eef1f5);
+  }
+  .ord__empty {
+    padding: 28px 16px;
+  }
+
+  .wish__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .wcard {
+    padding: 8px;
+  }
+  .wcard__actions {
+    flex-direction: column;
+  }
+}
+
+/* Login / signup on phones: a slim banner (logo + title) instead of a tall blue block,
+   so the form is on screen straight away. */
+@media (max-width: 640px) {
+  .auth-wrap {
+    padding: 14px 0 24px;
+  }
+  .auth-aside {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr);
+    column-gap: 14px;
+    align-items: center;
+    padding: 16px 18px;
+  }
+  .auth-aside__logo {
+    grid-row: 1 / 3;
+    width: 56px;
+    height: 56px;
+    margin: 0;
+    padding: 6px;
+  }
+  .auth-aside h2 {
+    font-size: 1.25rem;
+    margin: 0;
+  }
+  .auth-aside p {
+    font-size: 0.8rem;
+    line-height: 1.35;
+  }
+  .auth-main {
+    padding: 18px 16px 20px;
+  }
+  .auth-tabs {
+    margin-bottom: 16px;
+  }
+  .auth-tab {
+    font-size: 0.86rem;
+  }
+}
+
+/* ---- Sign-in / sign-up: verified mobile + email, strong password ---- */
+@media (min-width: 641px) {
+  .auth-card--wide {
+    max-width: 900px;
+  }
+}
+.pw-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.pw-field .auth-input {
+  padding-right: 64px;
+}
+.pw-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 44px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--fk-blue);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.pw-rules {
+  list-style: none;
+  margin: -8px 0 14px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 12px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.pw-rules__ok {
+  color: var(--fk-green, #16a34a);
+  font-weight: 600;
+}
+.pw-match {
+  margin: -8px 0 14px;
+  font-size: 0.8rem;
+  color: #b45309;
+}
+.pw-match--ok {
+  color: var(--fk-green, #16a34a);
+  font-weight: 600;
+}
+.auth-input--tight {
+  margin-bottom: 8px;
+}
+.vf {
+  margin: 0 0 16px;
+}
+.vf--ok {
+  color: var(--fk-green, #16a34a);
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin: 0 0 16px;
+}
+.vf__send {
+  border: 1px solid var(--fk-blue);
+  background: #fff;
+  color: var(--fk-blue);
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.vf__send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.vf__send--solid {
+  background: var(--fk-blue);
+  color: #fff;
+}
+.vf__code {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.vf__code .auth-input {
+  margin-bottom: 0;
+  width: 150px;
+  flex: none;
+}
+.vf__error {
+  margin: 6px 0 0;
+  color: #b91c1c;
+  font-size: 0.8rem;
+}
+.auth-notice {
+  background: #e8f6ec;
+  border: 1px solid #b6e0c2;
+  color: #166534;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+.auth-row-end {
+  display: flex;
+  justify-content: flex-end;
+  margin: -6px 0 14px;
+  font-size: 0.84rem;
+}
+.auth-row-end a {
+  color: var(--fk-blue);
+  font-weight: 700;
+}
+.auth-hint--center {
+  text-align: center;
+  margin: 10px 0 0;
+}
+@media (max-width: 640px) {
+  .pw-rules {
+    grid-template-columns: 1fr;
+  }
 }

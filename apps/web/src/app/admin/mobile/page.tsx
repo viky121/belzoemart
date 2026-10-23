@@ -16,9 +16,10 @@ import { BannerList } from './banner-list';
 import { CategoriesPanel, fullCategoryList } from './categories-panel';
 import type { LinkCategory } from './link-field';
 import { FestivalPanel } from './festival-panel';
+import { MenuPanel } from './menu-panel';
 import { OfferRowsPanel } from './offer-rows-panel';
 
-type Tab = 'festival' | 'hero' | 'categories' | 'offers' | 'deals';
+type Tab = 'festival' | 'hero' | 'categories' | 'offers' | 'deals' | 'menu';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'festival', label: 'Festival theme', icon: '🪔' },
@@ -26,6 +27,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'categories', label: 'Categories', icon: '🗂️' },
   { id: 'offers', label: 'Offer rows', icon: '🏷️' },
   { id: 'deals', label: 'Deals', icon: '🔥' },
+  { id: 'menu', label: 'App menu', icon: '☰' },
 ];
 
 function flattenForLinks(nodes: CategoryNodeDto[], depth = 0): LinkCategory[] {
@@ -127,6 +129,7 @@ export default function AdminMobilePage() {
     if (!parsed.success) {
       const i = parsed.error.issues[0];
       const where = i ? i.path.join(' › ') : '';
+      if (i?.path[0] === 'menu') setTab('menu');
       setMsg({ text: `Cannot save: ${i?.message ?? 'invalid data'}${where ? ` (${where})` : ''}.`, ok: false });
       return;
     }
@@ -269,6 +272,12 @@ export default function AdminMobilePage() {
               placeholder={DEFAULT_MOBILE_HOME.dealsTitle}
               style={{ maxWidth: 360 }}
             />
+          </>
+        )}
+        {tab === 'menu' && (
+          <>
+            <h2>☰ App menu details</h2>
+            <MenuPanel value={cfg.menu} onChange={(menu) => patch({ menu })} />
           </>
         )}
       </section>

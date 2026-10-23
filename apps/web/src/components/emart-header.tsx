@@ -15,7 +15,7 @@ export function EmartHeader({ categories }: { categories: CategoryNodeDto[] }) {
         <div className="container em-topbar__inner">
           <Link href="/" className="em-brand" data-testid="shop-brand-link">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/belzo-logo.svg" alt="Belzo eMart" />
+            <img src="/belzo-logo.png" alt="Belzo eMart" />
           </Link>
 
           <div className="em-search">

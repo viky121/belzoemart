@@ -44,7 +44,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
           <Link href="/" className="brand" data-testid="shop-brand-link">
             <span className="brand__badge">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/belzo-logo.svg" alt={t.brand} />
+              <img src="/belzo-logo.png" alt={t.brand} />
             </span>
           </Link>
 
@@ -93,7 +93,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
         <div className="footer-brand">
           <span className="footer-brand__logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/belzo-logo.svg" alt={t.brand} />
+            <img src="/belzo-logo.png" alt={t.brand} />
           </span>
           <p>Shop smart, live better — quality products delivered across India. 🇮🇳</p>
         </div>

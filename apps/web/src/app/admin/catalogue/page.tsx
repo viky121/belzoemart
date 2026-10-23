@@ -39,6 +39,7 @@ export default function AdminCataloguePage() {
   const [pricingId, setPricingId] = useState<string | null>(null);
   const [stockFor, setStockFor] = useState<ProdRow | null>(null);
   const [q, setQ] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     const [p, c, b] = await Promise.all([
@@ -83,6 +84,31 @@ export default function AdminCataloguePage() {
   const filtered = products.filter(
     (p) => !q || p.title.toLowerCase().includes(q.toLowerCase()) || p.slug.toLowerCase().includes(q.toLowerCase()),
   );
+
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function toggleAll() {
+    setSelected((prev) => {
+      const allShown = filtered.length > 0 && filtered.every((p) => prev.has(p.id));
+      if (allShown) {
+        const next = new Set(prev);
+        filtered.forEach((p) => next.delete(p.id));
+        return next;
+      }
+      const next = new Set(prev);
+      filtered.forEach((p) => next.add(p.id));
+      return next;
+    });
+  }
+  // Only count/act on selections that are still visible under the current search.
+  const selectedVisible = filtered.filter((p) => selected.has(p.id)).map((p) => p.id);
+  const allFilteredSelected = filtered.length > 0 && selectedVisible.length === filtered.length;
 
   return (
     <div data-testid="admin-catalogue">
@@ -157,9 +183,31 @@ export default function AdminCataloguePage() {
             data-testid="pm-search"
           />
 
+          {selectedVisible.length > 0 && (
+            <BulkActionBar
+              count={selectedVisible.length}
+              productIds={selectedVisible}
+              onClear={() => setSelected(new Set())}
+              onDone={(summary) => {
+                setMsg(summary);
+                setSelected(new Set());
+                void load();
+              }}
+            />
+          )}
+
           <table className="admin-table" data-testid="catalogue-products">
             <thead>
               <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    aria-label="Select all products"
+                    checked={allFilteredSelected}
+                    onChange={toggleAll}
+                    data-testid="pm-select-all"
+                  />
+                </th>
                 <th></th>
                 <th>Title</th>
                 <th>MRP</th>
@@ -172,7 +220,16 @@ export default function AdminCataloguePage() {
             <tbody>
               {filtered.map((p) => (
                 <Fragment key={p.id}>
-                  <tr>
+                  <tr className={selected.has(p.id) ? 'pm-row--selected' : undefined}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${p.title}`}
+                        checked={selected.has(p.id)}
+                        onChange={() => toggleOne(p.id)}
+                        data-testid={`select-${p.slug}`}
+                      />
+                    </td>
                     <td>
                       {p.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -232,14 +289,14 @@ export default function AdminCataloguePage() {
                   </tr>
                   {editId === p.id && (
                     <tr>
-                      <td colSpan={7}>
+                      <td colSpan={8}>
                         <ProductEditor productId={p.id} categories={categories} brands={brands} onSaved={() => load()} />
                       </td>
                     </tr>
                   )}
                   {pricingId === p.id && (
                     <tr>
-                      <td colSpan={7}>
+                      <td colSpan={8}>
                         <VariantSlabsEditor productId={p.id} onChanged={() => load()} />
                       </td>
                     </tr>
@@ -262,6 +319,143 @@ export default function AdminCataloguePage() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+type BulkAction =
+  | 'offer-percent'
+  | 'offer-fixed'
+  | 'price'
+  | 'stock-set'
+  | 'stock-increase'
+  | 'stock-decrease';
+
+interface BulkEditResult {
+  ok: number;
+  failed: number;
+  results: { id: string; title: string; ok: boolean; message?: string }[];
+}
+
+/**
+ * Bulk action bar for the catalogue table. Lets an admin apply one change to
+ * all selected products: an offer (% or ₹ off MRP), an absolute selling price,
+ * or a stock update (set / increase / decrease). Price inputs are entered in
+ * rupees and sent to the API in paise; percentage/quantity are sent as-is.
+ */
+function BulkActionBar({
+  count,
+  productIds,
+  onClear,
+  onDone,
+}: {
+  count: number;
+  productIds: string[];
+  onClear: () => void;
+  onDone: (summary: string) => void;
+}) {
+  const [action, setAction] = useState<BulkAction>('offer-percent');
+  const [value, setValue] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const unit =
+    action === 'offer-percent' ? '%' : action === 'offer-fixed' || action === 'price' ? '₹' : 'qty';
+  const isMoney = action === 'offer-fixed' || action === 'price';
+
+  function buildOperation(num: number) {
+    switch (action) {
+      case 'offer-percent':
+        return { kind: 'offer' as const, mode: 'percent' as const, value: num };
+      case 'offer-fixed':
+        return { kind: 'offer' as const, mode: 'fixed' as const, value: Math.round(num * 100) };
+      case 'price':
+        return { kind: 'price' as const, value: Math.round(num * 100) };
+      case 'stock-set':
+        return { kind: 'stock' as const, mode: 'set' as const, value: Math.round(num) };
+      case 'stock-increase':
+        return { kind: 'stock' as const, mode: 'increase' as const, value: Math.round(num) };
+      case 'stock-decrease':
+        return { kind: 'stock' as const, mode: 'decrease' as const, value: Math.round(num) };
+    }
+  }
+
+  async function apply() {
+    const num = Number(value);
+    if (value.trim() === '' || Number.isNaN(num) || num < 0) {
+      setErr('Enter a valid non-negative value.');
+      return;
+    }
+    if (action === 'offer-percent' && num > 95) {
+      setErr('Discount must be between 0 and 95%.');
+      return;
+    }
+    const verb = isMoney ? `₹${num}` : action === 'offer-percent' ? `${num}%` : `${num}`;
+    if (!window.confirm(`Apply this change (${verb}) to ${count} selected product(s)?`)) return;
+    setErr(null);
+    setBusy(true);
+    try {
+      const res = await adminFetch<BulkEditResult>('/admin/products/bulk-edit', {
+        method: 'POST',
+        body: { productIds, operation: buildOperation(num) },
+      });
+      let summary = `${res.ok} product(s) updated` + (res.failed ? `, ${res.failed} failed` : '.');
+      if (res.failed) {
+        const first = res.results.find((r) => !r.ok);
+        if (first?.message) summary += ` — e.g. "${first.title}": ${first.message}`;
+      }
+      onDone(summary);
+    } catch {
+      setErr('Bulk update failed. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="pm-bulkbar" data-testid="bulk-action-bar">
+      <span className="pm-bulkbar__count">{count} selected</span>
+      <select
+        className="auth-input"
+        value={action}
+        onChange={(e) => setAction(e.target.value as BulkAction)}
+        data-testid="bulk-action-select"
+        aria-label="Bulk action"
+      >
+        <optgroup label="Offer (off MRP)">
+          <option value="offer-percent">Apply % discount</option>
+          <option value="offer-fixed">Apply ₹ discount</option>
+        </optgroup>
+        <optgroup label="Price">
+          <option value="price">Set selling price (₹)</option>
+        </optgroup>
+        <optgroup label="Stock">
+          <option value="stock-set">Set stock to</option>
+          <option value="stock-increase">Increase stock by</option>
+          <option value="stock-decrease">Decrease stock by</option>
+        </optgroup>
+      </select>
+      <div className="pm-bulkbar__field">
+        <input
+          className="auth-input"
+          type="number"
+          min={0}
+          step={isMoney ? '0.01' : '1'}
+          placeholder={unit}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          data-testid="bulk-action-value"
+          aria-label={`Value (${unit})`}
+        />
+        <span className="pm-bulkbar__unit">{unit}</span>
+      </div>
+      <button className="wiz__next" onClick={apply} disabled={busy} data-testid="bulk-action-apply">
+        {busy ? 'Applying…' : 'Apply'}
+      </button>
+      <button className="wiz__ghost" onClick={onClear} disabled={busy}>
+        Clear
+      </button>
+      {err && <span className="pm-bulkbar__err">{err}</span>}
     </div>
   );
 }

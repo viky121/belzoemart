@@ -16,7 +16,7 @@ function Preview({ festival, greeting }: { festival: MobileFestival; greeting: s
   return (
     <div className="fp-phone" aria-label={`Preview of the ${t.label} theme`}>
       <div className="fp-head" style={{ background: `linear-gradient(135deg, ${t.headerFrom}, ${t.headerTo})` }}>
-        <div className="fp-brand">Belzo Mart</div>
+        <div className="fp-brand">Belzo eMart</div>
         {festival !== 'none' && (
           <div className="fp-greet">
             <strong>{greeting}</strong>

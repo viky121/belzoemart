@@ -7,7 +7,7 @@ import { tileImage, type WhyItem } from '@belzo/shared';
 export function WhyGrid({ items }: { items: WhyItem[] }) {
   return (
     <section className="em-why" data-testid="emart-why">
-      <h2>Why Choose Belzo E Mart?</h2>
+      <h2>Why Choose Belzo eMart?</h2>
       <div className="em-why__grid">
         {items.map((w, i) => {
           const image = tileImage(w);

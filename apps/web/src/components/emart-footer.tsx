@@ -29,7 +29,7 @@ export function EmartFooter({
         <div className="em-footer__brand">
           <span className="em-footer__logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/belzo-logo.svg" alt="Belzo eMart" />
+            <img src="/belzo-logo.png" alt="Belzo eMart" />
           </span>
           <p>{content.description}</p>
           <div className="em-footer__social">
@@ -44,6 +44,9 @@ export function EmartFooter({
         <div className="em-footer__col">
           <h4>Quick Links</h4>
           <Link href="/">Home</Link>
+          <Link href="/download" data-testid="footer-download-app">
+            Download App
+          </Link>
           {companyLinks.map((l) => (
             <Link key={l.slug} href={`/page/${l.slug}`}>
               {l.label}

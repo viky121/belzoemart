@@ -67,7 +67,7 @@ export default function AdminLoginPage() {
       <form className="adlogin__card" onSubmit={submit}>
         <div className="adlogin__brand">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/belzo-logo.svg" alt="Belzo eMart" />
+          <img src="/belzo-logo.png" alt="Belzo eMart" />
         </div>
         <h1>Admin Panel</h1>
         <p className="adlogin__sub">Sign in to manage your store</p>
