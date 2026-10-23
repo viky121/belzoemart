@@ -74,7 +74,7 @@ function ProductsLinkPicker({ value, onChange }: { value: string; onChange: (v: 
   };
 
   return (
-    <div data-testid="products-link-picker">
+    <div className="mh-pick" data-testid="products-link-picker">
       <label className="auth-label">Page heading (optional)</label>
       <input
         className="auth-input"
@@ -99,13 +99,18 @@ function ProductsLinkPicker({ value, onChange }: { value: string; onChange: (v: 
       {all !== null && all.length === 0 && (
         <span className="prod-form__hint">Could not load the product list. Reload the page to try again.</span>
       )}
+      {filter.trim() !== '' && all !== null && all.length > 0 && matches.length === 0 && (
+        <span className="prod-form__hint">No matching products.</span>
+      )}
       {matches.length > 0 && (
-        <div className="prod-grid" style={{ marginTop: 6 }}>
+        <div className="mh-pick__results" role="listbox" aria-label="Matching products">
           {matches.map((p) => (
             <button
               key={p.id}
               type="button"
-              className="wiz__addvar"
+              role="option"
+              aria-selected={false}
+              className="mh-pick__result"
               onClick={() => {
                 emit([...ids, p.id], title);
                 setFilter('');
@@ -117,40 +122,53 @@ function ProductsLinkPicker({ value, onChange }: { value: string; onChange: (v: 
         </div>
       )}
 
-      <div style={{ marginTop: 8 }}>
-        {ids.length === 0 ? (
-          <span className="prod-form__hint">No products picked yet. Add at least one, or the banner will do nothing.</span>
-        ) : (
+      {ids.length === 0 ? (
+        <span className="prod-form__hint">No products picked yet. Add at least one, or the banner will do nothing.</span>
+      ) : (
+        <>
           <span className="prod-form__hint">
             {ids.length} of {PRODUCTS_LINK_MAX} products. Tapping the banner opens a page with these.
           </span>
-        )}
-        {ids.map((id, i) => (
-          <div className="ce-why" key={id}>
-            <span style={{ flex: 1 }}>{byId.get(id)?.title ?? (all === null ? 'Loading…' : 'Product not found')}</span>
-            <button type="button" className="wiz__vdel" disabled={i === 0} aria-label="Move product up" onClick={() => move(i, i - 1)}>
-              ↑
-            </button>
-            <button
-              type="button"
-              className="wiz__vdel"
-              disabled={i === ids.length - 1}
-              aria-label="Move product down"
-              onClick={() => move(i, i + 1)}
-            >
-              ↓
-            </button>
-            <button
-              type="button"
-              className="wiz__vdel"
-              aria-label="Remove product"
-              onClick={() => emit(ids.filter((x) => x !== id), title)}
-            >
-              ✕
-            </button>
-          </div>
-        ))}
-      </div>
+          <ol className="mh-pick__list">
+            {ids.map((id, i) => (
+              <li className="mh-pick__item" key={id}>
+                <span className="mh-pick__no" aria-hidden="true">
+                  {i + 1}
+                </span>
+                <span className="mh-pick__title">
+                  {byId.get(id)?.title ?? (all === null ? 'Loading…' : 'Product not found')}
+                </span>
+                <button
+                  type="button"
+                  className="mh-pick__btn"
+                  disabled={i === 0}
+                  aria-label="Move product up"
+                  onClick={() => move(i, i - 1)}
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  className="mh-pick__btn"
+                  disabled={i === ids.length - 1}
+                  aria-label="Move product down"
+                  onClick={() => move(i, i + 1)}
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  className="mh-pick__btn mh-pick__btn--del"
+                  aria-label="Remove product"
+                  onClick={() => emit(ids.filter((x) => x !== id), title)}
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
     </div>
   );
 }
