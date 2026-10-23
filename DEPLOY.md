@@ -30,6 +30,8 @@ cp .env.prod.example .env.prod
 # generate strong values:
 openssl rand -base64 48   # -> JWT_ACCESS_SECRET
 openssl rand -base64 48   # -> JWT_REFRESH_SECRET
+openssl rand -base64 48   # -> JWT_PARTNER_SECRET (delivery partners; must differ from the two above)
+openssl rand -base64 48   # -> DELIVERY_OTP_PEPPER (delivery OTP hash)
 openssl rand -hex 16      # -> POSTGRES_PASSWORD (put in POSTGRES_PASSWORD *and* DATABASE_URL)
 nano .env.prod            # fill PUBLIC_BASE_URL, CORS_ORIGINS, secrets
 ```
