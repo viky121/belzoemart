@@ -1,7 +1,9 @@
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ORDER_PROGRESS_STEPS, canTransition, progressRank, type OrderStatus } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { QueueService } from '../../common/queue/queue.service';
 import { SettingsService } from '../admin/settings.service';
+import { notifyOrderStatus } from './order-events';
 import {
   SHIPPING_PROVIDER,
   type ServiceabilityResult,
@@ -30,6 +32,7 @@ export class FulfilmentService {
     private readonly prisma: PrismaService,
     @Inject(SHIPPING_PROVIDER) private readonly shipping: ShippingProvider,
     private readonly settings: SettingsService,
+    @Optional() private readonly queue?: QueueService,
   ) {}
 
   /**
@@ -208,6 +211,12 @@ export class FulfilmentService {
     }
     if (current !== order.status) {
       await this.prisma.order.update({ where: { id: order.id }, data: { status: current } });
+      // Email the customer for the milestones this sync just crossed (one mail each, even if the
+      // courier jumped straight from packed to delivered).
+      if (progressRank(order.status) < progressRank('shipped') && progressRank(current) >= progressRank('shipped')) {
+        await notifyOrderStatus(this.queue, order.id, 'shipped');
+      }
+      if (current === 'delivered') await notifyOrderStatus(this.queue, order.id, 'delivered');
     }
   }
 

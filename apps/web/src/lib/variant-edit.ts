@@ -1,4 +1,4 @@
-import { pickAttr } from '@belzo/shared';
+import { isWeightUnit, pickAttr, type WeightUnit } from '@belzo/shared';
 
 /**
  * Pure helpers for the product editor's "Variants, price & stock" section.
@@ -15,9 +15,15 @@ export interface AdminVariantRow {
   attributesJson: Record<string, string> | null;
   priceSlabsJson: { minQty: number; unitPrice: number }[] | null;
   weightGrams: number;
+  /** Weight / pack size as entered by the admin, with its unit (null on older variants). */
+  weightValue?: number | null;
+  weightUnit?: string | null;
   imageUrl: string | null;
   /** Purchase price, paise. Admin-only; null when not recorded. */
   costPrice: number | null;
+  /** Fewest / most units a customer can buy per order; null = no limit. */
+  minOrderQty?: number | null;
+  maxOrderQty?: number | null;
   inventory: { available: number } | null;
 }
 
@@ -29,6 +35,9 @@ export interface VariantEdit {
   /** Purchase price in rupees; blank = not recorded. */
   cost: string;
   stock: string;
+  /** Fewest / most units per order as typed; blank = no limit. */
+  minQty?: string;
+  maxQty?: string;
 }
 
 /** Body accepted by POST /admin/variants. */
@@ -40,6 +49,8 @@ export interface VariantUpsertBody {
   sellingPrice: number;
   attributes: Record<string, string>;
   weightGrams: number;
+  weightValue: number | null;
+  weightUnit: WeightUnit | null;
   imageUrl: string | undefined;
   priceSlabs: { minQty: number; unitPrice: number }[];
   costPrice: number | null;
@@ -60,6 +71,8 @@ export function initialEdit(v: AdminVariantRow): VariantEdit {
     price: toRupees(v.sellingPrice),
     cost: v.costPrice == null ? '' : toRupees(v.costPrice),
     stock: String(v.inventory?.available ?? 0),
+    minQty: v.minOrderQty == null ? '' : String(v.minOrderQty),
+    maxQty: v.maxOrderQty == null ? '' : String(v.maxOrderQty),
   };
 }
 
@@ -89,6 +102,8 @@ export function validateEdits(
       return `${sku}: enter a valid purchase price (0 or more), or leave it blank.`;
     }
     if (!/^\d+$/.test(e.stock.trim())) return `${sku}: stock must be a whole number (0 or more).`;
+    const limits = validateOrderLimits(e.minQty ?? '', e.maxQty ?? '');
+    if (limits) return `${sku}: ${limits}`;
     if (seen.has(sku)) return `SKU "${sku}" is used twice`;
     seen.add(sku);
   }
@@ -121,6 +136,9 @@ export function variantUpsertBody(v: AdminVariantRow, e: VariantEdit): VariantUp
     sellingPrice,
     attributes: v.attributesJson ?? {},
     weightGrams: v.weightGrams,
+    // Echoed back so a price/stock edit never clears the weight + unit.
+    weightValue: v.weightValue ?? null,
+    weightUnit: isWeightUnit(v.weightUnit) ? v.weightUnit : null,
     imageUrl: v.imageUrl ?? undefined,
     priceSlabs: v.priceSlabsJson ?? [],
     costPrice,
@@ -128,6 +146,43 @@ export function variantUpsertBody(v: AdminVariantRow, e: VariantEdit): VariantUp
 }
 
 export { pickAttr };
+
+/** Highest quantity the cart allows per line (keep in sync with MAX_CART_QTY in @belzo/shared). */
+const MAX_ORDER_QTY = 99;
+
+/** "" -> null (no limit), a whole number -> that number, anything else -> NaN. */
+export function parseOrderLimit(s: string | undefined): number | null {
+  const v = (s ?? '').trim();
+  if (v === '') return null;
+  return /^\d+$/.test(v) ? Number(v) : Number.NaN;
+}
+
+/** A problem with the min/max order quantity inputs, or null when they are fine (both optional). */
+export function validateOrderLimits(minQty: string, maxQty: string): string | null {
+  const min = parseOrderLimit(minQty);
+  const max = parseOrderLimit(maxQty);
+  for (const [label, v] of [['Min', min], ['Max', max]] as const) {
+    if (v !== null && (!Number.isInteger(v) || v < 1 || v > MAX_ORDER_QTY)) {
+      return `${label} order quantity must be a whole number from 1 to ${MAX_ORDER_QTY} (or blank for no limit).`;
+    }
+  }
+  if (min !== null && max !== null && min > max) return 'Min order quantity cannot be more than the max.';
+  return null;
+}
+
+/**
+ * PATCH /admin/variants/:id/order-limits body when the typed min/max differ from what is saved, else null.
+ * Kept apart from the variant upsert so changing a limit never rewrites price, tiers, weight or image.
+ */
+export function orderLimitsBody(
+  v: AdminVariantRow,
+  e: VariantEdit,
+): { minOrderQty: number | null; maxOrderQty: number | null } | null {
+  const minOrderQty = parseOrderLimit(e.minQty);
+  const maxOrderQty = parseOrderLimit(e.maxQty);
+  if (minOrderQty === (v.minOrderQty ?? null) && maxOrderQty === (v.maxOrderQty ?? null)) return null;
+  return { minOrderQty, maxOrderQty };
+}
 
 /**
  * Variant attributes after editing Size/Color: every other key (e.g. "Pack Of")

@@ -6,6 +6,7 @@ import { MediaPicker } from '@/components/media-picker';
 import { CategoryPicker, type CategoryTreeNode } from '@/components/category-picker';
 import {
   initialEdit,
+  orderLimitsBody,
   removeVariantConfirmText,
   removeVariantSuccessMessage,
   stockDelta,
@@ -115,15 +116,20 @@ export function ProductEditor({
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0) return;
     setUploading(true);
-    try {
-      for (const f of files) {
+    setMsg(null);
+    // One bad file must not stop the rest; every failure is shown instead of vanishing.
+    const problems: string[] = [];
+    for (const f of files) {
+      try {
         const { url } = await adminUpload(f, 'products');
-        setImages((cur) => [...cur, url]);
+        setImages((cur) => (cur.includes(url) ? cur : [...cur, url]));
+      } catch (err) {
+        problems.push(`${f.name}: ${err instanceof Error ? err.message : 'upload failed'}`);
       }
-    } finally {
-      setUploading(false);
-      e.target.value = '';
     }
+    setUploading(false);
+    e.target.value = '';
+    if (problems.length > 0) setMsg(problems.join(' | '));
   }
 
   /**
@@ -219,8 +225,15 @@ export function ProductEditor({
         });
         done += 1;
       }
-      if (status !== d.status) {
-        step = 'status';
+      for (const v of variants) {
+        const lim = orderLimitsBody(v, edits[v.id] ?? initialEdit(v));
+        if (!lim) continue;
+        step = `order limits for ${v.sku}`;
+        touchedVariants = true;
+        await adminFetch(`/admin/variants/${v.id}/order-limits`, { method: 'PATCH', body: lim });
+        done += 1;
+      }
+      if (status !== d.status) {        step = 'status';
         touchedVariants = true;
         await adminFetch(`/admin/products/${d.id}/status`, { method: 'PATCH', body: { status } });
         done += 1;
@@ -335,6 +348,8 @@ export function ProductEditor({
                   <th scope="col">Selling (₹)</th>
                   <th scope="col">Purchase (₹)</th>
                   <th scope="col">Stock</th>
+                  <th scope="col">Min order qty</th>
+                  <th scope="col">Max order qty</th>
                   <th scope="col">Actions</th>
                 </tr>
               </thead>
@@ -400,6 +415,34 @@ export function ProductEditor({
                           aria-label={`Stock for ${v.sku}`}
                           onChange={(ev) => updEdit(v.id, { stock: ev.target.value })}
                           data-testid={`editor-v-stock-${i}`}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="auth-input"
+                          type="number"
+                          step={1}
+                          min={1}
+                          max={99}
+                          placeholder="1"
+                          value={e.minQty ?? ''}
+                          aria-label={`Minimum order quantity for ${v.sku}`}
+                          onChange={(ev) => updEdit(v.id, { minQty: ev.target.value })}
+                          data-testid={`editor-v-minqty-${i}`}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="auth-input"
+                          type="number"
+                          step={1}
+                          min={1}
+                          max={99}
+                          placeholder="no limit"
+                          value={e.maxQty ?? ''}
+                          aria-label={`Maximum order quantity for ${v.sku}`}
+                          onChange={(ev) => updEdit(v.id, { maxQty: ev.target.value })}
+                          data-testid={`editor-v-maxqty-${i}`}
                         />
                       </td>
                       <td>

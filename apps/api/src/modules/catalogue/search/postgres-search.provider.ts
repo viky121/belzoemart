@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { DEFAULT_PAGE_SIZE, discountPct, type ProductCardDto, type ProductQuery } from '@belzo/shared';
+import {
+  DEFAULT_PAGE_SIZE,
+  discountPct,
+  effectiveOrderLimits,
+  variantUnitLabel,
+  type ProductCardDto,
+  type ProductQuery,
+} from '@belzo/shared';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import type { SearchProvider, SearchResult } from './search.provider';
 
@@ -37,6 +44,7 @@ export class PostgresSearchProvider implements SearchProvider {
         where,
         include: {
           images: { orderBy: { position: 'asc' }, take: 1 },
+          brand: { select: { id: true, name: true } },
           variants: { where: { isActive: true } },
         },
         orderBy: this.orderFor(query.sort),
@@ -53,12 +61,7 @@ export class PostgresSearchProvider implements SearchProvider {
         (min, cur) => (cur.sellingPrice < min.sellingPrice ? cur : min),
         active[0] ?? { mrp: 0, sellingPrice: 0 },
       );
-      const attrs =
-        'attributesJson' in v ? ((v.attributesJson as Record<string, string>) ?? {}) : {};
-      const unit =
-        ['Weight', 'Net Weight', 'Volume', 'Size', 'Pack', 'Quantity']
-          .map((key) => Object.entries(attrs).find(([k]) => k.toLowerCase() === key.toLowerCase()))
-          .find((e) => e && e[1])?.[1] ?? null;
+      const unit = 'id' in v ? variantUnitLabel(v) : null;
       return {
         id: p.id,
         title: p.title,
@@ -71,6 +74,9 @@ export class PostgresSearchProvider implements SearchProvider {
         ratingCount: p.ratingCount,
         defaultVariantId: 'id' in v ? v.id : null,
         unit,
+        brand: p.brand?.name ?? null,
+        brandId: p.brand?.id ?? null,
+        minQty: 'id' in v ? effectiveOrderLimits(v).min : 1,
       };
     });
 

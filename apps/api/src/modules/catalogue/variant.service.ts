@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { MAX_CART_QTY, weightToGrams, type WeightUnit } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 /**
@@ -18,6 +19,51 @@ export class VariantService {
   private assertPrices(mrp: number, sellingPrice: number): void {
     if (mrp < 0 || sellingPrice < 0) throw new BadRequestException('Prices must be non-negative');
     if (sellingPrice > mrp) throw new BadRequestException('sellingPrice cannot exceed mrp');
+  }
+
+  /**
+   * The purchase limits must be whole numbers within 1..MAX_CART_QTY with min <= max. When only one of the
+   * two is being changed, it is checked against the value already stored.
+   */
+  private async assertOrderQtyLimits(input: {
+    id?: string;
+    minOrderQty?: number | null;
+    maxOrderQty?: number | null;
+  }): Promise<void> {
+    if (input.minOrderQty === undefined && input.maxOrderQty === undefined) return;
+    let min = input.minOrderQty;
+    let max = input.maxOrderQty;
+    if ((min === undefined || max === undefined) && input.id) {
+      const cur = await this.prisma.variant.findUnique({
+        where: { id: input.id },
+        select: { minOrderQty: true, maxOrderQty: true },
+      });
+      if (min === undefined) min = cur?.minOrderQty ?? null;
+      if (max === undefined) max = cur?.maxOrderQty ?? null;
+    }
+    for (const [label, v] of [['Minimum', min], ['Maximum', max]] as const) {
+      if (v != null && (!Number.isInteger(v) || v < 1 || v > MAX_CART_QTY)) {
+        throw new BadRequestException(`${label} order quantity must be a whole number from 1 to ${MAX_CART_QTY}`);
+      }
+    }
+    if (min != null && max != null && min > max) {
+      throw new BadRequestException('Minimum order quantity cannot be more than the maximum');
+    }
+  }
+
+  /** Change only a variant's purchase limits. undefined leaves a value as is, null clears it. */
+  async setOrderLimits(id: string, minOrderQty?: number | null, maxOrderQty?: number | null) {
+    const exists = await this.prisma.variant.findUnique({ where: { id }, select: { id: true } });
+    if (!exists) throw new NotFoundException('Variant not found');
+    await this.assertOrderQtyLimits({ id, minOrderQty, maxOrderQty });
+    return this.prisma.variant.update({
+      where: { id },
+      data: {
+        ...(minOrderQty !== undefined ? { minOrderQty } : {}),
+        ...(maxOrderQty !== undefined ? { maxOrderQty } : {}),
+      },
+      select: { id: true, minOrderQty: true, maxOrderQty: true },
+    });
   }
 
   /** Normalise + validate bulk price slabs: minQty>=2 ascending & unique,
@@ -96,13 +142,35 @@ export class VariantService {
     sellingPrice: number;
     attributes?: Record<string, string>;
     weightGrams?: number;
+    /** Weight / pack size as entered, with its unit. undefined = unchanged on update, null = clear. */
+    weightValue?: number | null;
+    weightUnit?: WeightUnit | null;
     imageUrl?: string;
     priceSlabs?: { minQty: number; unitPrice: number }[];
     /** Purchase price, paise. ADMIN-ONLY. undefined = leave unchanged on update. */
     costPrice?: number | null;
+    /** Fewest / most units per order. undefined = unchanged on update, null = no limit. */
+    minOrderQty?: number | null;
+    maxOrderQty?: number | null;
   }) {
     this.assertPrices(input.mrp, input.sellingPrice);
+    await this.assertOrderQtyLimits(input);
+    // A value needs a unit and vice versa. Mass/volume units set the courier weight (a count has no mass,
+    // so for count/pc the grams the caller sent, or the shop default when 0, still apply).
+    const hasValue = input.weightValue != null;
+    const hasUnit = input.weightUnit != null;
+    if (hasValue !== hasUnit) throw new BadRequestException('Enter the weight together with its unit');
+    const derivedGrams = hasValue && hasUnit ? weightToGrams(input.weightValue!, input.weightUnit!) : null;
+    const weightGrams = derivedGrams ?? input.weightGrams;
+    const weightFields = {
+      ...(input.weightValue !== undefined ? { weightValue: input.weightValue } : {}),
+      ...(input.weightUnit !== undefined ? { weightUnit: input.weightUnit } : {}),
+    };
     const priceSlabsJson = this.normaliseSlabs(input.priceSlabs, input.sellingPrice);
+    const qtyLimitFields = {
+      ...(input.minOrderQty !== undefined ? { minOrderQty: input.minOrderQty } : {}),
+      ...(input.maxOrderQty !== undefined ? { maxOrderQty: input.maxOrderQty } : {}),
+    };
     // Variant.sku is unique: report a clash as 409 instead of a generic 500.
     const clash = await this.prisma.variant.findUnique({
       where: { sku: input.sku },
@@ -135,9 +203,11 @@ export class VariantService {
           sellingPrice: input.sellingPrice,
           attributesJson: input.attributes ?? {},
           priceSlabsJson,
-          weightGrams: input.weightGrams,
+          weightGrams,
+          ...weightFields,
           imageUrl: input.imageUrl,
           ...(input.costPrice !== undefined ? { costPrice: input.costPrice } : {}),
+          ...qtyLimitFields,
         },
       });
     }
@@ -149,8 +219,10 @@ export class VariantService {
         sellingPrice: input.sellingPrice,
         attributesJson: input.attributes ?? {},
         priceSlabsJson,
-        weightGrams: input.weightGrams ?? 0,
+        weightGrams: weightGrams ?? 0,
+        ...weightFields,
         costPrice: input.costPrice ?? null,
+        ...qtyLimitFields,
       },
     });
     await this.prisma.inventory.create({ data: { variantId: variant.id, available: 0 } });

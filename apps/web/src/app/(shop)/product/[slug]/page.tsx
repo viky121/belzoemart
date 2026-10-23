@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { catalogueApi, formatInr, type Paginated } from '@/lib/catalogue-api';
 import { placeholderImage } from '@/lib/category-theme';
@@ -83,7 +84,17 @@ export default async function ProductPage({ params }: { params: { slug: string }
         <ProductGallery images={product.images} fallback={fallback} title={product.title} />
 
         <div className="pdp__info">
-          {product.brand && <p className="pdp__brand">{product.brand}</p>}
+          {product.brand && (
+            <p className="pdp__brand">
+              {product.brandId ? (
+                <Link href={`/search?brandId=${product.brandId}`} data-testid="pdp-brand-link">
+                  {product.brand}
+                </Link>
+              ) : (
+                product.brand
+              )}
+            </p>
+          )}
           <h1 data-testid="pdp-title">{product.title}</h1>
 
           {product.ratingCount > 0 && (
@@ -149,7 +160,13 @@ export default async function ProductPage({ params }: { params: { slug: string }
             {product.brand && (
               <li>
                 <span>Brand</span>
-                <strong>{product.brand}</strong>
+                <strong>
+                  {product.brandId ? (
+                    <Link href={`/search?brandId=${product.brandId}`}>{product.brand}</Link>
+                  ) : (
+                    product.brand
+                  )}
+                </strong>
               </li>
             )}
             {Object.entries(product.attributes ?? {})

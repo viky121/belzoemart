@@ -1974,6 +1974,26 @@ nav.main a:hover {
   margin-bottom: 2px;
 }
 
+/* "Min 5 · Max 20 per order" under the quantity stepper. */
+.pdp__limits {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+/* Brand name is a link to all products of that brand. */
+.pdp__brand a,
+.pdp-specs a {
+  color: var(--fk-blue, #2563eb);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.pdp__brand a:hover,
+.pdp-specs a:hover {
+  text-decoration: underline;
+}
+
 .pdp__info h1 {
   font-size: 1.35rem;
   font-weight: 600;
@@ -2857,6 +2877,15 @@ nav.main a:hover {
   font-weight: 600;
   font-size: 0.85rem;
   margin-bottom: 10px;
+}
+
+/* Error variant: a failed save/upload must not look like a success message. */
+.prod-form__msg--err {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 8px 10px;
 }
 
 .prod-form__hint {

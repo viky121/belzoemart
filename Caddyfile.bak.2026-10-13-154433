@@ -1,0 +1,25 @@
+# Belzo eMart reverse proxy.
+#
+# CURRENT: plain HTTP on port 80 (works with a raw EC2 public IP).
+# Requests to /api/* go to the NestJS API; everything else to the Next.js web.
+:80 {
+	encode zstd gzip
+
+	@api path /api/*
+	reverse_proxy @api api:4000
+
+	reverse_proxy web:3000
+}
+
+# ---------------------------------------------------------------------------
+# WHEN YOU HAVE A DOMAIN (auto-HTTPS via Let's Encrypt):
+# 1. Point the domain's A record to the EC2 public IP.
+# 2. Replace the ":80 { ... }" block above with the block below.
+# 3. Set PUBLIC_BASE_URL=https://shop.example.com in .env.prod and rebuild web.
+#
+# shop.example.com {
+# 	encode zstd gzip
+# 	@api path /api/*
+# 	reverse_proxy @api api:4000
+# 	reverse_proxy web:3000
+# }

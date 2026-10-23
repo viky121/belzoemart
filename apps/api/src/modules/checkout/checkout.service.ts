@@ -1,5 +1,13 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { paise, type Money, type PaymentMethod, type PriceBreakup, type PriceLine } from '@belzo/shared';
+import {
+  effectiveOrderLimits,
+  orderLimitsMessage,
+  paise,
+  type Money,
+  type PaymentMethod,
+  type PriceBreakup,
+  type PriceLine,
+} from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { InventoryService } from '../catalogue/inventory.service';
 import { CartService, type CartRef } from '../cart/cart.service';
@@ -142,6 +150,12 @@ export class CheckoutService {
         );
       }
       if (!item.inStock) throw new BadRequestException(`"${item.title}" is out of stock`);
+      // The admin's min/max per order. A cart saved before the limits changed is caught here, so the
+      // customer fixes the quantity before paying. (A missing limit means no limit.)
+      const limits = effectiveOrderLimits({ minOrderQty: item.minQty, maxOrderQty: item.maxQty });
+      if (item.quantity < limits.min || item.quantity > limits.max) {
+        throw new BadRequestException(orderLimitsMessage(item.title, limits, item.quantity));
+      }
       lines.push({ unitPrice: item.unitPrice, quantity: item.quantity, taxRatePct: item.taxRatePct });
       snapshot.push({
         variantId: item.variantId,

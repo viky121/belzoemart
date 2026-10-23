@@ -11,7 +11,7 @@ import type { SettingsService } from '../admin/settings.service';
  * Verifies checkout idempotency (BR-11): placing an order twice with the same
  * idempotency key returns the existing order and does NOT reserve stock again.
  */
-type CartLine = { unitPrice: number; quantity: number; taxRatePct: number };
+type CartLine = { unitPrice: number; quantity: number; taxRatePct: number; minQty?: number; maxQty?: number };
 
 describe('CheckoutService.place — idempotency', () => {
   /** `opts` swaps in a real PricingService / cart line; defaults keep the original mock. */
@@ -99,6 +99,28 @@ describe('CheckoutService.place — idempotency', () => {
     expect(result.reused).toBe(false);
     expect(result.orderId).toBe('new-order');
     expect(reserveCalls).toEqual(['v1']);
+  });
+
+  it('refuses to place an order whose quantity is outside the admin min/max, and reserves nothing', async () => {
+    const tooFew = build(null, { line: { unitPrice: 50000, quantity: 2, taxRatePct: 18, minQty: 5, maxQty: 20 } });
+    await expect(
+      tooFew.svc.place({ customerId: 'cust1' }, { addressId: 'addr1', paymentMethod: 'upi' }, 'KEY-MIN'),
+    ).rejects.toThrow('The minimum order quantity for "X" is 5.');
+    expect(tooFew.created).toHaveLength(0);
+    expect(tooFew.reserveCalls).toHaveLength(0);
+
+    const tooMany = build(null, { line: { unitPrice: 50000, quantity: 30, taxRatePct: 18, minQty: 5, maxQty: 20 } });
+    await expect(
+      tooMany.svc.place({ customerId: 'cust1' }, { addressId: 'addr1', paymentMethod: 'upi' }, 'KEY-MAX'),
+    ).rejects.toThrow('You can buy at most 20 of "X" per order.');
+    expect(tooMany.created).toHaveLength(0);
+  });
+
+  it('places the order when the quantity sits inside the limits (or no limit is set)', async () => {
+    const inside = build(null, { line: { unitPrice: 50000, quantity: 5, taxRatePct: 18, minQty: 5, maxQty: 20 } });
+    expect((await inside.svc.place({ customerId: 'cust1' }, { addressId: 'addr1', paymentMethod: 'upi' }, 'KEY-IN')).reused).toBe(false);
+    const unlimited = build(null);
+    expect((await unlimited.svc.place({ customerId: 'cust1' }, { addressId: 'addr1', paymentMethod: 'upi' }, 'KEY-NONE')).reused).toBe(false);
   });
 
   it('rejects placing an order without a customer (guest)', async () => {

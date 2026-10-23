@@ -2,7 +2,9 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import {
   DEFAULT_PAGE_SIZE,
   discountPct,
+  effectiveOrderLimits,
   slugify,
+  variantUnitLabel,
   type ProductCardDto,
   type ProductDetailDto,
   type ProductQuery,
@@ -44,15 +46,10 @@ export class ProductService {
   private unitLabel(v?: {
     attributesJson?: unknown;
     weightGrams?: number;
+    weightValue?: number | null;
+    weightUnit?: string | null;
   }): string | null {
-    const attrs = (v?.attributesJson as Record<string, string> | undefined) ?? {};
-    for (const key of ['Weight', 'Net Weight', 'Volume', 'Size', 'Pack', 'Quantity']) {
-      const found = Object.entries(attrs).find(([k]) => k.toLowerCase() === key.toLowerCase());
-      if (found && found[1]) return String(found[1]);
-    }
-    const g = v?.weightGrams ?? 0;
-    if (g > 0) return g >= 1000 ? `${(g / 1000).toString()} kg` : `${g} g`;
-    return null;
+    return variantUnitLabel(v);
   }
 
   private toCard(p: {
@@ -62,12 +59,17 @@ export class ProductService {
     ratingAvg: number;
     ratingCount: number;
     images: { url: string }[];
+    brand?: { id: string; name: string } | null;
     variants: {
       id: string;
       mrp: number;
       sellingPrice: number;
       attributesJson?: unknown;
       weightGrams?: number;
+      weightValue?: number | null;
+      weightUnit?: string | null;
+      minOrderQty?: number | null;
+      maxOrderQty?: number | null;
       isActive?: boolean;
     }[];
   }): ProductCardDto {
@@ -87,6 +89,9 @@ export class ProductService {
       ratingCount: p.ratingCount,
       defaultVariantId: hasId(v) ? v.id : null,
       unit: hasId(v) ? this.unitLabel(v) : null,
+      brand: p.brand?.name ?? null,
+      brandId: p.brand?.id ?? null,
+      minQty: hasId(v) ? effectiveOrderLimits(v).min : 1,
     };
   }
 
@@ -105,6 +110,7 @@ export class ProductService {
         where: { status: 'published', id: { in: ids }, variants: { some: { isActive: true } } },
         include: {
           images: { orderBy: { position: 'asc' }, take: 1 },
+          brand: { select: { id: true, name: true } },
           variants: { where: { isActive: true } },
         },
       });
@@ -135,6 +141,7 @@ export class ProductService {
         where,
         include: {
           images: { orderBy: { position: 'asc' }, take: 1 },
+          brand: { select: { id: true, name: true } },
           variants: { where: { isActive: true } },
         },
         orderBy,
@@ -190,6 +197,7 @@ export class ProductService {
       slug: p.slug,
       description: p.description,
       brand: p.brand?.name ?? null,
+      brandId: p.brandId ?? null,
       categoryId: p.categoryId,
       hsnCode: p.hsnCode,
       taxRatePct: p.taxRatePct,
@@ -214,7 +222,10 @@ export class ProductService {
         discountPct: discountPct(vr.mrp as never, vr.sellingPrice as never),
         attributes: (vr.attributesJson as Record<string, string>) ?? {},
         imageUrl: vr.imageUrl,
-        inStock: (vr.inventory?.available ?? 0) > 0,
+        // Stock below the minimum order quantity cannot be bought, so it shows as out of stock.
+        inStock: (vr.inventory?.available ?? 0) >= effectiveOrderLimits(vr).min,
+        minQty: effectiveOrderLimits(vr).min,
+        maxQty: effectiveOrderLimits(vr).max,
         priceSlabs:
           (vr.priceSlabsJson as unknown as ProductDetailDto['variants'][number]['priceSlabs']) ??
           [],
@@ -311,7 +322,7 @@ export class ProductService {
   /**
    * Apply percentage bulk tiers to EVERY active variant of a product at once.
    * Each variant's absolute slab price is derived from its own selling price
-   * (unitPrice = round(sellingPrice × (1 − discountPct/100))), so packs with
+   * (unitPrice = round(sellingPrice Ã— (1 âˆ’ discountPct/100))), so packs with
    * different base prices each get a correct tier price.
    */
   async applyPriceSlabs(
@@ -322,7 +333,7 @@ export class ProductService {
     const seen = new Set<number>();
     for (const t of sorted) {
       if (!Number.isInteger(t.minQty) || t.minQty < 2) {
-        throw new BadRequestException('Tier minQty must be an integer ≥ 2');
+        throw new BadRequestException('Tier minQty must be an integer â‰¥ 2');
       }
       if (seen.has(t.minQty)) throw new BadRequestException('Duplicate tier minQty');
       seen.add(t.minQty);
@@ -540,6 +551,9 @@ export class ProductService {
         stock,
         // Default variant so the table's Update Stock can target it directly.
         defaultVariantId: p.variants[0]?.id ?? null,
+        // That variant's purchase limits (null = none) for the Update Stock dialog.
+        minOrderQty: p.variants[0]?.minOrderQty ?? null,
+        maxOrderQty: p.variants[0]?.maxOrderQty ?? null,
       };
     });
   }
@@ -620,7 +634,7 @@ export class ProductService {
     let ok = 0;
 
     // Tolerant category resolution: an exact slug wins; otherwise match the
-    // category NAME or SLUG ignoring case, punctuation and "&" vs "and" — so
+    // category NAME or SLUG ignoring case, punctuation and "&" vs "and" â€” so
     // "tea-coffee", "Tea & Coffee" and "tea-and-coffee" all resolve to the same
     // category. Names that exist in more than one branch (e.g. "Ghee") are
     // reported as ambiguous with the exact slugs to choose from.
@@ -646,7 +660,7 @@ export class ProductService {
       if (matches.length === 1) return matches[0]!;
       if (matches.length > 1) {
         throw new Error(
-          `category "${raw}" is ambiguous — use one of: ${matches.map((m) => m.slug).join(', ')}`,
+          `category "${raw}" is ambiguous â€” use one of: ${matches.map((m) => m.slug).join(', ')}`,
         );
       }
       const hints = key
@@ -659,7 +673,7 @@ export class ProductService {
             .map((c) => c.slug)
         : [];
       throw new Error(
-        `unknown category "${raw}"` + (hints.length ? ` — did you mean: ${hints.join(', ')}?` : ''),
+        `unknown category "${raw}"` + (hints.length ? ` â€” did you mean: ${hints.join(', ')}?` : ''),
       );
     };
 
