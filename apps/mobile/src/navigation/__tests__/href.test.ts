@@ -90,3 +90,30 @@ describe('hrefToRoute (design §2.7)', () => {
     });
   });
 });
+
+describe('hrefToRoute: selected products link', () => {
+  const A = '11111111-1111-4111-8111-111111111111';
+  const B = '22222222-2222-4222-8222-222222222222';
+
+  it('opens the product list with the picked ids (in order) and the heading', () => {
+    expect(hrefToRoute(`/products?ids=${B},${A}&title=Sugar%20offers`, API)).toEqual({
+      kind: 'route',
+      name: 'ProductList',
+      params: { ids: `${B},${A}`, title: 'Sugar offers' },
+    });
+  });
+
+  it('falls back to a default heading', () => {
+    expect(hrefToRoute(`/products?ids=${A}`, API)).toEqual({
+      kind: 'route',
+      name: 'ProductList',
+      params: { ids: A, title: 'Selected products' },
+    });
+  });
+
+  it('is not tappable without a valid id', () => {
+    expect(hrefToRoute('/products?ids=', API)).toBeNull();
+    expect(hrefToRoute('/products?ids=nope', API)).toBeNull();
+    expect(hrefToRoute('/products', API)).toBeNull();
+  });
+});

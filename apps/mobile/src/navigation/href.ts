@@ -1,4 +1,4 @@
-import type { ProductSort } from '@belzo/shared';
+import { cleanProductIds, type ProductSort } from '@belzo/shared';
 
 import type { RootRouteName } from './types';
 
@@ -74,6 +74,18 @@ function mapPath(pathAndQuery: string): HrefTarget | null {
         kind: 'route',
         name: 'ProductList',
         params: { sort: sort ?? 'relevance', title: 'All products' },
+      };
+    }
+    case 'products': {
+      // Banner "selected products" link: /products?ids=<uuid>,<uuid>&title=...
+      if (second !== undefined) return null;
+      const ids = cleanProductIds((query.ids ?? '').split(','));
+      if (ids.length === 0) return null;
+      const title = query.title?.trim();
+      return {
+        kind: 'route',
+        name: 'ProductList',
+        params: { ids: ids.join(','), title: title || 'Selected products' },
       };
     }
     case 'category':

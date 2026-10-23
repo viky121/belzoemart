@@ -105,7 +105,10 @@ export function ProductListScreen({ navigation, route }: RootScreenProps<'Produc
   const slugUnresolved =
     Boolean(params.categorySlug) && !params.categoryId && categories.isSuccess && !resolvedCategoryId;
 
-  const list = useProducts({ categoryId: subId ?? resolvedCategoryId, brandId, sort });
+  const handPicked = Boolean(params.ids);
+  const list = useProducts(
+    handPicked ? { ids: params.ids } : { categoryId: subId ?? resolvedCategoryId, brandId, sort },
+  );
   const products = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
 
   useLayoutEffect(() => {
@@ -145,6 +148,7 @@ export function ProductListScreen({ navigation, route }: RootScreenProps<'Produc
 
   return (
     <Screen edges={['left', 'right']}>
+      {handPicked ? null : (
       <View style={styles.toolbar}>
         {subs.length > 0 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pills}>
@@ -160,6 +164,7 @@ export function ProductListScreen({ navigation, route }: RootScreenProps<'Produc
           <DropChip label={priceLabel} active={isPriceSort} onPress={() => setSheet('price')} />
         </ScrollView>
       </View>
+      )}
 
       {list.isLoading ? (
         <ProductGridSkeleton count={6} />

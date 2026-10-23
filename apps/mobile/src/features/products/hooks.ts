@@ -11,6 +11,8 @@ export const PRODUCT_PAGE_SIZE = 20;
 export interface ProductListParams {
   categoryId?: string;
   brandId?: string;
+  /** Comma-separated product ids (hand-picked list). */
+  ids?: string;
   sort?: ProductSort;
 }
 

@@ -26,6 +26,8 @@ export type RootStackParamList = {
         categoryId?: string;
         categorySlug?: string;
         brandId?: string;
+        /** Comma-separated product ids: a hand-picked list (banner "selected products" link). */
+        ids?: string;
         sort?: ProductSort;
         title?: string;
       }
