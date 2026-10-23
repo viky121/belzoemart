@@ -5,7 +5,7 @@ import Link from 'next/link';
 import type { ProductCardDto } from '@belzo/shared';
 import { formatInr } from '@/lib/catalogue-api';
 import { placeholderImage, isUsableImageUrl } from '@/lib/category-theme';
-import { cartApi } from '@/lib/cart-api';
+import { cartApi, toast } from '@/lib/cart-api';
 import { useAuth } from '@/lib/auth-context';
 
 /** Storefront product card used in listings, rails and search results. */
@@ -18,6 +18,8 @@ export function ProductCard({ product }: { product: ProductCardDto }) {
   const dummy = placeholderImage(product.title, product.slug);
   const showReal = imgOk && isUsableImageUrl(product.imageUrl);
   const variantId = product.defaultVariantId ?? null;
+  // The admin's minimum order quantity: Add starts there, and stepping down from it removes the item.
+  const minQty = product.minQty ?? 1;
 
   const stop = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -49,8 +51,10 @@ export function ProductCard({ product }: { product: ProductCardDto }) {
       if (next <= 0) await cartApi.remove(variantId, accessToken ?? undefined);
       else if (prev <= 0) await cartApi.add(variantId, next, accessToken ?? undefined);
       else await cartApi.update(variantId, next, accessToken ?? undefined);
-    } catch {
+    } catch (err) {
       setQty(prev); // revert on failure
+      // Say why (e.g. the per-order maximum) instead of failing silently.
+      toast(err instanceof Error && err.message ? err.message : 'Could not update your cart');
     } finally {
       setBusy(false);
     }
@@ -113,7 +117,7 @@ export function ProductCard({ product }: { product: ProductCardDto }) {
             <button
               type="button"
               className="product-card__add"
-              onClick={(e) => setCartQty(e, 1)}
+              onClick={(e) => setCartQty(e, minQty)}
               disabled={busy}
               data-testid={`card-add-${product.slug}`}
             >
@@ -121,7 +125,7 @@ export function ProductCard({ product }: { product: ProductCardDto }) {
             </button>
           ) : (
             <span className="product-card__stepper" data-testid={`card-stepper-${product.slug}`}>
-              <button type="button" onClick={(e) => setCartQty(e, qty - 1)} disabled={busy} aria-label="Decrease quantity">
+              <button type="button" onClick={(e) => setCartQty(e, qty <= minQty ? 0 : qty - 1)} disabled={busy} aria-label="Decrease quantity">
                 −
               </button>
               <span>{qty}</span>

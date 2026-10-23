@@ -47,6 +47,9 @@ export interface CartLine {
   priceSlabs: { minQty: number; unitPrice: number }[];
   /** Total units of this product across the cart (drives the tier). */
   tierQty: number;
+  /** Fewest / most units of this variant per order, set by the admin (1 / 99 when unset). */
+  minQty?: number;
+  maxQty?: number;
 }
 
 export interface CartView {

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import type { VariantDto } from '@belzo/shared';
+import { effectiveOrderLimits, orderLimitsHint, type VariantDto } from '@belzo/shared';
 import { formatInr } from '@/lib/catalogue-api';
 import { cartApi } from '@/lib/cart-api';
 import { useAuth } from '@/lib/auth-context';
@@ -29,9 +29,21 @@ export function ProductVariants({
   const router = useRouter();
   const { accessToken } = useAuth();
   const [selectedId, setSelectedId] = useState(variants[0]?.id ?? '');
-  const [qty, setQty] = useState(1);
+  // Start at the variant's minimum order quantity (1 when the admin set none).
+  const [qty, setQty] = useState(variants[0]?.minQty ?? 1);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const selected = variants.find((v) => v.id === selectedId) ?? variants[0];
+  const limits = effectiveOrderLimits({ minOrderQty: selected?.minQty, maxOrderQty: selected?.maxQty });
+  const limitsHint = orderLimitsHint(limits);
+  const fit = (n: number) => Math.min(limits.max, Math.max(limits.min, n));
+
+  /** Switching pack size also resets the quantity to that pack's own minimum. */
+  function selectVariant(v: VariantDto) {
+    setSelectedId(v.id);
+    setQty(v.minQty ?? 1);
+    setError(null);
+  }
 
   const slabs = useMemo(
     () => (selected ? buildSlabs(selected.mrp, selected.sellingPrice, selected.priceSlabs ?? []) : []),
@@ -58,11 +70,13 @@ export function ProductVariants({
   async function addToCart(then: 'cart' | 'checkout') {
     if (!selected) return;
     setBusy(true);
+    setError(null);
     try {
       await cartApi.add(selected.id, qty, accessToken ?? undefined);
       router.push(then === 'checkout' ? '/checkout' : '/cart');
-    } catch {
-      alert('Could not add to cart. Please try again.');
+    } catch (e) {
+      // Show the server's reason (e.g. "You can buy at most 5 of ... per order") instead of a generic alert.
+      setError(e instanceof Error && e.message ? e.message : 'Could not add to cart. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -93,7 +107,7 @@ export function ProductVariants({
           {variants.map((v) => (
             <button
               key={v.id}
-              onClick={() => setSelectedId(v.id)}
+              onClick={() => selectVariant(v)}
               className={`pack-chip${v.id === selectedId ? ' pack-chip--active' : ''}`}
               data-testid={`variant-${v.sku}`}
             >
@@ -114,7 +128,7 @@ export function ProductVariants({
                 <td
                   key={s.label}
                   className={`slab-cell${i === activeSlab ? ' slab--on' : ''}`}
-                  onClick={() => setQty(s.min)}
+                  onClick={() => setQty(fit(s.min))}
                   role="button"
                   tabIndex={0}
                   title={`Set quantity to ${s.min}`}
@@ -130,7 +144,7 @@ export function ProductVariants({
                 <td
                   key={s.label}
                   className={`slab-cell${i === activeSlab ? ' slab--on' : ''}`}
-                  onClick={() => setQty(s.min)}
+                  onClick={() => setQty(fit(s.min))}
                 >
                   {formatInr(s.price)}
                 </td>
@@ -142,7 +156,7 @@ export function ProductVariants({
                 <td
                   key={s.label}
                   className={`slab-cell${i === activeSlab ? ' slab--on' : ''}`}
-                  onClick={() => setQty(s.min)}
+                  onClick={() => setQty(fit(s.min))}
                 >
                   {s.marginPct.toFixed(2)}%
                 </td>
@@ -163,6 +177,8 @@ export function ProductVariants({
           rootTestId="pdp-qty"
           testId="pdp-qty-value"
           value={qty}
+          min={limits.min}
+          max={limits.max}
           onCommit={setQty}
           onLiveChange={setQty}
         />
@@ -186,6 +202,16 @@ export function ProductVariants({
           </button>
         </div>
       </div>
+      {limitsHint && (
+        <p className="pdp__limits" data-testid="pdp-order-limits">
+          {limitsHint}
+        </p>
+      )}
+      {error && (
+        <p className="prod-form__msg prod-form__msg--err" role="alert" data-testid="pdp-cart-error">
+          {error}
+        </p>
+      )}
     </div>
     </>
   );

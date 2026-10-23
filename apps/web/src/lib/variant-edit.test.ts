@@ -1,6 +1,8 @@
 import {
   initialEdit,
   mergeVariantAttrs,
+  orderLimitsBody,
+  parseOrderLimit,
   pickAttr,
   removeVariantConfirmText,
   removeVariantSuccessMessage,
@@ -9,6 +11,7 @@ import {
   toPaise,
   toRupees,
   validateEdits,
+  validateOrderLimits,
   variantUpsertBody,
   type AdminVariantRow,
   type VariantEdit,
@@ -51,6 +54,8 @@ describe('variant-edit — initialEdit', () => {
       price: '799.50',
       cost: '',
       stock: '10',
+      minQty: '',
+      maxQty: '',
     });
   });
 
@@ -273,5 +278,53 @@ describe('variant-edit — remove variant helpers', () => {
     expect(removeVariantSuccessMessage('500 ml (OIL-500)', 'deactivated')).toMatch(
       /^Removed "500 ml \(OIL-500\)" — .*kept for order history\.$/,
     );
+  });
+});
+
+describe('variant-edit — order limits (min / max per order)', () => {
+  it('shows a saved limit and leaves an unset one blank', () => {
+    const e = initialEdit(row({ minOrderQty: 5, maxOrderQty: null }));
+    expect(e.minQty).toBe('5');
+    expect(e.maxQty).toBe('');
+  });
+
+  it('parses blank as no limit, a whole number as that number, junk as NaN', () => {
+    expect(parseOrderLimit('')).toBeNull();
+    expect(parseOrderLimit(' 12 ')).toBe(12);
+    expect(parseOrderLimit('1.5')).toBeNaN();
+    expect(parseOrderLimit('-3')).toBeNaN();
+  });
+
+  it('accepts blank, one-sided and valid ranges', () => {
+    expect(validateOrderLimits('', '')).toBeNull();
+    expect(validateOrderLimits('5', '')).toBeNull();
+    expect(validateOrderLimits('', '20')).toBeNull();
+    expect(validateOrderLimits('5', '5')).toBeNull();
+    expect(validateOrderLimits('1', '99')).toBeNull();
+  });
+
+  it('rejects zero, over 99, decimals and min greater than max', () => {
+    expect(validateOrderLimits('0', '')).toMatch(/whole number from 1 to 99/);
+    expect(validateOrderLimits('', '100')).toMatch(/whole number from 1 to 99/);
+    expect(validateOrderLimits('2.5', '')).toMatch(/whole number/);
+    expect(validateOrderLimits('10', '5')).toMatch(/cannot be more than the max/);
+  });
+
+  it('validateEdits reports a bad limit against the SKU', () => {
+    const v = row();
+    const msg = validateEdits([v], { v1: { ...initialEdit(v), minQty: '9', maxQty: '3' } });
+    expect(msg).toMatch(/TEA-1KG: Min order quantity cannot be more than the max/);
+  });
+
+  it('only sends a limits body when min or max actually changed', () => {
+    const v = row({ minOrderQty: 2, maxOrderQty: 10 });
+    expect(orderLimitsBody(v, initialEdit(v))).toBeNull();
+    expect(orderLimitsBody(v, { ...initialEdit(v), maxQty: '' })).toEqual({ minOrderQty: 2, maxOrderQty: null });
+    expect(orderLimitsBody(v, { ...initialEdit(v), minQty: '4' })).toEqual({ minOrderQty: 4, maxOrderQty: 10 });
+  });
+
+  it('a limit-only change does not trigger a variant upsert (price, tiers, weight stay untouched)', () => {
+    const v = row();
+    expect(variantUpsertBody(v, { ...initialEdit(v), minQty: '5', maxQty: '20' })).toBeNull();
   });
 });

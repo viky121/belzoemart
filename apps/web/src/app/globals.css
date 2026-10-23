@@ -1971,6 +1971,13 @@ nav.main a:hover {
   margin-bottom: 2px;
 }
 
+/* "Min 5 · Max 20 per order" under the quantity stepper. */
+.pdp__limits {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
 /* Brand name is a link to all products of that brand. */
 .pdp__brand a,
 .pdp-specs a {

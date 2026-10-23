@@ -319,7 +319,8 @@ export class OrderService {
     const order = await this.getForCustomer(customerId, orderId);
     for (const item of order.items) {
       try {
-        await this.cart.addItem({ customerId }, item.variantId, item.quantity);
+        // clamp: if the limits changed since the order, trim the quantity into them rather than skipping the item.
+        await this.cart.addItem({ customerId }, item.variantId, item.quantity, { clamp: true });
       } catch (e) {
         // A variant removed since the order was placed is skipped, not fatal.
         if (!(e instanceof BadRequestException)) throw e;

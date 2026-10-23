@@ -359,6 +359,8 @@ model Variant {
   weightValue    Float? // weight / pack size as entered by the admin
   weightUnit     String? // kg | gm | count | pc | litre | ml
   costPrice      Int? // purchase price, paise; ADMIN-ONLY
+  minOrderQty    Int? // fewest units per order; null = 1
+  maxOrderQty    Int? // most units per order; null = the global cart cap
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

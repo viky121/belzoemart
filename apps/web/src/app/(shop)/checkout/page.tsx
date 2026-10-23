@@ -108,8 +108,9 @@ export default function CheckoutPage() {
         body: { addressId, couponCode: coupon || undefined },
       });
       setPreview(res);
-    } catch {
-      setError('Could not compute totals. Is your cart empty?');
+    } catch (e) {
+      // The server says why (out of stock, quantity outside the min/max, empty cart ...).
+      setError(e instanceof Error && e.message ? e.message : 'Could not compute totals. Is your cart empty?');
     }
   }, [addressId, coupon, authFetch]);
 

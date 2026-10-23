@@ -81,6 +81,9 @@ export interface VariantDto {
   inStock: boolean;
   /** Optional bulk pricing tiers (minQty ascending). Empty = flat pricing. */
   priceSlabs: PriceSlabTier[];
+  /** Fewest / most units a customer can buy of this variant in one order (defaults 1 and 99). */
+  minQty?: number;
+  maxQty?: number;
 }
 
 export interface ProductCardDto {
@@ -97,6 +100,8 @@ export interface ProductCardDto {
   defaultVariantId?: string | null;
   /** Pack/size label for the default variant, e.g. "1 kg", "1 L", "500 ml". */
   unit?: string | null;
+  /** Fewest units of the default variant per order, so a listing's Add button starts at the right number. */
+  minQty?: number;
   /** Brand name + id, so a listing can link to "all products of this brand" (/search?brandId=). */
   brand?: string | null;
   brandId?: string | null;

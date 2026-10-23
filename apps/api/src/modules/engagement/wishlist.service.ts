@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { variantUnitLabel } from '@belzo/shared';
+import { effectiveOrderLimits, variantUnitLabel } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 /**
@@ -30,6 +30,7 @@ export class WishlistService {
       const mrp = v?.mrp ?? 0;
       const sellingPrice = v?.sellingPrice ?? 0;
       const unit = variantUnitLabel(v);
+      const limits = effectiveOrderLimits(v);
       return {
         id: r.id,
         variantId: r.variantId,
@@ -41,7 +42,8 @@ export class WishlistService {
         mrp,
         sellingPrice,
         discountPct: mrp > 0 ? Math.round(((mrp - sellingPrice) / mrp) * 100) : 0,
-        inStock: !!v && v.isActive && (v.inventory?.available ?? 0) > 0,
+        inStock: !!v && v.isActive && (v.inventory?.available ?? 0) >= limits.min,
+        minQty: limits.min,
       };
     });
   }

@@ -7,6 +7,7 @@ import { ProductWizard, type CatNode } from './product-wizard';
 import { ProductEditor } from './product-editor';
 import { VariantSlabsEditor } from './variant-slabs';
 import { ExcelDownloadButton } from './excel-download-button';
+import { parseOrderLimit, validateOrderLimits } from '@/lib/variant-edit';
 
 interface ProdRow {
   id: string;
@@ -20,6 +21,9 @@ interface ProdRow {
   variantCount: number;
   stock: number;
   defaultVariantId: string | null;
+  /** The default variant's purchase limits (null = none). */
+  minOrderQty?: number | null;
+  maxOrderQty?: number | null;
 }
 interface Brand {
   id: string;
@@ -471,6 +475,8 @@ function UpdateStockModal({
   onDone: () => void;
 }) {
   const [qty, setQty] = useState(String(product.stock));
+  const [minQty, setMinQty] = useState(product.minOrderQty == null ? '' : String(product.minOrderQty));
+  const [maxQty, setMaxQty] = useState(product.maxOrderQty == null ? '' : String(product.maxOrderQty));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -479,10 +485,26 @@ function UpdateStockModal({
       setErr('This product has no variant yet. Add a variant first.');
       return;
     }
+    const limitProblem = validateOrderLimits(minQty, maxQty);
+    if (limitProblem) {
+      setErr(limitProblem);
+      return;
+    }
     const target = parseInt(qty || '0', 10);
     const delta = target - product.stock;
+    const nextMin = parseOrderLimit(minQty);
+    const nextMax = parseOrderLimit(maxQty);
+    const limitsChanged =
+      nextMin !== (product.minOrderQty ?? null) || nextMax !== (product.maxOrderQty ?? null);
     setBusy(true);
+    setErr(null);
     try {
+      if (limitsChanged) {
+        await adminFetch(`/admin/variants/${product.defaultVariantId}/order-limits`, {
+          method: 'PATCH',
+          body: { minOrderQty: nextMin, maxOrderQty: nextMax },
+        });
+      }
       if (delta !== 0) {
         await adminFetch(`/admin/inventory/${product.defaultVariantId}/adjust`, {
           method: 'POST',
@@ -490,21 +512,64 @@ function UpdateStockModal({
         });
       }
       onDone();
-    } catch {
-      setErr('Could not update stock.');
+    } catch (e) {
+      setErr(e instanceof Error && e.message ? e.message : 'Could not update stock.');
     } finally {
       setBusy(false);
     }
   }
+
+  // A minimum above the stock on hand means nobody can order it until stock is added.
+  const minNum = parseOrderLimit(minQty);
+  const stockNum = parseInt(qty || '0', 10);
+  const minAboveStock = minNum !== null && Number.isFinite(minNum) && Number.isFinite(stockNum) && minNum > stockNum;
 
   return (
     <div className="pm-modal" role="dialog" aria-modal="true" data-testid="update-stock-modal">
       <div className="pm-modal__card">
         <h3>Update Stock</h3>
         <p className="admin-muted">{product.title}</p>
-        {err && <p className="prod-form__msg">{err}</p>}
+        {err && <p className="prod-form__msg prod-form__msg--err" role="alert">{err}</p>}
         <label className="auth-label">Available quantity</label>
         <input className="auth-input" type="number" min={0} value={qty} onChange={(e) => setQty(e.target.value)} data-testid="update-stock-input" autoFocus />
+        <div className="prod-grid" style={{ marginTop: 12 }}>
+          <div>
+            <label className="auth-label">Min order qty</label>
+            <input
+              className="auth-input"
+              type="number"
+              min={1}
+              max={99}
+              step={1}
+              placeholder="1"
+              value={minQty}
+              onChange={(e) => setMinQty(e.target.value)}
+              data-testid="update-stock-min"
+            />
+          </div>
+          <div>
+            <label className="auth-label">Max order qty</label>
+            <input
+              className="auth-input"
+              type="number"
+              min={1}
+              max={99}
+              step={1}
+              placeholder="no limit"
+              value={maxQty}
+              onChange={(e) => setMaxQty(e.target.value)}
+              data-testid="update-stock-max"
+            />
+          </div>
+        </div>
+        <p className="prod-form__hint">
+          The fewest and most units one customer can buy in a single order. Leave blank for no limit.
+        </p>
+        {minAboveStock && (
+          <p className="prod-form__msg prod-form__msg--err" role="alert">
+            Min order qty is more than the stock, so customers cannot order this until you add stock.
+          </p>
+        )}
         <div className="pm-modal__actions">
           <button className="wiz__ghost" onClick={onClose}>Cancel</button>
           <button className="wiz__next" onClick={save} disabled={busy} data-testid="update-stock-save">

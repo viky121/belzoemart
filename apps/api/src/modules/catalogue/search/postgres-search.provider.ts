@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
   DEFAULT_PAGE_SIZE,
   discountPct,
+  effectiveOrderLimits,
   variantUnitLabel,
   type ProductCardDto,
   type ProductQuery,
@@ -75,6 +76,7 @@ export class PostgresSearchProvider implements SearchProvider {
         unit,
         brand: p.brand?.name ?? null,
         brandId: p.brand?.id ?? null,
+        minQty: 'id' in v ? effectiveOrderLimits(v).min : 1,
       };
     });
 

@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import {
   DEFAULT_PAGE_SIZE,
   discountPct,
+  effectiveOrderLimits,
   slugify,
   variantUnitLabel,
   type ProductCardDto,
@@ -67,6 +68,8 @@ export class ProductService {
       weightGrams?: number;
       weightValue?: number | null;
       weightUnit?: string | null;
+      minOrderQty?: number | null;
+      maxOrderQty?: number | null;
       isActive?: boolean;
     }[];
   }): ProductCardDto {
@@ -88,6 +91,7 @@ export class ProductService {
       unit: hasId(v) ? this.unitLabel(v) : null,
       brand: p.brand?.name ?? null,
       brandId: p.brand?.id ?? null,
+      minQty: hasId(v) ? effectiveOrderLimits(v).min : 1,
     };
   }
 
@@ -218,7 +222,10 @@ export class ProductService {
         discountPct: discountPct(vr.mrp as never, vr.sellingPrice as never),
         attributes: (vr.attributesJson as Record<string, string>) ?? {},
         imageUrl: vr.imageUrl,
-        inStock: (vr.inventory?.available ?? 0) > 0,
+        // Stock below the minimum order quantity cannot be bought, so it shows as out of stock.
+        inStock: (vr.inventory?.available ?? 0) >= effectiveOrderLimits(vr).min,
+        minQty: effectiveOrderLimits(vr).min,
+        maxQty: effectiveOrderLimits(vr).max,
         priceSlabs:
           (vr.priceSlabsJson as unknown as ProductDetailDto['variants'][number]['priceSlabs']) ??
           [],
@@ -544,6 +551,9 @@ export class ProductService {
         stock,
         // Default variant so the table's Update Stock can target it directly.
         defaultVariantId: p.variants[0]?.id ?? null,
+        // That variant's purchase limits (null = none) for the Update Stock dialog.
+        minOrderQty: p.variants[0]?.minOrderQty ?? null,
+        maxOrderQty: p.variants[0]?.maxOrderQty ?? null,
       };
     });
   }
