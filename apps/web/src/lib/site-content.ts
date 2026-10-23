@@ -6,6 +6,7 @@ import {
   DEFAULT_HOME_EMART,
   mergeHome,
   sanitizeMobileHome,
+  websiteOfferRows,
   type MobileOfferRow,
   type ThemeName,
 } from '@belzo/shared';
@@ -50,7 +51,7 @@ export interface SiteContent {
   footer: FooterContent;
   /** Raw home-section config from the API (sanitized/validated by the resolver). */
   sections: unknown;
-  /** Admin-managed offer-banner rows (Admin → Mobile app → Offer rows), shown on the home page. */
+  /** Offer-banner rows the admin marked "App and website" (Admin → Mobile app → Offer rows). */
   offerRows: MobileOfferRow[];
   /** Saved home section order, as served (resolved against the content when rendering). */
   homeLayout: unknown;
@@ -61,7 +62,7 @@ interface RawPublicSettings {
   home?: Partial<HomeContent> | null;
   footer?: Partial<FooterContent> | null;
   sections?: unknown;
-  /** Shared with the mobile app: its offer rows are also shown on the website home. */
+  /** Shared with the mobile app: only offer rows marked "App and website" are shown on the website home. */
   mobileHome?: unknown;
   /** Saved order of the home sections (Admin → Pages → Home page design). */
   homeLayout?: unknown;
@@ -87,7 +88,7 @@ export async function getSiteContent(): Promise<SiteContent> {
       home: mergeHome(theme, s.home),
       footer: { ...DEFAULT_FOOTER, ...(s.footer ?? {}) },
       sections: s.sections ?? null,
-      offerRows: sanitizeMobileHome(s.mobileHome).offerRows,
+      offerRows: websiteOfferRows(sanitizeMobileHome(s.mobileHome).offerRows),
       homeLayout: s.homeLayout ?? null,
     };
   } catch {

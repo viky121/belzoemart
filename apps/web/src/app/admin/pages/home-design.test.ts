@@ -28,6 +28,7 @@ function base(): DesignState {
       columns: 2 as const,
       position: 'after_hero' as const,
       enabled: true,
+      showOn: 'both' as const,
       banners: [{ id: 'b1', imageUrl: '/a.jpg', linkUrl: '#', title: '', enabled: true }],
     },
   ];

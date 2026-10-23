@@ -6,6 +6,7 @@ import {
   MOBILE_OFFER_COLUMNS,
   MOBILE_OFFER_POSITIONS,
   MOBILE_OFFER_SIZE_HINT,
+  type MobileOfferShowOn,
   PROMO_COLORS,
   promoImage,
   tileImage,
@@ -139,6 +140,20 @@ export function OfferEditor({
         ))}
       </select>
       <span className="prod-form__hint">On the website this row sits where you drag it on this page.</span>
+
+      <label className="auth-label">Show on</label>
+      <select
+        className="auth-input"
+        value={row.showOn}
+        onChange={(e) => onChange({ ...row, showOn: e.target.value as MobileOfferShowOn })}
+        style={{ maxWidth: 420 }}
+      >
+        <option value="app">Mobile app only</option>
+        <option value="both">App and website</option>
+      </select>
+      {row.showOn === 'app' && (
+        <span className="prod-form__hint">This row is app only, so it does not appear on the website.</span>
+      )}
 
       <BannerList
         banners={row.banners}
