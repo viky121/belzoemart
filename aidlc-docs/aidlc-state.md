@@ -93,3 +93,4 @@
 - [x] Admin Reports: questions answered (Q1=C skip Purchasing, Q2 to Q5 = A); built and verified, summary `aidlc-docs/construction/admin-reports/code/summary.md`; not deployed
 - [ ] (remaining stages) (EXECUTE); Functional Design + NFR Design per unit (EXECUTE); NFR Requirements + Infrastructure Design (SKIP)
 - [ ] Construction (per phase) and Build and Test
+- [ ] Admin Roles and Access: questions issued `aidlc-docs/inception/requirements/admin-roles-questions.md` (Q1-Q8); AWAITING ANSWERS

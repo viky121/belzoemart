@@ -536,3 +536,11 @@ answer: both"
 **AI Response**: "Built the Admin Reports section per the recorded answers: shared report maths, order-item cost snapshot (migration 20261024090000), ReportsService/Controller (9 reports, CSV), tabbed admin page with a shared date filter, cost price hidden from every order response. Verified with shared, API (incl. real-database run), web and mobile suites. Summary: aidlc-docs/construction/admin-reports/code/summary.md. Nothing deployed."
 **Context**: CONSTRUCTION - Admin Reports code generation complete (small adaptive workflow), awaiting user review
 ---
+
+---
+## Admin Roles and Access - Request and Question File
+**Timestamp**: 2026-10-24T14:00:00Z
+**User Input**: "okay ab admin side me user types and its access dene ka module bna do, jaha user types add kar sake like makanger, accountant, admin, and other, aur usko kya kya access dena hai hai, uska option aa jaye"
+**AI Response**: "Read the current RBAC (fixed 5 role names in code, unused DB role/permission tables, no staff UI, no 'me' endpoint, 15 minute tokens, full inventory of admin routes). Created aidlc-docs/inception/requirements/admin-roles-questions.md with Q1-Q8 (detail level, existing roles, who may manage staff, roles per person, staff screen, when changes apply, what staff see) and a proposed permission list. Waiting for answers before building."
+**Context**: INCEPTION - Requirements Analysis (Admin Roles and Access), awaiting answers
+---
