@@ -597,3 +597,12 @@ answer: both"
 **Context**: Deploy approved by the user
 
 ---
+
+---
+## Deploy - mobile bottom insets, profile photo and address fixes, web account page and COD
+**Timestamp**: 2026-10-24T22:30:00Z
+**User Input**: "deploy"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-24-1711-predeploy.sql), deployed commit d3372e3 (api, web, worker). No migrations. Live checks: health ok, pages 200, admin routes 401 without a token, no error-level API log lines."
+**Context**: Deploy approved by the user
+
+---
