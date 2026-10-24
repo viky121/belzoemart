@@ -22,7 +22,8 @@ const formSchema = z
   .object({
     name: z.string().trim().min(2, 'Enter your full name').max(120),
     phone: z.string().refine((v) => normalizeMobile(v) !== null, 'Enter a valid 10-digit mobile number'),
-    email: z.string().refine((v) => normalizeEmail(v) !== null, 'Enter a valid email address'),
+    // Optional: blank is fine, but a typed email has to be a real address.
+    email: z.string().refine((v) => v.trim() === '' || normalizeEmail(v) !== null, 'Enter a valid email address, or leave it empty'),
     password: strongPasswordSchema,
     confirmPassword: z.string(),
   })
@@ -39,7 +40,8 @@ interface Verified {
 
 /**
  * Create account: full name, mobile and email (each verified by an OTP) and a strong password
- * entered twice. "Create account" stays disabled until both OTPs are verified.
+ * entered twice. The email is optional; a typed one must be verified by an OTP too. "Create account"
+ * stays disabled until the mobile (and a typed email) is verified.
  */
 export function RegisterScreen({ navigation, route }: RootScreenProps<'Register'>) {
   const redirect = route.params?.redirect;
@@ -53,24 +55,27 @@ export function RegisterScreen({ navigation, route }: RootScreenProps<'Register'
   const [emailOk, setEmailOk] = useState<Verified | null>(null);
 
   const phoneTarget = normalizeMobile(useWatch({ control, name: 'phone' }));
-  const emailTarget = normalizeEmail(useWatch({ control, name: 'email' }));
+  const emailText = useWatch({ control, name: 'email' });
+  const emailTarget = normalizeEmail(emailText);
+  const emailBlank = emailText.trim() === '';
   const password = useWatch({ control, name: 'password' });
   // A proof only counts for the exact number / email it was issued for.
   const phoneProof = phoneOk && phoneOk.target === phoneTarget ? phoneOk.proof : null;
   const emailProof = emailOk && emailOk.target === emailTarget ? emailOk.proof : null;
-  const ready = Boolean(phoneProof && emailProof) && passwordProblems(password).length === 0;
+  // Email may stay empty; a typed one needs its own verification.
+  const emailReady = emailBlank || Boolean(emailTarget && emailProof);
+  const ready = Boolean(phoneProof) && emailReady && passwordProblems(password).length === 0;
 
   function submit(values: FormValues) {
-    if (!phoneTarget || !emailTarget || !phoneProof || !emailProof) return;
+    if (!phoneTarget || !phoneProof || !emailReady) return;
     register.mutate(
       {
         name: values.name.trim(),
         phone: phoneTarget,
-        email: emailTarget,
+        ...(emailTarget && emailProof ? { email: emailTarget, emailProof } : {}),
         password: values.password,
         confirmPassword: values.confirmPassword,
         phoneProof,
-        emailProof,
       },
       { onSuccess: () => navigation.dispatch(afterAuth(redirect)) },
     );
@@ -84,7 +89,7 @@ export function RegisterScreen({ navigation, route }: RootScreenProps<'Register'
       <Text style={styles.heading} accessibilityRole="header">
         Create your account
       </Text>
-      <Text style={styles.sub}>Verify your mobile number and email, then set a password.</Text>
+      <Text style={styles.sub}>Verify your mobile number, then set a password. Email is optional.</Text>
 
       <TextField
         control={control}
@@ -120,7 +125,7 @@ export function RegisterScreen({ navigation, route }: RootScreenProps<'Register'
       <TextField
         control={control}
         name="email"
-        label="Email"
+        label="Email (optional)"
         keyboardType="email-address"
         autoCapitalize="none"
         autoComplete="email"
@@ -175,7 +180,10 @@ export function RegisterScreen({ navigation, route }: RootScreenProps<'Register'
         style={styles.submit}
       />
       {!ready ? (
-        <Text style={styles.hint}>Verify your mobile and email and set a strong password to continue.</Text>
+        <Text style={styles.hint}>
+          Verify your mobile number and set a strong password to continue.
+          {!emailBlank && !emailReady ? ' Verify the email too, or clear it.' : ''}
+        </Text>
       ) : null}
 
       <Pressable style={styles.linkRow} onPress={() => navigation.navigate('Login', { redirect })} accessibilityRole="link">

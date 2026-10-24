@@ -121,20 +121,34 @@ export const strongPasswordSchema = z
 export const otpPurposeSchema = z.enum(['login', 'register', 'reset']);
 export type OtpPurpose = z.infer<typeof otpPurposeSchema>;
 
-/** Create an account. Name + email + mobile, the password twice, and the proofs from verifying the mobile and email by OTP. */
+/** A blank form field means "not given". */
+const blankToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
+
+/**
+ * Create an account. Name + mobile (verified by OTP), the password twice. The email is optional: when it is
+ * given it must be verified by OTP too (`emailProof`), so no one can attach someone else's address.
+ */
 export const registerAccountSchema = z
   .object({
     name: z.string().trim().min(2, 'Enter your full name').max(120),
-    email: emailSchema,
+    email: z.preprocess(blankToUndefined, emailSchema.optional()),
     phone: phoneSchema,
     password: strongPasswordSchema,
     confirmPassword: z.string().max(128),
     phoneProof: z.string().min(20).max(2000),
-    emailProof: z.string().min(20).max(2000),
+    emailProof: z.preprocess(blankToUndefined, z.string().min(20).max(2000).optional()),
   })
-  .refine((d) => d.password === d.confirmPassword, {
-    path: ['confirmPassword'],
-    message: 'Both passwords must match',
+  .superRefine((d, ctx) => {
+    if (d.password !== d.confirmPassword) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['confirmPassword'], message: 'Both passwords must match' });
+    }
+    if (d.email && !d.emailProof) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['emailProof'],
+        message: 'Verify your email with the OTP, or leave the email empty',
+      });
+    }
   });
 export type RegisterAccount = z.infer<typeof registerAccountSchema>;
 

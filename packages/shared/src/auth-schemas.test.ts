@@ -48,9 +48,34 @@ describe('registerAccountSchema', () => {
     expect(registerAccountSchema.safeParse({ ...base, password: 'password1', confirmPassword: 'password1' }).success).toBe(false);
     expect(registerAccountSchema.safeParse({ ...base, name: 'R' }).success).toBe(false);
   });
-  it('needs both proofs and a valid Indian mobile', () => {
-    expect(registerAccountSchema.safeParse({ ...base, emailProof: '' }).success).toBe(false);
+  it('needs the mobile proof and a valid Indian mobile', () => {
+    expect(registerAccountSchema.safeParse({ ...base, phoneProof: '' }).success).toBe(false);
     expect(registerAccountSchema.safeParse({ ...base, phone: '1234567890' }).success).toBe(false);
+  });
+  describe('the email is optional', () => {
+    const { email: _e, emailProof: _p, ...noEmail } = base;
+    it('accepts an account with no email and no email proof', () => {
+      const r = registerAccountSchema.safeParse(noEmail);
+      expect(r.success).toBe(true);
+      if (r.success) {
+        expect(r.data.email).toBeUndefined();
+        expect(r.data.emailProof).toBeUndefined();
+      }
+    });
+    it('treats blank form fields as "not given"', () => {
+      const r = registerAccountSchema.safeParse({ ...noEmail, email: '   ', emailProof: '' });
+      expect(r.success).toBe(true);
+      if (r.success) expect(r.data.email).toBeUndefined();
+    });
+    it('a given email must come with its verification proof', () => {
+      const r = registerAccountSchema.safeParse({ ...noEmail, email: 'ravi@example.com' });
+      expect(r.success).toBe(false);
+      expect(JSON.stringify(r)).toMatch(/Verify your email/);
+      expect(registerAccountSchema.safeParse({ ...base, emailProof: '' }).success).toBe(false);
+    });
+    it('a given email must still be a real address', () => {
+      expect(registerAccountSchema.safeParse({ ...base, email: 'not-an-email' }).success).toBe(false);
+    });
   });
 });
 

@@ -71,15 +71,16 @@ export async function loginWithIdentifier(input: { identifier: string; password:
   return parseAuth(await apiRequest<unknown>('/auth/login/identifier', { method: 'POST', body }));
 }
 
-/** Create an account: name, email, mobile (verified by OTP), password twice. */
+/** Create an account: name, mobile (verified by OTP), password twice; the email is optional. */
 export async function registerAccount(input: {
   name: string;
-  email: string;
+  /** Optional; when given it must come with its `emailProof`. */
+  email?: string;
   phone: string;
   password: string;
   confirmPassword: string;
   phoneProof: string;
-  emailProof: string;
+  emailProof?: string;
 }): Promise<MobileAuthResponse> {
   const body = registerAccountSchema.parse(input);
   return parseAuth(await apiRequest<unknown>('/auth/register', { method: 'POST', body }));

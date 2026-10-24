@@ -9,8 +9,8 @@ import { postAuthTarget } from '@/lib/auth-redirect';
 import { isEmail, OtpVerifyField, PasswordField, PasswordRules, toMobile10 } from '@/components/auth-parts';
 
 /**
- * Create an account: full name, mobile and email (each verified by an OTP), and a strong password
- * entered twice. The account is only created once both OTPs are verified.
+ * Create an account: full name, mobile (verified by an OTP) and a strong password entered twice. The email
+ * is optional; if one is typed it must be verified by an OTP too.
  */
 export default function SignupPage() {
   const router = useRouter();
@@ -34,7 +34,10 @@ export default function SignupPage() {
   const phone10 = toMobile10(phone);
   const strong = passwordProblems(password).length === 0;
   const matches = confirm.length > 0 && confirm === password;
-  const ready = name.trim().length >= 2 && Boolean(phone10) && isEmail(email) && Boolean(phoneProof) && Boolean(emailProof) && strong && matches;
+  const emailBlank = email.trim() === '';
+  // Email is optional, but a typed one has to be a real address and verified.
+  const emailOk = emailBlank || (isEmail(email) && Boolean(emailProof));
+  const ready = name.trim().length >= 2 && Boolean(phone10) && Boolean(phoneProof) && emailOk && strong && matches;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -47,11 +50,10 @@ export default function SignupPage() {
         body: {
           name: name.trim(),
           phone: phone10,
-          email: email.trim().toLowerCase(),
+          ...(emailBlank ? {} : { email: email.trim().toLowerCase(), emailProof }),
           password,
           confirmPassword: confirm,
           phoneProof,
-          emailProof,
         },
       });
       setSession(res.accessToken, res.customer);
@@ -72,7 +74,7 @@ export default function SignupPage() {
             <img src="/belzo-logo.png" alt="Belzo eMart" />
           </span>
           <h2>Create account</h2>
-          <p>Verify your mobile number and email, set a password, and you are ready to shop.</p>
+          <p>Verify your mobile number, set a password, and you are ready to shop. Email is optional.</p>
         </aside>
         <form className="auth-main" onSubmit={submit} noValidate>
           <div className="auth-main__title">Create your account</div>
@@ -112,7 +114,7 @@ export default function SignupPage() {
             <OtpVerifyField kind="phone" value={phone} purpose="register" onVerified={setPhoneProof} testId="signup-phone-otp" />
 
             <label className="auth-label" htmlFor="email">
-              Email
+              Email <span className="auth-optional">(optional)</span>
             </label>
             <input
               id="email"
@@ -124,7 +126,9 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            <OtpVerifyField kind="email" value={email} purpose="register" onVerified={setEmailProof} testId="signup-email-otp" />
+            {!emailBlank && (
+              <OtpVerifyField kind="email" value={email} purpose="register" onVerified={setEmailProof} testId="signup-email-otp" />
+            )}
 
             <label className="auth-label" htmlFor="password">
               Password
@@ -160,7 +164,10 @@ export default function SignupPage() {
               {busy ? 'Creating account…' : 'Create account'}
             </button>
             {!ready && (
-              <p className="auth-hint auth-hint--center">Verify your mobile and email and set a matching strong password to continue.</p>
+              <p className="auth-hint auth-hint--center">
+                Verify your mobile number and set a matching strong password to continue.
+                {!emailBlank && !emailOk ? ' Verify the email too, or clear it.' : ''}
+              </p>
             )}
           </div>
           <p className="auth-alt">
