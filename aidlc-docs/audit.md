@@ -588,3 +588,12 @@ answer: both"
 **Context**: CONSTRUCTION - Spend and Get offers, code generation and build-and-test complete
 
 ---
+
+---
+## Deploy - Staff and types, Spend and Get offers, mobile category slider
+**Timestamp**: 2026-10-24T20:50:00Z
+**User Input**: "nahi , abhi deploy karo"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-24-1501-predeploy.sql), deployed commit 5ef732f (api, web, worker). Migrations applied: 20261024150000_role_is_system, 20261025100000_spend_offers. First start created the ready-made staff types; admin@belzo.local is still super_admin. Live checks: health ok, /offers/active 200, admin routes 401 without a token, cart returns offers, /admin/offers and /admin/access load."
+**Context**: Deploy approved by the user
+
+---
