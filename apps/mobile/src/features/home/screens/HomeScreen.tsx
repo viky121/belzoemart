@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   // Light grey page so the white category card and product cards lift off the background.
   scroll: { flex: 1, backgroundColor: theme.colors.bg },
   // Bottom room so the last section clears the floating "View cart" bar.
-  body: { paddingTop: theme.spacing.sm, paddingBottom: 96 },
+  body: { paddingTop: theme.spacing.sm, paddingBottom: 150 },
   section: { marginTop: theme.spacing.lg },
   grid: {
     flexDirection: 'row',

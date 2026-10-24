@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   topChipText: { fontSize: 12, lineHeight: 16, fontWeight: '800' },
   title: { ...theme.typography.heading, color: theme.colors.inkStrong },
   sub: { ...theme.typography.caption, color: theme.colors.muted },
-  grid: { padding: theme.spacing.sm, paddingBottom: 96 },
+  grid: { padding: theme.spacing.sm, paddingBottom: 150 },
   cell: { flex: 1, padding: theme.spacing.xs },
   footer: { paddingVertical: theme.spacing.lg },
 });

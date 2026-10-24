@@ -37,3 +37,22 @@ describe('Screen keeps its content above the system navigation bar', () => {
     expect(bottomPad(ui)).toBe(0);
   });
 });
+
+describe('Screen scrolling inside the bottom tabs', () => {
+  it('leaves room under the last item for the floating "View cart" pill', async () => {
+    const ui = await renderWithProviders(
+      <BottomTabBarHeightContext.Provider value={56}>
+        <Screen scroll><Text>last item</Text></Screen>
+      </BottomTabBarHeightContext.Provider>,
+      { navigation: false },
+    );
+    const scroller = ui.getByTestId('screen-scroll');
+    expect(StyleSheet.flatten(scroller.props.contentContainerStyle).paddingBottom).toBeGreaterThanOrEqual(120);
+  });
+
+  it('a stack page needs no extra room (its own bottom padding is enough)', async () => {
+    const ui = await renderWithProviders(<Screen scroll><Text>x</Text></Screen>, { navigation: false });
+    const scroller = ui.getByTestId('screen-scroll');
+    expect(StyleSheet.flatten(scroller.props.contentContainerStyle).paddingBottom).toBeUndefined();
+  });
+});

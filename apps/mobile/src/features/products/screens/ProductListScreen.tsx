@@ -177,7 +177,7 @@ export function ProductListScreen({ navigation, route }: RootScreenProps<'Produc
           data={products}
           numColumns={2}
           keyExtractor={(p) => p.id}
-          contentContainerStyle={[styles.grid, { paddingBottom: 96 + bottomInset }]}
+          contentContainerStyle={[styles.grid, { paddingBottom: 140 + bottomInset }]}
           onEndReachedThreshold={0.5}
           onEndReached={() => {
             if (list.hasNextPage && !list.isFetchingNextPage) void list.fetchNextPage();

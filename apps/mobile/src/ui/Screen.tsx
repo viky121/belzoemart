@@ -32,6 +32,9 @@ export interface ScreenProps {
   bottom?: 'auto' | 'none';
 }
 
+/** Room under the last item of a scrolling tab page, so the floating "View cart" pill never covers it. */
+const TAB_PAGE_CLEARANCE = 130;
+
 /** Space kept between the field being typed in and the top of the keyboard. */
 const REVEAL_MARGIN = 24;
 
@@ -44,10 +47,13 @@ function KeyboardAwareScroll({
   children,
   refreshControl,
   padded,
+  clearance = 0,
 }: {
   children: ReactNode;
   refreshControl?: ReactElement<RefreshControlProps>;
   padded: boolean;
+  /** Extra room under the last item (the floating "View cart" pill sits over tab pages). */
+  clearance?: number;
 }) {
   const scroller = useRef<ScrollView>(null);
   const offsetY = useRef(0);
@@ -77,7 +83,12 @@ function KeyboardAwareScroll({
   return (
     <ScrollView
       ref={scroller}
-      contentContainerStyle={[padded && styles.padded, height > 0 && { paddingBottom: height + REVEAL_MARGIN }]}
+      testID="screen-scroll"
+      contentContainerStyle={[
+        padded && styles.padded,
+        clearance > 0 && { paddingBottom: clearance },
+        height > 0 && { paddingBottom: height + REVEAL_MARGIN },
+      ]}
       refreshControl={refreshControl}
       keyboardShouldPersistTaps="handled"
       scrollEventThrottle={16}
@@ -107,7 +118,7 @@ export function Screen({
       <OfflineBanner />
       <View style={[styles.fill, { paddingBottom: padBottom }]} testID="screen-body">
         {scroll ? (
-          <KeyboardAwareScroll refreshControl={refreshControl} padded={padded}>
+          <KeyboardAwareScroll refreshControl={refreshControl} padded={padded} clearance={insideTabs ? TAB_PAGE_CLEARANCE : 0}>
             {children}
           </KeyboardAwareScroll>
         ) : (
