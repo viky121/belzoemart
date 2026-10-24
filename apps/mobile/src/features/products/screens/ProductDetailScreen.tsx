@@ -157,9 +157,53 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
   }
 
   const attrs = Object.entries(p.attributes ?? {});
+  // A solid bar under the status bar: the page scrolls beneath it, never behind the clock and battery icons.
+  const topBar = (
+    <View style={[styles.topBar, { paddingTop: insets.top }]} testID="pdp-topbar">
+      <View style={styles.topBarRow}>
+        <Pressable
+          onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Main'))}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          style={styles.barBtn}
+          hitSlop={6}
+        >
+          <MaterialCommunityIcons name="arrow-left" size={24} color={theme.colors.inkStrong} />
+        </Pressable>
+        <Text style={styles.barTitle} numberOfLines={1} accessibilityRole="header">
+          {p.title}
+        </Text>
+        <Pressable
+          onPress={onHeart}
+          accessibilityRole="button"
+          accessibilityLabel={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+          style={styles.barBtn}
+          hitSlop={6}
+        >
+          <MaterialCommunityIcons
+            name={isWishlisted ? 'heart' : 'heart-outline'}
+            size={23}
+            color={isWishlisted ? theme.colors.danger : theme.colors.inkStrong}
+          />
+        </Pressable>
+        <Pressable
+          onPress={() =>
+            void Share.share({ message: `${p.title} — ${env.apiBaseUrl}/product/${p.slug}` })
+          }
+          accessibilityRole="button"
+          accessibilityLabel="Share product"
+          style={styles.barBtn}
+          hitSlop={6}
+        >
+          <MaterialCommunityIcons name="share-variant-outline" size={22} color={theme.colors.inkStrong} />
+        </Pressable>
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.root}>
+      {topBar}
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <Gallery
           images={images}
@@ -277,32 +321,6 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
           <Text style={styles.addedLink}>VIEW CART ›</Text>
         </Pressable>
       ) : null}
-      {backBtn}
-      <View style={[styles.floatRight, { top: insets.top + 8 }]}>
-        <Pressable
-          onPress={onHeart}
-          accessibilityRole="button"
-          accessibilityLabel={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-          style={styles.floatBtnStatic}
-        >
-          <MaterialCommunityIcons
-            name={isWishlisted ? 'heart' : 'heart-outline'}
-            size={22}
-            color={isWishlisted ? theme.colors.danger : theme.colors.inkStrong}
-          />
-        </Pressable>
-        <Pressable
-          onPress={() =>
-            void Share.share({ message: `${p.title} — ${env.apiBaseUrl}/product/${p.slug}` })
-          }
-          accessibilityRole="button"
-          accessibilityLabel="Share product"
-          style={styles.floatBtnStatic}
-        >
-          <MaterialCommunityIcons name="share-variant-outline" size={21} color={theme.colors.inkStrong} />
-        </Pressable>
-      </View>
-
       <View style={[styles.footer, { paddingBottom: insets.bottom + theme.spacing.sm }]}>
         <Button
           title={added ? 'Add more' : 'Add to Cart'}
@@ -365,6 +383,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: theme.spacing.sm,
   },
+  topBar: {
+    backgroundColor: theme.colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.border,
+    zIndex: 5,
+  },
+  topBarRow: { height: 52, flexDirection: 'row', alignItems: 'center', paddingHorizontal: theme.spacing.xs },
+  barBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  barTitle: { flex: 1, ...theme.typography.bodyLg, color: theme.colors.inkStrong, fontWeight: '700', paddingHorizontal: theme.spacing.xs },
   floatBtnStatic: {
     width: 40,
     height: 40,
