@@ -606,3 +606,12 @@ answer: both"
 **Context**: Deploy approved by the user
 
 ---
+
+---
+## Deploy - profile photo JSON upload, COD checkout navigation fix, cart pill and bottom spacing
+**Timestamp**: 2026-10-24T18:55:00Z
+**User Input**: "deploy"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-24-1837-predeploy.sql), deployed commit e634c28 (api, web, worker). No migrations. Live checks: health ok, POST /me/photo exists (401 without login), pages 200, admin routes 401, no error-level log lines. Mobile APK 0.1.14 built (commit 461d670): https://expo.dev/artifacts/eas/R_unm0zkIyACLvRuWXa2s274JWi1_uSXua6kXB6L2yo.apk"
+**Context**: Deploy approved by the user
+
+---
