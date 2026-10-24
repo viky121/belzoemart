@@ -36,6 +36,11 @@ export const TRACKING_STATUS_LABELS: Record<string, string> = {
   in_transit: 'In transit',
   rto: 'Returned to seller',
   refunded: 'Refunded',
+  // In-house delivery (U8): statuses a delivery job adds to the timeline.
+  assigned: 'Assigned to a delivery partner',
+  accepted: 'Delivery partner accepted',
+  arrived: 'Delivery partner has arrived',
+  failed_attempt: 'Delivery attempt unsuccessful',
 };
 
 /** Courier/shipment status → the order progress step it implies. */
@@ -47,6 +52,11 @@ export const TRACKING_PROGRESS_MAP: Record<string, OrderStatus> = {
   shipped: 'shipped',
   out_for_delivery: 'out_for_delivery',
   delivered: 'delivered',
+  // In-house delivery (U8): assigned and accepted count as packed; arrived and a failed attempt as out for delivery.
+  assigned: 'packed',
+  accepted: 'packed',
+  arrived: 'out_for_delivery',
+  failed_attempt: 'out_for_delivery',
 };
 
 /** Lowercase, trim, and turn spaces/hyphens into underscores. */

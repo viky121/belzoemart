@@ -62,3 +62,32 @@
 - **Current Stage**: Build and Test COMPLETE (all 7 units + full suite verified)
 - **Next Stage**: Operations (placeholder — deployment/monitoring, future)
 - **Status**: Phase 1 build complete. 87 tests pass; api + web build; typecheck clean.
+
+## Cycle 2: U8 Delivery Module (PHP to Next.js/NestJS conversion)
+- **Started**: 2026-10-23
+- **Type**: Brownfield, Migration + New Feature, System-wide, Complex (Comprehensive depth)
+- **Source**: /home/viky/Downloads/delivery-module (PHP, about 21,500 lines + 20,000 lines of tests)
+- **Extensions**: Security Baseline, Resiliency Baseline, Property-Based Testing remain enabled
+### Stage Progress (Cycle 2)
+- [x] Workspace Detection (brownfield, existing aidlc-docs reused)
+- [x] Reverse Engineering of the PHP module: `aidlc-docs/inception/delivery-module/php-module-analysis.md`
+- [x] Requirements Analysis: all questions answered; `aidlc-docs/inception/requirements/delivery-module-requirements.md` written; APPROVED 2026-10-23
+- [x] User Stories (SKIPPED: requirements itemised DL-x)
+- [x] Workflow Planning: `aidlc-docs/inception/plans/execution-plan-delivery.md`; AWAITING USER APPROVAL
+- [x] Workflow Plan APPROVED 2026-10-23
+- [x] Application Design: `aidlc-docs/inception/application-design/delivery/` (5 files); AWAITING USER APPROVAL
+- [x] Application Design APPROVED 2026-10-23
+- [x] Units Generation: `aidlc-docs/inception/application-design/delivery/unit-of-work*.md`; AWAITING USER APPROVAL (units U8.1 core, U8.2 collection+cash+proof, U8.3 admin, U8.4 partner PWA, U8.5 customer; build in that order)
+- [x] Units Generation APPROVED 2026-10-23
+- [x] CONSTRUCTION U8.1 Functional Design: `aidlc-docs/construction/u8-1-delivery-core/functional-design/` (3 files); AWAITING USER APPROVAL. Next: U8.1 NFR Design, then U8.1 Code Generation (plan + approval).
+- [x] U8.1 Functional Design APPROVED 2026-10-23
+- [x] U8.1 NFR Design: `aidlc-docs/construction/u8-1-delivery-core/nfr-design/` (2 files); AWAITING USER APPROVAL. Next: U8.1 Code Generation (plan + approval).
+- [x] U8.1 NFR Design APPROVED 2026-10-23
+- [x] U8.1 Code Generation Part 1 (plan) APPROVED 2026-10-23
+- [x] U8.1 Code Generation Part 2: all 17 steps done and verified; summary `aidlc-docs/construction/u8-1-delivery-core/code/summary.md`; AWAITING USER APPROVAL. Next: U8.2 Collection, cash and proof (Functional Design, NFR Design, Code Generation). Nothing deployed.
+- [x] U8.1 Code Generation APPROVED 2026-10-23 (U8.1 complete)
+- [x] U8.2 Functional Design plan answered (FQ1-FQ3 all A)
+- [x] U8.2 Functional Design APPROVED 2026-10-23
+- [x] U8.2 NFR Design: `aidlc-docs/construction/u8-2-collection-cash-proof/nfr-design/` (2 files); AWAITING USER APPROVAL. Next: U8.2 Code Generation (plan + approval).
+- [ ] (remaining stages) (EXECUTE); Functional Design + NFR Design per unit (EXECUTE); NFR Requirements + Infrastructure Design (SKIP)
+- [ ] Construction (per phase) and Build and Test

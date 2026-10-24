@@ -135,6 +135,7 @@ export function addSection(
       position: 'after_categories',
       banners: [],
       enabled: true,
+      showOn: 'both',
     };
     const id = layoutItemId('offers', refId);
     return {

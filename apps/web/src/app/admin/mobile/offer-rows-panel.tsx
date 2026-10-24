@@ -6,6 +6,7 @@ import {
   MOBILE_OFFER_SIZE_HINT,
   type MobileOfferColumns,
   type MobileOfferPosition,
+  type MobileOfferShowOn,
   type MobileOfferRow,
 } from '@belzo/shared';
 import { isUsableImageUrl } from '@/lib/category-theme';
@@ -17,6 +18,11 @@ const POSITIONS: { value: MobileOfferPosition; label: string }[] = [
   { value: 'after_hero', label: 'Right below the main banner' },
   { value: 'after_categories', label: 'Below the category circles' },
   { value: 'after_deals', label: 'Below Deals of the Day' },
+];
+
+const SHOW_ON: { value: MobileOfferShowOn; label: string }[] = [
+  { value: 'app', label: 'Mobile app only' },
+  { value: 'both', label: 'App and website' },
 ];
 
 const COLUMNS: { value: MobileOfferColumns; label: string }[] = [
@@ -67,13 +73,15 @@ export function OfferRowsPanel({
         position: 'after_categories',
         banners: [],
         enabled: true,
+        showOn: 'app',
       },
     ]);
 
   return (
     <div>
       <p className="prod-form__hint">
-        Add extra offer banners to the home screen of the <strong>app and the website</strong>. Each row has its own
+        Add extra offer banners to the home screen of the <strong>app</strong>. A new row shows in the app only; choose
+        “App and website” on a row to show it on the website home page too. Each row has its own
         layout: pick 1, 2 or 3 banners per row and where it appears. For two banners side by side choose “2 per row”;
         for two lines of offers add two rows. Add as many rows as you like.
       </p>
@@ -114,6 +122,20 @@ export function OfferRowsPanel({
                 {POSITIONS.map((p) => (
                   <option key={p.value} value={p.value}>
                     {p.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="auth-label">Show on</label>
+              <select
+                className="auth-input"
+                value={r.showOn}
+                onChange={(e) => update(i, { showOn: e.target.value as MobileOfferShowOn })}
+              >
+                {SHOW_ON.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
                   </option>
                 ))}
               </select>

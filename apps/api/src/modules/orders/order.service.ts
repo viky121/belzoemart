@@ -1,10 +1,18 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
-import { canCustomerCancel, canTransition, reconcileTracking, type OrderStatus } from '@belzo/shared';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  UNDELIVERABLE_CANCEL_REASON,
+  canCustomerCancel,
+  canSystemCancel,
+  canTransition,
+  reconcileTracking,
+  type OrderStatus,
+} from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { QUEUES } from '../../common/queue/queue.constants';
+import { QueueService } from '../../common/queue/queue.service';
 import { InventoryService } from '../catalogue/inventory.service';
 import { PaymentService } from '../checkout/payment.service';
 import { CartService } from '../cart/cart.service';
-import { QueueService } from '../../common/queue/queue.service';
 import { FulfilmentService } from './fulfilment.service';
 import { notifyOrderStatus } from './order-events';
 
@@ -31,7 +39,7 @@ export class OrderService {
     private readonly payments: PaymentService,
     private readonly cart: CartService,
     private readonly fulfilment: FulfilmentService,
-    @Optional() private readonly queue?: QueueService,
+    private readonly queue: QueueService,
   ) {}
 
   /** Resolve display image, slug, returnability and variant attributes for a set of variant ids. */
@@ -311,7 +319,61 @@ export class OrderService {
     if (captured) {
       await this.payments.refund(order.id, order.grandTotal);
     }
+
+    // Tell the delivery module so a job in a partner's hands is stopped (BR-D58). Best-effort:
+    // the cancel has already happened, and partner commands are refused for a cancelled order anyway.
+    await this.notifyDeliveryOfCancel(order.id);
     return { orderId, status: 'cancelled' as const };
+  }
+
+  private async notifyDeliveryOfCancel(orderId: string): Promise<void> {
+    try {
+      await this.queue.enqueue(QUEUES.DELIVERY, 'order.cancelled', { orderId });
+    } catch {
+      // The order is cancelled; delivery will notice at its next check.
+    }
+  }
+
+  /**
+   * System cancel for an order whose in-house delivery failed for good (FD2 = A, BR-D56). Allowed
+   * from shipped and out_for_delivery as well as the usual states; delivered orders are refused.
+   * Stock goes back, and a captured online payment is refunded. Safe to run twice: a second run
+   * only retries a refund that has not gone through yet.
+   */
+  async cancelUndeliverable(orderId: string, reason: string = UNDELIVERABLE_CANCEL_REASON): Promise<{ orderId: string; changed: boolean }> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { items: true, payments: true },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+
+    if (order.status === 'cancelled') {
+      if (order.cancelledReason === reason) await this.refundCapturedOnline(order);
+      return { orderId, changed: false };
+    }
+    if (!canSystemCancel(order.status)) throw new BadRequestException('Order can no longer be cancelled');
+
+    // Only one caller can win this change (a double run must not restock twice).
+    const wasPending = order.status === 'pending';
+    const claim = await this.prisma.order.updateMany({
+      where: { id: orderId, status: order.status },
+      data: { status: 'cancelled', cancelledReason: reason },
+    });
+    if (claim.count === 0) return { orderId, changed: false };
+
+    for (const item of order.items) {
+      if (wasPending) await this.inventory.release(item.variantId, item.quantity, order.id);
+      else await this.inventory.adjust(item.variantId, item.quantity, `undeliverable:${order.id}`);
+    }
+    await this.fulfilment.cancelShipmentsForOrder(order.id);
+    await this.refundCapturedOnline(order);
+    return { orderId, changed: true };
+  }
+
+  /** Refund a captured online payment; cash on delivery has no gateway payment to refund. */
+  private async refundCapturedOnline(order: { id: string; grandTotal: number; payments: { status: string; provider: string }[] }): Promise<void> {
+    const captured = order.payments.find((p) => p.status === 'captured' && p.provider !== 'cod');
+    if (captured) await this.payments.refund(order.id, order.grandTotal);
   }
 
   /** One-tap reorder (FR-5.7): add the order's items back to the cart. */

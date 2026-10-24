@@ -1,0 +1,7 @@
+android/
+ios/
+.expo/
+dist/
+*.jks
+*.keystore
+google-services.json

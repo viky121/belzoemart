@@ -21,6 +21,7 @@ import { CartCheckoutModule } from './modules/checkout/cart-checkout.module';
 import { PaymentGatewayModule } from './modules/payment-gateway/payment-gateway.module';
 import { SmsGatewayModule } from './modules/sms-gateway/sms-gateway.module';
 import { OrdersModule } from './modules/orders/orders.module';
+import { DeliveryModule } from './modules/delivery/delivery.module';
 import { EngagementModule } from './modules/engagement/engagement.module';
 import { NotificationsIntegrationModule } from './integrations/notifications/notifications-integration.module';
 import { AdminModule } from './modules/admin/admin.module';
@@ -55,6 +56,7 @@ import { MediaModule } from './modules/media/media.module';
     PaymentGatewayModule,
     SmsGatewayModule,
     OrdersModule,
+    DeliveryModule,
     EngagementModule,
     AdminModule,
     MediaModule,

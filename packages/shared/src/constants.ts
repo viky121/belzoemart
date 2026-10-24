@@ -31,6 +31,12 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   returned: [],
 };
 
+/**
+ * Order statuses from which the system (never a customer) may cancel an order whose
+ * in-house delivery failed for good (BR-D56). `ORDER_TRANSITIONS` is unchanged for everyone else.
+ */
+export const SYSTEM_CANCEL_FROM: readonly OrderStatus[] = ['shipped', 'out_for_delivery'];
+
 export const PAYMENT_METHODS = [
   'upi',
   'card',

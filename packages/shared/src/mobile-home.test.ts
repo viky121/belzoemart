@@ -11,6 +11,7 @@ import {
   resolveMobileCategories,
   sanitizeMobileHome,
   sanitizeMobileMenu,
+  websiteOfferRows,
 } from './mobile-home';
 
 const A = '11111111-1111-4111-8111-111111111111';
@@ -208,5 +209,35 @@ describe('☰ menu config', () => {
     expect(menuAddressLines('A\n\n B \r\nC')).toEqual(['A', 'B', 'C']);
     expect(menuTelHref('88390 95625')).toBe('tel:8839095625');
     expect(menuTelHref('')).toBeNull();
+  });
+});
+
+describe('offer row showOn (app only vs app and website)', () => {
+  const banner = { id: 'b1', imageUrl: '/a.jpg', linkUrl: '#', title: '', enabled: true };
+
+  it('defaults to app only, also for rows saved before the field existed', () => {
+    const home = sanitizeMobileHome({
+      offerRows: [{ id: 'old', columns: 2, position: 'after_hero', enabled: true, banners: [banner] }],
+    });
+    expect(home.offerRows[0]?.showOn).toBe('app');
+    expect(websiteOfferRows(home.offerRows)).toEqual([]);
+  });
+
+  it('keeps only rows marked "both" for the website, while the app still shows all of them', () => {
+    const home = sanitizeMobileHome({
+      offerRows: [
+        { id: 'a', position: 'after_hero', banners: [banner] },
+        { id: 'b', position: 'after_hero', banners: [banner], showOn: 'both' },
+      ],
+    });
+    expect(websiteOfferRows(home.offerRows).map((r) => r.id)).toEqual(['b']);
+    expect(offerRowsAt(home.offerRows, 'after_hero').map((r) => r.id)).toEqual(['a', 'b']);
+  });
+
+  it('drops an unknown showOn value instead of breaking the whole config', () => {
+    const home = sanitizeMobileHome({
+      offerRows: [{ id: 'x', position: 'after_hero', banners: [banner], showOn: 'everywhere' }],
+    });
+    expect(home.offerRows).toEqual([]);
   });
 });

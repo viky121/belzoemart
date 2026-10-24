@@ -92,6 +92,8 @@ export class TokenService {
     const existing = await this.prisma.refreshToken.findUnique({ where: { tokenHash } });
 
     if (!existing) throw new UnauthorizedException('Invalid refresh token');
+    // Delivery partners have their own realm and refresh path; their tokens never mint customer or admin tokens (SP1).
+    if (existing.principalKind === 'partner') throw new UnauthorizedException('Invalid refresh token');
 
     if (existing.revokedAt) {
       // Reuse detected — nuke the family.
@@ -145,7 +147,7 @@ export class TokenService {
   async revoke(refreshToken: string): Promise<void> {
     const tokenHash = this.hash(refreshToken);
     const existing = await this.prisma.refreshToken.findUnique({ where: { tokenHash } });
-    if (!existing) return;
+    if (!existing || existing.principalKind === 'partner') return;
     await this.prisma.refreshToken.updateMany({
       where: { familyId: existing.familyId, revokedAt: null },
       data: { revokedAt: new Date() },

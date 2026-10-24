@@ -6,6 +6,8 @@ const base = {
   REDIS_URL: 'redis://localhost:6379',
   JWT_ACCESS_SECRET: 'x'.repeat(32),
   JWT_REFRESH_SECRET: 'y'.repeat(32),
+  JWT_PARTNER_SECRET: 'p'.repeat(32),
+  DELIVERY_OTP_PEPPER: 'o'.repeat(32),
 };
 
 describe('validateEnv', () => {
@@ -23,6 +25,23 @@ describe('validateEnv', () => {
     );
   });
 
+  it('requires the delivery secrets, each at least 32 characters (fail closed, SP1)', () => {
+    const { JWT_PARTNER_SECRET, ...noPartner } = base;
+    const { DELIVERY_OTP_PEPPER, ...noPepper } = base;
+    expect(() => validateEnv(noPartner)).toThrow(/JWT_PARTNER_SECRET/);
+    expect(() => validateEnv(noPepper)).toThrow(/DELIVERY_OTP_PEPPER/);
+    expect(() => validateEnv({ ...base, JWT_PARTNER_SECRET: 'short' })).toThrow(/JWT_PARTNER_SECRET/);
+    expect(() => validateEnv({ ...base, DELIVERY_OTP_PEPPER: 'short' })).toThrow(/DELIVERY_OTP_PEPPER/);
+    expect(validateEnv(base).PARTNER_REFRESH_TTL).toBe(604_800);
+  });
+  it('rejects a partner secret equal to the access or refresh secret', () => {
+    expect(() => validateEnv({ ...base, JWT_PARTNER_SECRET: base.JWT_ACCESS_SECRET })).toThrow(
+      /must be different/,
+    );
+    expect(() => validateEnv({ ...base, JWT_PARTNER_SECRET: base.JWT_REFRESH_SECRET })).toThrow(
+      /must be different/,
+    );
+  });
   it('rejects a missing database url', () => {
     const { DATABASE_URL, ...withoutDb } = base;
     expect(() => validateEnv(withoutDb)).toThrow(/Invalid environment configuration/);

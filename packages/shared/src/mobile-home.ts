@@ -62,6 +62,12 @@ export const mobileCategorySchema = z.object({
 });
 export type MobileCategoryOverride = z.infer<typeof mobileCategorySchema>;
 
+/**
+ * Where an offer row is shown. 'app' = mobile app only (the default, also for rows saved before
+ * this field existed); 'both' = app and website.
+ */
+export const MOBILE_OFFER_SHOW_ON = ['app', 'both'] as const;
+export type MobileOfferShowOn = (typeof MOBILE_OFFER_SHOW_ON)[number];
 export const mobileOfferRowSchema = z.object({
   id: z.string().min(1).max(64),
   title: z.string().trim().max(80).default(''),
@@ -75,6 +81,7 @@ export const mobileOfferRowSchema = z.object({
   position: z.enum(MOBILE_OFFER_POSITIONS).default('after_categories'),
   banners: z.array(mobileBannerSchema).max(MOBILE_LIMITS.bannersPerRow).default([]),
   enabled: z.boolean().default(true),
+  showOn: z.enum(MOBILE_OFFER_SHOW_ON).default('app'),
 });
 export type MobileOfferRow = z.infer<typeof mobileOfferRowSchema>;
 
@@ -269,6 +276,11 @@ export function sanitizeMobileHome(value: unknown): MobileHome {
 /** Banners that should actually be shown: enabled and with a real image. */
 export function activeBanners(banners: MobileBanner[]): MobileBanner[] {
   return banners.filter((b) => b.enabled && b.imageUrl !== '' && b.imageUrl !== '#');
+}
+
+/** Offer rows the website may show (the admin marked them "App and website"). */
+export function websiteOfferRows(rows: MobileOfferRow[]): MobileOfferRow[] {
+  return rows.filter((r) => r.showOn === 'both');
 }
 
 /** Enabled offer rows (with their enabled banners) for one position; empty rows are dropped. */

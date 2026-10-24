@@ -44,6 +44,7 @@ enum AddressLabel {
 enum PrincipalKind {
   customer
   admin
+  partner
 }
 
 enum DataRequestType {
@@ -236,17 +237,17 @@ enum StockReason {
 }
 
 model Category {
-  id             String     @id @default(uuid())
+  id             String   @id @default(uuid())
   name           String
-  slug           String     @unique
+  slug           String   @unique
   parentId       String?
   imageUrl       String?
-  displayOrder   Int        @default(0)
+  displayOrder   Int      @default(0)
   seoTitle       String?
   seoDescription String?
-  isActive       Boolean    @default(true)
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
   children Category[] @relation("CategoryTree")
@@ -514,11 +515,12 @@ model Order {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
-  items    OrderItem[]
-  payments Payment[]
-  shipments Shipment[]
-  invoice   Invoice?
-  returns   ReturnRequest[]
+  items        OrderItem[]
+  payments     Payment[]
+  shipments    Shipment[]
+  invoice      Invoice?
+  returns      ReturnRequest[]
+  deliveryJobs DeliveryJob[]
 
   @@index([customerId])
   @@index([status])
@@ -613,8 +615,9 @@ model Shipment {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
-  order  Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  events TrackingEvent[]
+  order        Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  events       TrackingEvent[]
+  deliveryJobs DeliveryJob[]
 
   @@index([orderId])
   @@map("shipments")
@@ -850,4 +853,243 @@ model AdminAuditLog {
 
   @@index([actorId, createdAt])
   @@map("admin_audit_logs")
+}
+
+// ===========================================================================
+// U8.1 delivery core: in-house delivery partners, jobs, OTP
+// (functional design: aidlc-docs/construction/u8-1-delivery-core/functional-design)
+// ===========================================================================
+
+enum DeliveryStatus {
+  new
+  assigned
+  accepted
+  picked_up
+  out_for_delivery
+  arrived
+  delivered
+  failed_attempt
+  returned
+  cancelled
+}
+
+enum DeliveryPaymentMode {
+  cod
+  prepaid
+}
+
+enum DeliveryAttention {
+  rejected
+  no_reply
+  max_attempts
+  payment_review
+}
+
+enum DeliveryActorKind {
+  admin
+  partner
+  system
+}
+
+enum DeliveryAssignmentOutcome {
+  pending
+  accepted
+  rejected
+  expired
+  unassigned
+  reassigned
+  completed
+  cancelled
+}
+
+enum DeliveryOtpStatus {
+  active
+  verified
+  expired
+  superseded
+  locked
+}
+
+enum DeliverySendStatus {
+  pending
+  sent
+  failed
+}
+
+model DeliveryPartner {
+  id                 String    @id @default(uuid())
+  name               String
+  mobile             String    @unique
+  email              String?
+  passwordHash       String
+  mustChangePassword Boolean   @default(true)
+  vehicleType        String?
+  vehicleNumber      String?
+  isActive           Boolean   @default(true)
+  isOnline           Boolean   @default(false)
+  lastSeenAt         DateTime?
+  lastLat            Float?
+  lastLng            Float?
+  maxActiveJobs      Int       @default(10)
+  createdById        String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  zones       DeliveryPartnerZone[]
+  jobs        DeliveryJob[]
+  assignments DeliveryAssignment[]
+
+  @@index([isActive, isOnline])
+  @@index([isOnline, lastSeenAt])
+  @@map("delivery_partners")
+}
+
+model DeliveryZone {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  pincodes DeliveryZonePincode[]
+  partners DeliveryPartnerZone[]
+  jobs     DeliveryJob[]
+
+  @@map("delivery_zones")
+}
+
+model DeliveryZonePincode {
+  id      String @id @default(uuid())
+  zoneId  String
+  pincode String @unique
+
+  zone DeliveryZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@index([zoneId])
+  @@map("delivery_zone_pincodes")
+}
+
+model DeliveryPartnerZone {
+  partnerId String
+  zoneId    String
+
+  partner DeliveryPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  zone    DeliveryZone    @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@id([partnerId, zoneId])
+  @@index([zoneId])
+  @@map("delivery_partner_zones")
+}
+
+model DeliveryJob {
+  id                  String              @id @default(uuid())
+  code                String              @unique
+  orderId             String
+  status              DeliveryStatus      @default(new)
+  partnerId           String?
+  currentAssignmentId String?
+  shipmentId          String?
+  attemptsUsed        Int                 @default(0)
+  maxAttempts         Int
+  paymentMode         DeliveryPaymentMode
+  codAmount           Int                 @default(0)
+  itemCount           Int
+  destName            String
+  destPhone           String
+  destLine1           String
+  destLine2           String?
+  destCity            String
+  destState           String
+  destPincode         String
+  otpPhone            String
+  otpLockedUntil      DateTime?
+  zoneId              String?
+  trackingToken       String              @unique
+  trackingExpiresAt   DateTime?
+  attention           DeliveryAttention?
+  acceptDeadlineAt    DateTime?
+  deliveredAt         DateTime?
+  endedAt             DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  order       Order                @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  partner     DeliveryPartner?     @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  shipment    Shipment?            @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+  zone        DeliveryZone?        @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  assignments DeliveryAssignment[]
+  events      DeliveryEvent[]
+  otps        DeliveryOtp[]
+
+  @@index([orderId])
+  @@index([partnerId, status])
+  @@index([status, acceptDeadlineAt])
+  @@index([status, createdAt])
+  @@map("delivery_jobs")
+}
+
+model DeliveryAssignment {
+  id                 String                    @id @default(uuid())
+  jobId              String
+  partnerId          String
+  assignedByKind     DeliveryActorKind
+  assignedById       String?
+  assignedAt         DateTime                  @default(now())
+  responseDeadlineAt DateTime?
+  respondedAt        DateTime?
+  outcome            DeliveryAssignmentOutcome @default(pending)
+  reason             String?
+
+  job     DeliveryJob     @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  partner DeliveryPartner @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+
+  @@index([jobId])
+  @@index([partnerId, outcome])
+  @@map("delivery_assignments")
+}
+
+/// Append-only: a database trigger rejects UPDATE and DELETE (see the migration).
+model DeliveryEvent {
+  id         String            @id @default(uuid())
+  jobId      String
+  event      String
+  fromStatus DeliveryStatus?
+  toStatus   DeliveryStatus?
+  actorKind  DeliveryActorKind
+  actorId    String?
+  reasonCode String?
+  note       String?
+  lat        Float?
+  lng        Float?
+  attemptNo  Int?
+  meta       Json?
+  createdAt  DateTime          @default(now())
+
+  job DeliveryJob @relation(fields: [jobId], references: [id], onDelete: Restrict)
+
+  @@index([jobId, createdAt])
+  @@index([event, createdAt])
+  @@map("delivery_events")
+}
+
+model DeliveryOtp {
+  id           String             @id @default(uuid())
+  jobId        String
+  assignmentId String?
+  attemptNo    Int
+  phone        String
+  codeHash     String
+  status       DeliveryOtpStatus  @default(active)
+  sendStatus   DeliverySendStatus @default(pending)
+  wrongGuesses Int                @default(0)
+  sendCount    Int                @default(1)
+  expiresAt    DateTime
+  sentAt       DateTime?
+  verifiedAt   DateTime?
+  createdAt    DateTime           @default(now())
+
+  job DeliveryJob @relation(fields: [jobId], references: [id], onDelete: Restrict)
+
+  @@index([jobId, attemptNo, createdAt])
+  @@index([status, expiresAt])
+  @@map("delivery_otps")
 }

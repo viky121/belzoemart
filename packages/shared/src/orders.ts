@@ -1,4 +1,4 @@
-import { ORDER_TRANSITIONS, type OrderStatus } from './constants';
+import { ORDER_TRANSITIONS, SYSTEM_CANCEL_FROM, type OrderStatus } from './constants';
 
 /**
  * Order state-machine helpers (BR-1). The transition table lives in
@@ -18,6 +18,11 @@ export function nextStates(from: OrderStatus): OrderStatus[] {
 /** Customer may cancel any time before the order has shipped (BR-2). */
 export function canCustomerCancel(status: OrderStatus): boolean {
   return status === 'pending' || status === 'confirmed' || status === 'packed';
+}
+
+/** True iff the system may cancel an order in this status after a failed in-house delivery (BR-D56). */
+export function canSystemCancel(status: OrderStatus): boolean {
+  return canTransition(status, 'cancelled') || SYSTEM_CANCEL_FROM.includes(status);
 }
 
 /**

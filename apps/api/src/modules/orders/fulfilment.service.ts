@@ -58,6 +58,17 @@ export class FulfilmentService {
     });
     if (!order) throw new NotFoundException('Order not found');
 
+    // An order that is in the hands of an in-house delivery partner has its own Shipment; never
+    // create a courier or mock shipment behind its back (U8, BR-D59).
+    const activeJob = await this.prisma.deliveryJob.findFirst({
+      where: { orderId, status: { notIn: ['delivered', 'returned', 'cancelled'] } },
+      select: { shipmentId: true },
+    });
+    if (activeJob) {
+      const own = activeJob.shipmentId ? await this.prisma.shipment.findUnique({ where: { id: activeJob.shipmentId } }) : null;
+      return { shipmentId: own?.id ?? '', awb: own?.awb ?? '' };
+    }
+
     const existing = await this.prisma.shipment.findFirst({ where: { orderId } });
     if (existing?.awb) return { shipmentId: existing.id, awb: existing.awb };
 
@@ -116,7 +127,8 @@ export class FulfilmentService {
     const shipments = await this.prisma.shipment.findMany({ where: { orderId } });
     for (const s of shipments) {
       if (s.status === 'delivered' || s.status === 'cancelled' || s.status === 'rto') continue;
-      if (s.awb) {
+      // In-house shipments have no courier to call; their AWB is just the delivery job code.
+      if (s.awb && s.provider !== 'inhouse') {
         try {
           await this.shipping.cancelShipment(s.awb);
         } catch (e) {
@@ -148,6 +160,8 @@ export class FulfilmentService {
   async syncTracking(shipmentId: string): Promise<void> {
     const shipment = await this.prisma.shipment.findUnique({ where: { id: shipmentId } });
     if (!shipment?.awb) return;
+    // In-house shipments are updated by the delivery module itself; there is no courier to ask.
+    if (shipment.provider === 'inhouse') return;
     const order = await this.prisma.order.findUnique({ where: { id: shipment.orderId } });
     if (!order) return;
     const updates = await this.shipping.getTracking(shipment.awb, {

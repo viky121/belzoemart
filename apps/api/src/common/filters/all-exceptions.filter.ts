@@ -10,6 +10,16 @@ import {
 import type { Request, Response } from 'express';
 import { ZodError } from 'zod';
 
+/** `code` and `details` of an HttpException whose body is an object with a string `code`; nothing otherwise. */
+export function structuredFields(exception: unknown): { code?: string; details?: Record<string, unknown> } {
+  if (!(exception instanceof HttpException)) return {};
+  const res = exception.getResponse();
+  if (!res || typeof res !== 'object' || Array.isArray(res)) return {};
+  const { code, statusCode: _s, error: _e, message: _m, ...rest } = res as Record<string, unknown>;
+  if (typeof code !== 'string') return {};
+  return Object.keys(rest).length > 0 ? { code, details: rest } : { code };
+}
+
 /**
  * Global exception filter — fail closed (SECURITY-15).
  *
@@ -59,10 +69,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
       this.logger.warn({ correlationId, path: request.url, status, error }, message);
     }
 
+    // Our own structured errors (the delivery module) carry a stable `code` the apps act on, plus a few
+    // plain details such as how many seconds to wait. Other responses are unchanged.
+    const structured = status < 500 ? structuredFields(exception) : {};
     response.status(status).json({
       statusCode: status,
       error,
       message,
+      ...structured,
       correlationId,
     });
   }

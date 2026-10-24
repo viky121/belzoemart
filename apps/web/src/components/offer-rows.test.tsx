@@ -19,6 +19,7 @@ const row = (over: Partial<MobileOfferRow> = {}): MobileOfferRow => ({
   position: 'after_hero',
   enabled: true,
   banners: [banner('a'), banner('b')],
+  showOn: 'both',
   ...over,
 });
 

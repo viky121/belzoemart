@@ -66,7 +66,10 @@ export function ProductGallery({
               type="button"
               className={`pdp__thumb${i === sel ? ' pdp__thumb--active' : ''}`}
               onClick={() => setSel(i)}
-              onMouseEnter={() => setSel(i)}
+              onPointerEnter={(e) => {
+                // Hover-to-preview is for mouse only; on touch, a tap selects via onClick.
+                if (e.pointerType === 'mouse') setSel(i);
+              }}
               aria-label={`View image ${i + 1}`}
               data-testid={`pdp-thumb-${i}`}
             >

@@ -5,6 +5,10 @@ import type { InventoryService } from '../catalogue/inventory.service';
 import type { PaymentService } from '../checkout/payment.service';
 import type { CartService } from '../cart/cart.service';
 import type { FulfilmentService } from './fulfilment.service';
+import type { QueueService } from '../../common/queue/queue.service';
+const enqueued: { queue: string; name: string; data: unknown }[] = [];
+const queue = { enqueue: async (q: string, name: string, data: unknown) => { enqueued.push({ queue: q, name, data }); } } as unknown as QueueService;
+const noQueue = { enqueue: async () => undefined } as unknown as QueueService;
 
 /**
  * Unit tests for OrderService transition + cancel rules (BR-1, BR-2).
@@ -34,7 +38,7 @@ describe('OrderService', () => {
       cancelShipmentsForOrder: async (orderId: string) => { cancelledShipmentsFor.push(orderId); },
     } as unknown as FulfilmentService;
     return {
-      svc: new OrderService(prisma, inventory, payments, cart, fulfilment),
+      svc: new OrderService(prisma, inventory, payments, cart, fulfilment, queue),
       updates,
       released,
       cancelledShipmentsFor,
@@ -130,7 +134,7 @@ describe('OrderService — removed variants', () => {
       },
       getCart: async () => ({ cartId: 'cart1', items: added.map((variantId) => ({ variantId })) }),
     } as unknown as CartService;
-    const svc = new OrderService(prisma, {} as InventoryService, {} as PaymentService, cart, {} as FulfilmentService);
+    const svc = new OrderService(prisma, {} as InventoryService, {} as PaymentService, cart, {} as FulfilmentService, noQueue);
     return { svc, added };
   }
 
@@ -219,7 +223,7 @@ describe('OrderService.getForCustomer — detail payload', () => {
         ],
       },
     } as unknown as PrismaService;
-    return new OrderService(prisma, {} as InventoryService, {} as PaymentService, {} as CartService, {} as FulfilmentService);
+    return new OrderService(prisma, {} as InventoryService, {} as PaymentService, {} as CartService, {} as FulfilmentService, noQueue);
   }
 
   const ownAddress = {

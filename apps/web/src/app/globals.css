@@ -813,7 +813,10 @@ nav.main a:hover {
 
 .product-card__image {
   position: relative;
-  height: 190px;
+  /* Square tile that scales with the card width (was a fixed 190px height). */
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
   display: grid;
   place-items: center;
   border-radius: 6px;
@@ -6946,8 +6949,8 @@ a.offer-banner:hover {
 .plp-main {
   min-width: 0;
 }
-@media (max-width: 560px) {
-  /* 2 cards per row, like the app. */
+@media (max-width: 720px) {
+  /* 2 cards per row, like the app (phones and large phones / small tablets). */
   .product-grid,
   .theme-root[data-theme='emart'] .product-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

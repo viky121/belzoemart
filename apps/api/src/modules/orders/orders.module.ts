@@ -21,6 +21,6 @@ import { AdminOrdersController } from './admin-orders.controller';
   imports: [StorageModule, ShippingModule, CatalogueModule, CartCheckoutModule, EngagementModule, AdminModule],
   controllers: [OrdersController, AdminOrdersController],
   providers: [OrderService, InvoiceService, FulfilmentService, ReturnService],
-  exports: [InvoiceService, FulfilmentService],
+  exports: [InvoiceService, FulfilmentService, OrderService],
 })
 export class OrdersModule {}

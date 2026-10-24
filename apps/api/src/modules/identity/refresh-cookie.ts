@@ -19,9 +19,16 @@ export const REFRESH_COOKIE = 'belzo_rt';
  */
 export const ADMIN_REFRESH_COOKIE = 'belzo_art';
 
-export type RefreshScope = 'customer' | 'admin';
+/** Delivery partners get their own cookie too, limited to the partner API path (SP3). */
+export const PARTNER_REFRESH_COOKIE = 'belzo_prt';
+export type RefreshScope = 'customer' | 'admin' | 'partner';
 const cookieName = (scope: RefreshScope): string =>
-  scope === 'admin' ? ADMIN_REFRESH_COOKIE : REFRESH_COOKIE;
+  scope === 'admin' ? ADMIN_REFRESH_COOKIE : scope === 'partner' ? PARTNER_REFRESH_COOKIE : REFRESH_COOKIE;
+const cookiePath = (scope: RefreshScope): string => (scope === 'partner' ? '/api/v1/partner' : '/api/v1');
+const cookieMaxAgeSeconds = (scope: RefreshScope): number =>
+  scope === 'partner'
+    ? Number(process.env.PARTNER_REFRESH_TTL ?? 604_800)
+    : Number(process.env.JWT_REFRESH_TTL ?? 1_209_600);
 
 /**
  * Whether to mark the refresh cookie `Secure`. Browsers silently REJECT Secure
@@ -44,13 +51,13 @@ export function setRefreshCookie(res: Response, token: string, scope: RefreshSco
     sameSite: 'strict',
     // Scoped to the whole API so the relevant refresh/logout endpoints receive
     // it. Customer and admin are separated by cookie NAME, not path.
-    path: '/api/v1',
-    maxAge: Number(process.env.JWT_REFRESH_TTL ?? 1_209_600) * 1000,
+    path: cookiePath(scope),
+    maxAge: cookieMaxAgeSeconds(scope) * 1000,
   });
 }
 
 export function clearRefreshCookie(res: Response, scope: RefreshScope = 'customer'): void {
-  res.clearCookie(cookieName(scope), { path: '/api/v1' });
+  res.clearCookie(cookieName(scope), { path: cookiePath(scope) });
 }
 
 export function readRefreshCookie(req: Request, required = true, scope: RefreshScope = 'customer'): string {

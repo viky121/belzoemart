@@ -8,6 +8,7 @@ import { QueueModule } from './common/queue/queue.module';
 import { IdentityWorkerModule } from './modules/identity/identity-worker.module';
 import { OrdersWorkerModule } from './modules/orders/orders-worker.module';
 import { EngagementWorkerModule } from './modules/engagement/engagement-worker.module';
+import { DeliveryWorkerModule } from './modules/delivery/delivery-worker.module';
 
 /**
  * Worker application context (no HTTP server). Domain units register their
@@ -25,6 +26,7 @@ import { EngagementWorkerModule } from './modules/engagement/engagement-worker.m
     IdentityWorkerModule,
     OrdersWorkerModule,
     EngagementWorkerModule,
+    DeliveryWorkerModule,
   ],
 })
 export class WorkerModule {}

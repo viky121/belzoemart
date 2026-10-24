@@ -52,14 +52,3 @@ apps/mobile/.expo/
 apps/mobile/android/
 apps/mobile/ios/
 apps/mobile/dist/
-
-# Local scratch / credentials from manual API testing — never commit
-login.json
-login-body.json
-out.json
-result.txt
-tmp-*.sh
-# User-uploaded media (stored on the server / S3, not in git)
-apps/api/uploads/
-# Deploy tarball
-belzo-src.tgz

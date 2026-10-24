@@ -1,0 +1,31 @@
+{
+  "cli": { "version": ">= 24.12.1", "appVersionSource": "remote" },
+  "build": {
+    "base": { "pnpm": "9.12.0" },
+    "development": {
+      "extends": "base",
+      "developmentClient": true,
+      "distribution": "internal",
+      "environment": "development",
+      "android": { "buildType": "apk" },
+      "channel": "development",
+      "env": { "EAS_PROJECT_ID": "aa2809c0-f44b-4210-9942-a101aedd7d84", "APP_VARIANT": "development", "EXPO_PUBLIC_API_BASE_URL": "https://belzoemart.com" }
+    },
+    "preview": {
+      "extends": "base",
+      "distribution": "internal",
+      "environment": "preview",
+      "android": { "buildType": "apk" },
+      "channel": "preview",
+      "env": { "EAS_PROJECT_ID": "aa2809c0-f44b-4210-9942-a101aedd7d84", "APP_VARIANT": "development", "EXPO_PUBLIC_API_BASE_URL": "https://belzoemart.com" }
+    },
+    "production": {
+      "extends": "base",
+      "autoIncrement": true,
+      "environment": "production",
+      "android": { "buildType": "app-bundle" },
+      "env": { "EAS_PROJECT_ID": "aa2809c0-f44b-4210-9942-a101aedd7d84", "APP_VARIANT": "production", "EXPO_PUBLIC_PHONE_OTP": "on" }
+    }
+  },
+  "submit": { "production": {} }
+}

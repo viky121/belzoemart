@@ -19,6 +19,12 @@ export const envSchema = z.object({
 
   JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
   JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
+  /** Signs delivery-partner tokens. Must differ from the other secrets so a partner token never passes customer or admin routes (SECURITY-08). */
+  JWT_PARTNER_SECRET: z.string().min(32, 'JWT_PARTNER_SECRET must be at least 32 characters'),
+  /** Pepper for the delivery OTP hash. Changing it only invalidates codes in flight. */
+  DELIVERY_OTP_PEPPER: z.string().min(32, 'DELIVERY_OTP_PEPPER must be at least 32 characters'),
+  /** Partner refresh-token lifetime in seconds (default 7 days). */
+  PARTNER_REFRESH_TTL: z.coerce.number().int().positive().default(604_800),
   JWT_ACCESS_TTL: z.coerce.number().int().positive().default(900),
   JWT_REFRESH_TTL: z.coerce.number().int().positive().default(1_209_600),
 
@@ -84,6 +90,14 @@ export const envSchema = z.object({
   SENTRY_DSN: z.string().optional().default(''),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 }).superRefine((env, ctx) => {
+  // The partner realm must have its own signing secret (SECURITY-08, SECURITY-12).
+  if (env.JWT_PARTNER_SECRET === env.JWT_ACCESS_SECRET || env.JWT_PARTNER_SECRET === env.JWT_REFRESH_SECRET) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['JWT_PARTNER_SECRET'],
+      message: 'JWT_PARTNER_SECRET must be different from JWT_ACCESS_SECRET and JWT_REFRESH_SECRET',
+    });
+  }
   // Fail fast if live SMS is selected but Fast2SMS is not configured (SECURITY-09).
   if (env.SMS_PROVIDER === 'live') {
     const need: (keyof typeof env)[] = ['FAST2SMS_API_KEY'];
