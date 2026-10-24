@@ -511,6 +511,7 @@ export class ReportsService {
         { key: 'returned', label: 'Units returned', kind: 'int' },
         { key: 'orders', label: 'Orders', kind: 'int' },
         { key: 'sales', label: 'Sales', kind: 'money' },
+        { key: 'discount', label: 'Discount given (with GST)', kind: 'money' },
         { key: 'avg', label: 'Average price', kind: 'money' },
       ],
       rows: rows.map((r) => ({
@@ -521,9 +522,13 @@ export class ReportsService {
         returned: r.returnedUnits,
         orders: r.orders,
         sales: r.sales,
+        discount: r.discount,
         avg: r.units > 0 ? Math.round(r.sales / r.units) : 0,
       })),
-      notes: ['Sales are without GST and after the order discount. Units sold do not include returned units.'],
+      notes: [
+        'Sales are what customers actually paid, without GST: the product price minus any coupon discount. A coupon can make this far lower than the price on the shop (see the Discount column).',
+        'Units sold do not include returned units.',
+      ],
     };
   }
 
@@ -590,9 +595,13 @@ export class ReportsService {
         { key: 'units', label: 'Units sold', kind: 'int' },
         { key: 'orders', label: 'Orders', kind: 'int' },
         { key: 'sales', label: 'Sales', kind: 'money' },
+        { key: 'discount', label: 'Discount given (with GST)', kind: 'money' },
       ],
-      rows: rows.map((r, i) => ({ rank: i + 1, product: r.label, units: r.units, orders: r.orders, sales: r.sales })),
-      notes: ['The 20 products that sold the most units in the period.'],
+      rows: rows.map((r, i) => ({ rank: i + 1, product: r.label, units: r.units, orders: r.orders, sales: r.sales, discount: r.discount })),
+      notes: [
+        'The 20 products that sold the most units in the period.',
+        'Sales are what customers actually paid, without GST, after coupon discounts.',
+      ],
     };
   }
 

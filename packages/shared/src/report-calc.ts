@@ -270,6 +270,8 @@ export interface GroupRow {
   orders: number;
   /** Sales without GST, after discounts, before refunds. */
   sales: number;
+  /** Discount given on these lines (coupon share), GST included. */
+  discount: number;
   refunds: number;
   cogs: number;
   profit: number;
@@ -294,6 +296,7 @@ export function groupLines(
         returnedUnits: 0,
         orders: 0,
         sales: 0,
+        discount: 0,
         refunds: 0,
         cogs: 0,
         profit: 0,
@@ -307,6 +310,7 @@ export function groupLines(
     g.units += l.quantity - l.returnedQty;
     g.returnedUnits += l.returnedQty;
     g.sales += l.netExTax;
+    g.discount += l.discount;
     g.refunds += refund;
     g.cogs += lineCogs(l);
     g.profit += l.netExTax - refund - lineCogs(l);

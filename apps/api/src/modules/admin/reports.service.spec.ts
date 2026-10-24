@@ -164,6 +164,22 @@ describe('ReportsService', () => {
     });
   });
 
+  describe('a coupon order', () => {
+    // A 109.98 product bought with a coupon that took 108.88 off: the customer paid 1.10 (GST 0.17 inside).
+    const couponOrder = {
+      id: 'o9ddddddd-0000', customerId: 'c1', createdAt: T3, subtotal: 10_998, discount: 10_888, shipping: 0, codFee: 0, tax: 17, grandTotal: 110,
+      items: [item('i9', 'v1', 10_998, 1, 18, null)],
+    };
+
+    it('shows what the customer paid (without GST) and the discount given, not the shop price', async () => {
+      const { svc } = makeService({ orders: [couponOrder] });
+      const r = await svc.build('products', Q);
+      const atta = r.rows.find((x) => x.product === 'Atta')!;
+      expect(atta).toMatchObject({ units: 1, sales: 110 - 17, discount: 10_888 });
+      expect(r.notes.join(' ')).toMatch(/coupon/i);
+    });
+  });
+
   describe('payments', () => {
     it('groups by method and separates received, waiting, refunded and failed', async () => {
       const { svc } = makeService();
@@ -227,8 +243,8 @@ describe('ReportsService', () => {
       const { svc } = makeService();
       const csv = svc.toCsv(await svc.build('best-sellers', Q));
       const [header, first] = csv.split('\n');
-      expect(header).toBe('#,Product,Units sold,Orders,Sales');
-      expect(first).toBe('1,Atta,4,3,952.39');
+      expect(header).toBe('#,Product,Units sold,Orders,Sales,Discount given (with GST)');
+      expect(first).toBe('1,Atta,4,3,952.39,0.00');
     });
 
     it('formats a time in India time', () => {
