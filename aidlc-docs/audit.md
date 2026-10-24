@@ -506,3 +506,33 @@ answer: both"
 **AI Response**: "Recorded NQ1 = A (proof files deleted 1 year after delivery) and NQ2 = A (money alerts on dashboard, no e-mail). Added BR-C56 and DeliveryProof.purgedAt to the functional design; storage port needs delete(key). Generated nfr-design-patterns.md (SP10-SP16, RP7-RP12) and logical-components.md with Security, Resiliency and PBT compliance; no blocking findings. Presented for approval."
 **Context**: CONSTRUCTION - U8.2 NFR Design complete, awaiting approval
 ---
+
+---
+## Admin Reports - Request and Question File
+**Timestamp**: 2026-10-24T09:00:00Z
+**User Input**: "bhai ye delop kardo admin side me report section me, iska report chiye admin side me," (with a screenshot of the spec "ADMIN 11 - REPORTS: Basic sales report, Purchasing report, Order report, User report, Product report, P/L report, Recommended: category, brand, best-seller and payment reports", and a screenshot of the current admin Reports page)
+**AI Response**: "Read the existing reporting code (reporting.service.ts, admin.controller.ts, reports/page.tsx, schema.prisma). Found: no purchasing/supplier model, no cost snapshot on OrderItem, no refund record. Created aidlc-docs/inception/requirements/admin-reports-questions.md with Q1-Q6 (purchasing source, P/L cost basis, P/L depth, access roles, page layout, shortcut). Waiting for answers before building."
+**Context**: INCEPTION - Requirements Analysis (Admin Reports), awaiting answers
+---
+
+---
+## Delivery Module (U8.2) - NFR Design Approved, Code Generation Plan Issued
+**Timestamp**: 2026-10-24T10:00:00Z
+**User Input**: "Continue to Next Stage"
+**AI Response**: "U8.2 NFR Design approved. Created aidlc-docs/construction/plans/u8-2-collection-cash-proof-code-generation-plan.md (18 steps: shared, migration 2, storage delete, Razorpay QR client, webhook router, gates refactor, collection, QR and UPI credit, ledger and settlement, proof, COD settlement, controllers, worker, DB check, docs, verification). Approval prompt: asked the user to approve the plan before any code is generated."
+**Context**: CONSTRUCTION - U8.2 Code Generation Part 1 (Planning), awaiting approval
+---
+## Admin Reports - Answers Received
+**Timestamp**: 2026-10-24T10:05:00Z
+**User Input**: "(answers written in admin-reports-questions.md) Q1: C, Q2: A, Q3: A, Q4: A, Q5: A, Q6: empty"
+**AI Response**: "Recorded: Purchasing report skipped for now (Q1=C); P/L uses a cost snapshot on order items from now on, older orders estimated (Q2=A); gross profit only (Q3=A); Purchasing/P-L cost views limited to super_admin, other reports as today (Q4=A); one tabbed Reports page with date filter, totals, tables, charts and CSV per report (Q5=A)."
+**Context**: INCEPTION - Requirements Analysis (Admin Reports), answers recorded
+---
+
+---
+## Admin Reports - Built and Verified
+**Timestamp**: 2026-10-24T12:00:00Z
+**User Input**: "Continue to Next Stage" (the Reports answers had been written into admin-reports-questions.md)
+**AI Response**: "Built the Admin Reports section per the recorded answers: shared report maths, order-item cost snapshot (migration 20261024090000), ReportsService/Controller (9 reports, CSV), tabbed admin page with a shared date filter, cost price hidden from every order response. Verified with shared, API (incl. real-database run), web and mobile suites. Summary: aidlc-docs/construction/admin-reports/code/summary.md. Nothing deployed."
+**Context**: CONSTRUCTION - Admin Reports code generation complete (small adaptive workflow), awaiting user review
+---

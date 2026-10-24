@@ -536,6 +536,7 @@ model OrderItem {
   unitPrice  Int
   quantity   Int
   taxRatePct Int
+  costPrice  Int? // cost of one unit when the order was placed (paise); null for older orders. ADMIN-ONLY
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 

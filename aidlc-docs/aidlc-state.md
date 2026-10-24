@@ -88,6 +88,8 @@
 - [x] U8.1 Code Generation APPROVED 2026-10-23 (U8.1 complete)
 - [x] U8.2 Functional Design plan answered (FQ1-FQ3 all A)
 - [x] U8.2 Functional Design APPROVED 2026-10-23
-- [x] U8.2 NFR Design: `aidlc-docs/construction/u8-2-collection-cash-proof/nfr-design/` (2 files); AWAITING USER APPROVAL. Next: U8.2 Code Generation (plan + approval).
+- [x] U8.2 NFR Design: `aidlc-docs/construction/u8-2-collection-cash-proof/nfr-design/` (2 files); APPROVED 2026-10-24
+- [ ] U8.2 Code Generation Part 1: plan `aidlc-docs/construction/plans/u8-2-collection-cash-proof-code-generation-plan.md` (18 steps); AWAITING USER APPROVAL
+- [x] Admin Reports: questions answered (Q1=C skip Purchasing, Q2 to Q5 = A); built and verified, summary `aidlc-docs/construction/admin-reports/code/summary.md`; not deployed
 - [ ] (remaining stages) (EXECUTE); Functional Design + NFR Design per unit (EXECUTE); NFR Requirements + Infrastructure Design (SKIP)
 - [ ] Construction (per phase) and Build and Test

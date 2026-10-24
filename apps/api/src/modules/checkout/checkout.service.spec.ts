@@ -15,7 +15,7 @@ type CartLine = { unitPrice: number; quantity: number; taxRatePct: number; minQt
 
 describe('CheckoutService.place — idempotency', () => {
   /** `opts` swaps in a real PricingService / cart line; defaults keep the original mock. */
-  function build(existingOrder: unknown, opts: { pricing?: PricingService; line?: CartLine } = {}) {
+  function build(existingOrder: unknown, opts: { pricing?: PricingService; line?: CartLine; cost?: number | null; costLookupFails?: boolean } = {}) {
     const reserveCalls: string[] = [];
     const orders: Record<string, unknown> = {};
     const created: Record<string, unknown>[] = [];
@@ -27,6 +27,16 @@ describe('CheckoutService.place — idempotency', () => {
       address: {
         findUnique: async () => ({ id: 'addr1', customerId: 'cust1', state: 'Karnataka', pincode: '560001' }),
       },
+      ...(opts.cost !== undefined || opts.costLookupFails
+        ? {
+            variant: {
+              findMany: async () => {
+                if (opts.costLookupFails) throw new Error('db down');
+                return [{ id: 'v1', costPrice: opts.cost ?? null }];
+              },
+            },
+          }
+        : {}),
       $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
         fn({
           order: {
@@ -121,6 +131,24 @@ describe('CheckoutService.place — idempotency', () => {
     expect((await inside.svc.place({ customerId: 'cust1' }, { addressId: 'addr1', paymentMethod: 'upi' }, 'KEY-IN')).reused).toBe(false);
     const unlimited = build(null);
     expect((await unlimited.svc.place({ customerId: 'cust1' }, { addressId: 'addr1', paymentMethod: 'upi' }, 'KEY-NONE')).reused).toBe(false);
+  });
+
+  it('saves the cost price on each order item for the P/L report', async () => {
+    const { svc, created } = build(null, { cost: 18000 });
+    await svc.place({ customerId: 'cust1' }, { addressId: 'addr1', paymentMethod: 'upi' }, 'KEY-COST');
+    const items = (created[0] as { items: { create: { costPrice: number | null }[] } }).items.create;
+    expect(items.map((i) => i.costPrice)).toEqual([18000]);
+  });
+
+  it('saves no cost (null) when the variant has none, and never blocks the order when the lookup fails', async () => {
+    const none = build(null, { cost: null });
+    await none.svc.place({ customerId: 'cust1' }, { addressId: 'addr1', paymentMethod: 'upi' }, 'KEY-NOCOST');
+    expect((none.created[0] as { items: { create: { costPrice: number | null }[] } }).items.create[0]!.costPrice).toBeNull();
+
+    const failing = build(null, { costLookupFails: true });
+    const result = await failing.svc.place({ customerId: 'cust1' }, { addressId: 'addr1', paymentMethod: 'upi' }, 'KEY-FAILCOST');
+    expect(result.reused).toBe(false);
+    expect((failing.created[0] as { items: { create: { costPrice: number | null }[] } }).items.create[0]!.costPrice).toBeNull();
   });
 
   it('rejects placing an order without a customer (guest)', async () => {

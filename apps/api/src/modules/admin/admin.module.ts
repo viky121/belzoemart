@@ -3,6 +3,8 @@ import { ReportingService } from './reporting.service';
 import { SettingsService } from './settings.service';
 import { AuditLogService } from './audit-log.service';
 import { AdminController } from './admin.controller';
+import { ReportsController } from './reports.controller';
+import { ReportsService } from './reports.service';
 import { PublicSettingsController } from './public-settings.controller';
 import { AdminMobileHomeController } from './admin-mobile-home.controller';
 import { HomeDesignController } from './home-design.controller';
@@ -15,8 +17,8 @@ import { HomeDesignService } from './home-design.service';
  * AuditLogService for other modules to record admin actions.
  */
 @Module({
-  controllers: [AdminController, AdminMobileHomeController, HomeDesignController, PublicSettingsController],
-  providers: [ReportingService, SettingsService, AuditLogService, HomeDesignService],
+  controllers: [AdminController, ReportsController, AdminMobileHomeController, HomeDesignController, PublicSettingsController],
+  providers: [ReportingService, ReportsService, SettingsService, AuditLogService, HomeDesignService],
   exports: [AuditLogService, SettingsService],
 })
 export class AdminModule {}

@@ -23,3 +23,5 @@ export * from './delivery';
 export * from './weight';
 export * from './order-limits';
 export * from './product-link';
+export * from './report-types';
+export * from './report-calc';

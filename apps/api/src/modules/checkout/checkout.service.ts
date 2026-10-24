@@ -169,6 +169,24 @@ export class CheckoutService {
     return { lines, snapshot };
   }
 
+  /**
+   * Cost of one unit per variant, saved on the order items so the P/L report stays right when the cost
+   * price changes later. A problem here must never stop an order, so it falls back to "no cost saved".
+   */
+  private async costsFor(variantIds: string[]): Promise<Map<string, number>> {
+    try {
+      const rows = await this.prisma.variant.findMany({
+        where: { id: { in: variantIds } },
+        select: { id: true, costPrice: true },
+      });
+      const out = new Map<string, number>();
+      for (const r of rows) if (typeof r.costPrice === 'number') out.set(r.id, r.costPrice);
+      return out;
+    } catch {
+      return new Map();
+    }
+  }
+
   async preview(
     ref: CartRef,
     addressId: string,
@@ -256,6 +274,7 @@ export class CheckoutService {
     }
 
     const { lines, snapshot } = await this.buildLines(ref);
+    const costs = await this.costsFor(snapshot.map((x) => x.variantId));
     const subtotal = lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
     const isCod = input.paymentMethod === 'cod';
 
@@ -304,6 +323,7 @@ export class CheckoutService {
               unitPrice: s.unitPrice,
               quantity: s.quantity,
               taxRatePct: s.taxRatePct,
+              costPrice: costs.get(s.variantId) ?? null,
             })),
           },
           payments: {
