@@ -230,7 +230,17 @@ export const profilePatchSchema = z.object({
     .optional(),
   gender: z.string().trim().max(20).optional(),
   dob: z.string().datetime().optional(),
-  photoUrl: z.string().url().optional(),
+  // The upload endpoint returns a host-relative path (/api/uploads/profile/<id>.jpg) unless a CDN is set, so
+  // accept that as well as a full https/http address. Nothing else (no javascript:, data: or other schemes).
+  photoUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .refine(
+      (v) => !v.includes('..') && (/^\/api\/uploads\/[A-Za-z0-9._\-/]+$/.test(v) || /^https?:\/\/[^\s]+$/i.test(v)),
+      'Enter a valid photo address',
+    )
+    .optional(),
   locale: z.enum(['en', 'hi']).optional(),
 });
 
@@ -243,7 +253,7 @@ export const addressInputSchema = z.object({
   fullName: z.string().trim().min(1).max(120),
   phone: phoneSchema,
   line1: z.string().trim().min(1).max(200),
-  line2: z.string().trim().max(200).optional(),
+  line2: z.string().trim().max(200).nullish(),
   city: z.string().trim().min(1).max(80),
   state: z.string().trim().min(1).max(80),
   pincode: pincodeSchema,

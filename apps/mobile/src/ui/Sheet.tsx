@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Keyboard, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useInsets } from '@/lib/use-bottom-inset';
 
 import { theme } from '@/theme';
 
@@ -16,7 +16,7 @@ export interface SheetProps {
 
 /** Bottom sheet built on RN Modal (no gesture-handler); back and scrim tap close it. */
 export function Sheet({ visible, title, onClose, children }: SheetProps) {
-  const insets = useSafeAreaInsets();
+  const insets = useInsets();
   const panel = useRef<View>(null);
   const [lift, setLift] = useState(0);
 

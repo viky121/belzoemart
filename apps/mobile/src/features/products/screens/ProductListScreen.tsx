@@ -147,7 +147,7 @@ export function ProductListScreen({ navigation, route }: RootScreenProps<'Produc
   const priceLabel = sort === 'price_asc' ? 'Price ↑' : sort === 'price_desc' ? 'Price ↓' : 'Price';
 
   return (
-    <Screen edges={['left', 'right']}>
+    <Screen edges={['left', 'right']} bottom="none">
       {handPicked ? null : (
       <View style={styles.toolbar}>
         {subs.length > 0 ? (
@@ -177,7 +177,7 @@ export function ProductListScreen({ navigation, route }: RootScreenProps<'Produc
           data={products}
           numColumns={2}
           keyExtractor={(p) => p.id}
-          contentContainerStyle={styles.grid}
+          contentContainerStyle={[styles.grid, { paddingBottom: 96 + bottomInset }]}
           onEndReachedThreshold={0.5}
           onEndReached={() => {
             if (list.hasNextPage && !list.isFetchingNextPage) void list.fetchNextPage();

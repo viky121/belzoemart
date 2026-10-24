@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useInsets } from '@/lib/use-bottom-inset';
 
 import { theme } from '@/theme';
 
@@ -44,7 +44,7 @@ export function showToast(opts: ToastOptions): void {
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<(ToastOptions & { id: number }) | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const insets = useSafeAreaInsets();
+  const insets = useInsets();
 
   const show = useCallback((opts: ToastOptions) => {
     if (timer.current) clearTimeout(timer.current);

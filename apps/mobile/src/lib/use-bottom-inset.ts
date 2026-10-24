@@ -14,3 +14,10 @@ export function useBottomInset(): number {
   const { bottom } = useSafeAreaInsets();
   return Math.max(bottom, Platform.OS === 'android' ? ANDROID_MIN_BOTTOM : DEFAULT_MIN_BOTTOM);
 }
+
+/** The safe-area insets with the bottom one made safe for Android (see useBottomInset). */
+export function useInsets() {
+  const insets = useSafeAreaInsets();
+  const bottom = useBottomInset();
+  return { ...insets, bottom };
+}

@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useInsets } from '@/lib/use-bottom-inset';
 
 import { toApiError, userMessage } from '@/api/errors';
 import { qk } from '@/api/query-keys';
@@ -35,7 +35,7 @@ const AMBIGUOUS_COPY =
 
 /** Checkout (design §6.6, §11): address, payment method, preview, idempotent place, payment adapter. */
 export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'>) {
-  const insets = useSafeAreaInsets();
+  const insets = useInsets();
   const queryClient = useQueryClient();
   const toast = useToast();
   const customer = useSessionStore((s) => s.customer);

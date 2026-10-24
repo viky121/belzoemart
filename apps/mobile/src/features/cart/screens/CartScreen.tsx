@@ -67,7 +67,7 @@ export function CartScreen() {
   }
 
   return (
-    <Screen edges={[...EDGES]}>
+    <Screen edges={[...EDGES]} bottom="none">
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollBody}

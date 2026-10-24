@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { userMessage } from '@/api/errors';
 import { uploadImage } from '@/api/upload';
 import { theme } from '@/theme';
 import { useBrand } from '@/theme/use-brand';
@@ -66,8 +67,9 @@ export function ProfilePhoto() {
       const uploaded = await uploadImage(PROFILE_UPLOAD_PATH, normalised.uri);
       await update.mutateAsync({ photoUrl: uploaded.url });
       toast.show({ message: 'Profile photo updated' });
-    } catch {
-      toast.show({ message: 'Could not update the photo. Please try again.', tone: 'error' });
+    } catch (e) {
+      // Say what went wrong (too large, not signed in, no network) instead of a blind "try again".
+      toast.show({ message: userMessage(e) || 'Could not update the photo. Please try again.', tone: 'error' });
     } finally {
       setBusy(false);
     }

@@ -10,7 +10,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useInsets } from '@/lib/use-bottom-inset';
 
 import { isApiError } from '@/api/errors';
 import { env } from '@/config/env';
@@ -58,7 +58,7 @@ function CardTitle({ title }: { title: string }) {
 /** Product detail (design §11): gallery, variants, slab price, delivery, reviews, related, Add/Buy. */
 export function ProductDetailScreen({ navigation, route }: RootScreenProps<'ProductDetail'>) {
   const { idOrSlug } = route.params;
-  const insets = useSafeAreaInsets();
+  const insets = useInsets();
   const brand = useBrand();
 
   const product = useProduct(idOrSlug);

@@ -30,6 +30,8 @@ interface PreviewResult {
   breakup: PriceBreakup;
   coupon: { code: string; valid: boolean; reason?: string } | null;
   serviceable?: boolean;
+  /** False when the shop has switched Cash on Delivery off (admin Settings). */
+  codEnabled?: boolean;
   /** Delivery charge waived by a free_shipping coupon (paise); display-only. */
   shippingWaived?: number;
 }
@@ -105,19 +107,20 @@ export default function CheckoutPage() {
     try {
       const res = await authFetch<PreviewResult>('/checkout/preview', {
         method: 'POST',
-        body: { addressId, couponCode: coupon || undefined },
+        // The payment method decides the COD fee, so the total shown is the total charged.
+        body: { addressId, couponCode: coupon || undefined, paymentMethod: method },
       });
       setPreview(res);
     } catch (e) {
       // The server says why (out of stock, quantity outside the min/max, empty cart ...).
       setError(e instanceof Error && e.message ? e.message : 'Could not compute totals. Is your cart empty?');
     }
-  }, [addressId, coupon, authFetch]);
+  }, [addressId, coupon, authFetch, method]);
 
   useEffect(() => {
     void runPreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addressId]);
+  }, [addressId, method]);
 
   async function saveAddress() {
     setAddrError(null);
@@ -207,6 +210,10 @@ export default function CheckoutPage() {
     }
   }
 
+  // If the shop switched COD off while it was chosen, move to online payment instead of failing at "Place order".
+  useEffect(() => {
+    if (preview?.codEnabled === false && method === 'cod') setMethod('upi');
+  }, [preview?.codEnabled, method]);
   const notServiceable = preview?.serviceable === false;
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -344,10 +351,12 @@ export default function CheckoutPage() {
                 <input type="radio" checked={method === 'upi'} onChange={() => setMethod('upi')} data-testid="pay-upi" />
                 <span>💳 UPI / Card / Netbanking<em>Pay securely via UPI, Debit/Credit Card or Netbanking</em></span>
               </label>
+              {preview?.codEnabled !== false && (
               <label className={`co-pay__opt${method === 'cod' ? ' co-pay__opt--active' : ''}`}>
                 <input type="radio" checked={method === 'cod'} onChange={() => setMethod('cod')} data-testid="pay-cod" />
                 <span>💵 Cash on Delivery<em>Pay with cash at the time of delivery</em></span>
               </label>
+              )}
             </div>
           </div>
         </div>
