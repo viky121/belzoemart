@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { MAX_CART_QTY, SHEET_FIELD_MAX, WEIGHT_UNITS } from '@belzo/shared';
-import { Roles } from '../../common/auth/roles.decorator';
+import { RequirePermission } from '../../common/auth/permissions.decorator';
 import { createZodDto } from '../identity/zod-dto';
 import { CategoryService } from './category.service';
 import { ProductService } from './product.service';
@@ -219,7 +219,7 @@ class AdjustDto extends createZodDto(adjustSchema) {}
  */
 @ApiTags('admin-catalogue')
 @ApiBearerAuth()
-@Roles('catalogue_manager')
+@RequirePermission('products.edit')
 @Controller('admin')
 export class AdminCatalogueController {
   constructor(
@@ -231,32 +231,38 @@ export class AdminCatalogueController {
     private readonly sheet: BulkSheetService,
   ) {}
 
+  @RequirePermission('taxonomy.view')
   @Get('categories')
   listCategories() {
     return this.categories.tree();
   }
 
+  @RequirePermission('taxonomy.edit')
   @Post('categories')
   upsertCategory(@Body() dto: CategoryUpsertDto) {
     return this.categories.upsert(dto);
   }
 
+  @RequirePermission('taxonomy.edit')
   @Delete('categories/:id')
   deleteCategory(@Param('id') id: string) {
     return this.categories.remove(id);
   }
 
+  @RequirePermission('products.view', 'mobile.edit', 'content.edit')
   @Get('products')
   listProducts() {
     return this.products.adminList();
   }
 
   /** Every draft/published product as Excel sheet rows (the browser builds the .xlsx). */
+  @RequirePermission('products.view')
   @Get('products/sheet')
   bulkSheetExport() {
     return this.sheet.exportSheet();
   }
 
+  @RequirePermission('products.view')
   @Get('products/:id/detail')
   productDetail(@Param('id') id: string) {
     return this.products.adminDetail(id);
@@ -288,17 +294,20 @@ export class AdminCatalogueController {
   }
 
   /** @deprecated use POST /admin/products/bulk-v2 (Excel sheet) */
+  @RequirePermission('products.bulk')
   @Post('products/bulk')
   bulk(@Body() dto: BulkDto) {
     return this.products.bulkUpsert(dto.rows);
   }
 
   /** Import Excel sheet rows (one chunk of whole product groups). */
+  @RequirePermission('products.bulk')
   @Post('products/bulk-v2')
   bulkSheetImport(@Body() dto: BulkSheetDto) {
     return this.sheet.importRows(dto.rows, { weightUnit: dto.weightUnit });
   }
 
+  @RequirePermission('products.view')
   @Get('products/:productId/variants')
   listVariants(@Param('productId') productId: string) {
     return this.variants.listByProduct(productId);
@@ -326,31 +335,37 @@ export class AdminCatalogueController {
   }
 
   /** Apply one offer / price / stock change to many products at once. */
+  @RequirePermission('products.bulk')
   @Post('products/bulk-edit')
   bulkEdit(@Body() dto: BulkEditDto) {
     return this.products.bulkEdit({ productIds: dto.productIds, operation: dto.operation });
   }
 
+  @RequirePermission('taxonomy.view')
   @Get('brands')
   listBrandsAdmin() {
     return this.brands.adminList();
   }
 
+  @RequirePermission('taxonomy.edit')
   @Post('brands')
   upsertBrand(@Body() dto: { name: string; logoUrl?: string; id?: string }) {
     return this.brands.upsert(dto);
   }
 
+  @RequirePermission('taxonomy.edit')
   @Delete('brands/:id')
   deleteBrand(@Param('id') id: string) {
     return this.brands.remove(id);
   }
 
+  @RequirePermission('stock.adjust')
   @Post('inventory/:variantId/adjust')
   adjustStock(@Param('variantId') variantId: string, @Body() dto: AdjustDto) {
     return this.inventory.adjust(variantId, dto.delta, dto.ref);
   }
 
+  @RequirePermission('products.view')
   @Get('inventory/:variantId')
   async stock(@Param('variantId') variantId: string) {
     return { variantId, available: await this.inventory.getStock(variantId) };

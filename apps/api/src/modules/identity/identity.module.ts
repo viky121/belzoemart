@@ -12,6 +12,8 @@ import { AddressService } from './address.service';
 import { PincodeService } from './pincode.service';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminUserService } from './admin-user.service';
+import { AdminRolesService } from './admin-roles.service';
+import { AuditLogService } from '../admin/audit-log.service';
 import { DataRequestService } from './data-request.service';
 import { AdminCustomerService } from './admin-customer.service';
 import { AuthController } from './auth.controller';
@@ -50,6 +52,8 @@ import { AdminCustomersController } from './admin-customers.controller';
     PincodeService,
     AdminAuthService,
     AdminUserService,
+    AdminRolesService,
+    AuditLogService,
     DataRequestService,
     AdminCustomerService,
   ],

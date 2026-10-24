@@ -116,9 +116,10 @@ model AdminUser {
 }
 
 model Role {
-  id          String @id @default(uuid())
-  name        String @unique
-  description String @default("")
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String  @default("")
+  isSystem    Boolean @default(false) // the Super Admin type: cannot be edited, renamed or deleted
 
   permissions RolePermission[]
   admins      AdminUserRole[]

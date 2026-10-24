@@ -61,8 +61,9 @@ export const PRODUCT_STATUSES = ['draft', 'published', 'archived'] as const;
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 
 export const USER_ROLES = ['customer'] as const;
+/** The staff types that exist on a fresh install. Staff types are now made in the admin panel, so a role is just a name. */
 export const ADMIN_ROLES = ['super_admin', 'catalogue_manager', 'order_manager', 'marketing', 'support'] as const;
-export type AdminRole = (typeof ADMIN_ROLES)[number];
+export type AdminRole = string;
 
 /** Native clients send `X-Client-Platform: mobile` to receive/send the refresh token in the body. */
 export const CLIENT_PLATFORM_HEADER = 'x-client-platform';

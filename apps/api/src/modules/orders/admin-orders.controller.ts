@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { ORDER_STATUSES } from '@belzo/shared';
-import { Roles } from '../../common/auth/roles.decorator';
+import { RequirePermission } from '../../common/auth/permissions.decorator';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import type { JwtPrincipal } from '../../common/auth/jwt.types';
 import { createZodDto } from '../identity/zod-dto';
@@ -27,7 +27,7 @@ class ReturnUpdateDto extends createZodDto(returnUpdateSchema) {}
  */
 @ApiTags('admin-orders')
 @ApiBearerAuth()
-@Roles('order_manager')
+@RequirePermission('orders.manage')
 @Controller('admin/orders')
 export class AdminOrdersController {
   constructor(
@@ -38,6 +38,7 @@ export class AdminOrdersController {
     private readonly audit: AuditLogService,
   ) {}
 
+  @RequirePermission('orders.view')
   @Get()
   list(
     @Query('status') status?: string,
@@ -85,11 +86,13 @@ export class AdminOrdersController {
     return { success: true };
   }
 
+  @RequirePermission('returns.view')
   @Get('returns')
   listReturns() {
     return this.returns.adminList();
   }
 
+  @RequirePermission('returns.manage')
   @Patch('returns/:returnId')
   updateReturn(@Param('returnId') returnId: string, @Body() dto: ReturnUpdateDto) {
     return this.returns.adminUpdate(returnId, dto.status);
@@ -99,6 +102,7 @@ export class AdminOrdersController {
    * Full order detail for the admin panel. Declared last so static routes
    * (e.g. `returns`) are matched before this `:id` param route.
    */
+  @RequirePermission('orders.view')
   @Get(':id')
   detail(@Param('id') id: string) {
     return this.orders.adminGetOrder(id);

@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { AdminRole, AuthTokens } from '@belzo/shared';
+import { AdminAccessService } from '../../common/auth/admin-access.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
@@ -17,6 +18,13 @@ interface AdminSummary {
   name: string;
   email: string;
   roles: AdminRole[];
+}
+
+/** Who the signed-in admin is and what they may do, for the admin panel (menu, pages, top bar). */
+export interface AdminMe extends AdminSummary {
+  isSuperAdmin: boolean;
+  mfaEnabled: boolean;
+  permissions: string[];
 }
 
 /**
@@ -31,6 +39,7 @@ export class AdminAuthService {
     private readonly passwords: PasswordService,
     private readonly tokens: TokenService,
     private readonly lockout: LockoutService,
+    private readonly access: AdminAccessService,
   ) {}
 
   async login(
@@ -72,6 +81,27 @@ export class AdminAuthService {
     };
   }
 
+  /** The signed-in admin with their current permissions (read fresh, never from the token). */
+  async me(adminId: string): Promise<AdminMe> {
+    const [admin, access] = await Promise.all([
+      this.prisma.adminUser.findUnique({
+        where: { id: adminId },
+        select: { id: true, name: true, email: true, mfaEnabled: true },
+      }),
+      this.access.get(adminId),
+    ]);
+    if (!admin || !access) throw new UnauthorizedException('Admin account not found');
+    return {
+      id: admin.id,
+      name: admin.name,
+      email: admin.email,
+      mfaEnabled: admin.mfaEnabled,
+      roles: access.roles,
+      isSuperAdmin: access.isSuperAdmin,
+      permissions: [...access.permissions].sort(),
+    };
+  }
+
   async refresh(refreshToken: string): Promise<AuthTokens> {
     // Roles are re-resolved on rotation so revoked/added roles take effect.
     const t = await this.tokens.rotate(refreshToken, (id) => this.rolesFor(id));
@@ -79,6 +109,9 @@ export class AdminAuthService {
   }
 
   private async rolesFor(adminUserId: string): Promise<AdminRole[]> {
+    // A switched-off admin must not keep a session alive by refreshing it.
+    const admin = await this.prisma.adminUser.findUnique({ where: { id: adminUserId }, select: { status: true } });
+    if (!admin || admin.status === 'disabled') throw new ForbiddenException('Account disabled');
     const rows = await this.prisma.adminUserRole.findMany({
       where: { adminUserId },
       include: { role: true },

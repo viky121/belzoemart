@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Put, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, Put, Query, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { z } from 'zod';
+import { assertAccessCan } from '../../common/auth/admin-access.service';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
-import { Roles } from '../../common/auth/roles.decorator';
+import { RequirePermission } from '../../common/auth/permissions.decorator';
 import type { JwtPrincipal } from '../../common/auth/jwt.types';
 import { createZodDto } from '../identity/zod-dto';
 import { ReportingService } from './reporting.service';
@@ -36,70 +37,72 @@ export class AdminController {
     private readonly audit: AuditLogService,
   ) {}
 
-  @Roles('order_manager', 'marketing')
+  @RequirePermission('dashboard.view')
   @Get('dashboard')
   dashboard() {
     return this.reporting.dashboard();
   }
 
-  @Roles('order_manager', 'marketing')
+  @RequirePermission('dashboard.view', 'reports.view')
   @Get('reports/sales-trend')
   salesTrend(@Query('days') days?: string) {
     return this.reporting.salesTrend(days ? Number(days) : 7);
   }
 
-  @Roles('order_manager', 'marketing')
+  @RequirePermission('reports.view')
   @Get('reports/sales')
-  async sales(@Query('from') from?: string, @Query('to') to?: string, @Query('format') format?: string, @Res({ passthrough: true }) res?: Response) {
+  async sales(@Req() req: Request, @Query('from') from?: string, @Query('to') to?: string, @Query('format') format?: string, @Res({ passthrough: true }) res?: Response) {
+    if (format === 'csv') assertAccessCan(req.adminAccess, 'reports.export');
     const rows = await this.reporting.sales({ from, to });
     return this.maybeCsv(rows, ['status', 'orders', 'revenue'], 'sales', format, res);
   }
 
-  @Roles('order_manager', 'marketing')
+  @RequirePermission('reports.view')
   @Get('reports/gst')
   gst(@Query('from') from?: string, @Query('to') to?: string) {
     return this.reporting.gst({ from, to });
   }
 
-  @Roles('order_manager', 'marketing')
+  @RequirePermission('reports.view')
   @Get('reports/inventory')
-  async inventory(@Query('format') format?: string, @Res({ passthrough: true }) res?: Response) {
+  async inventory(@Req() req: Request, @Query('format') format?: string, @Res({ passthrough: true }) res?: Response) {
+    if (format === 'csv') assertAccessCan(req.adminAccess, 'reports.export');
     const rows = await this.reporting.inventory();
     return this.maybeCsv(rows, ['sku', 'product', 'available', 'reserved', 'reorderLevel'], 'inventory', format, res);
   }
 
-  @Roles('order_manager', 'marketing')
+  @RequirePermission('reports.view')
   @Get('reports/returns')
   returns(@Query('from') from?: string, @Query('to') to?: string) {
     return this.reporting.returns({ from, to });
   }
 
-  @Roles('order_manager', 'marketing')
+  @RequirePermission('payments.view')
   @Get('payments')
   payments() {
     return this.reporting.payments();
   }
 
-  @Roles('order_manager', 'marketing')
+  @RequirePermission('reports.view', 'customers.view')
   @Get('reports/customers')
   customers() {
     return this.reporting.customers();
   }
 
-  @Roles('super_admin')
+  @RequirePermission('settings.edit')
   @Get('settings')
   getSettings() {
     return this.settings.getAll();
   }
 
-  @Roles('super_admin')
+  @RequirePermission('settings.edit')
   @Put('settings')
   async setSetting(@CurrentUser() user: JwtPrincipal, @Body() dto: SettingDto) {
     await this.settings.set(user.sub, dto.key, dto.value);
     return { success: true };
   }
 
-  @Roles('super_admin')
+  @RequirePermission('serviceability.edit')
   @Get('serviceability')
   async getServiceability(): Promise<{ pincodes: string[] }> {
     const raw = await this.settings.get<unknown>(SERVICEABLE_PINCODES_KEY);
@@ -107,7 +110,7 @@ export class AdminController {
     return { pincodes };
   }
 
-  @Roles('super_admin')
+  @RequirePermission('serviceability.edit')
   @Put('serviceability')
   async setServiceability(@CurrentUser() user: JwtPrincipal, @Body() dto: ServiceabilityDto) {
     // De-duplicate while preserving order.
@@ -116,7 +119,7 @@ export class AdminController {
     return { success: true, count: unique.length };
   }
 
-  @Roles('super_admin')
+  @RequirePermission('audit.view')
   @Get('audit')
   auditLog(@Query('page') page?: string) {
     return this.audit.list({ page: page ? Number(page) : 1 });

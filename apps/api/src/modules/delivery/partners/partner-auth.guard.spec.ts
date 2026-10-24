@@ -2,7 +2,8 @@ import { ForbiddenException, UnauthorizedException, type ExecutionContext } from
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
-import { RolesGuard } from '../../../common/auth/roles.guard';
+import type { AdminAccessService } from '../../../common/auth/admin-access.service';
+import { PermissionsGuard } from '../../../common/auth/permissions.guard';
 import { TokenService } from '../../identity/token.service';
 import { AllowPasswordChange } from './partner-auth.decorators';
 import { PartnerAuthGuard, PRESENCE_TOUCH_MS } from './partner-auth.guard';
@@ -117,14 +118,16 @@ describe('partner realm isolation (SP1)', () => {
     await expect(guard.canActivate(ctx(forgedWithAccessSecret).context)).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
-  it('the roles guard refuses a partner principal on an admin route', () => {
+  it('the permissions guard refuses a partner principal on an admin route', async () => {
     class Admin {
       handle(): void {}
     }
-    Reflect.defineMetadata('roles', ['order_manager'], Admin);
+    Reflect.defineMetadata('permissions', ['orders.view'], Admin);
     const { context, request } = ctx({}, Admin);
     request.user = { sub: 'p1', kind: 'partner', roles: [] };
-    expect(() => new RolesGuard(new Reflector()).canActivate(context)).toThrow(ForbiddenException);
+    const lookup = { get: jest.fn() } as unknown as AdminAccessService;
+    await expect(new PermissionsGuard(new Reflector(), lookup).canActivate(context)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(lookup.get).not.toHaveBeenCalled();
   });
 
   it('the customer refresh endpoint never turns a partner refresh token into a customer session', async () => {

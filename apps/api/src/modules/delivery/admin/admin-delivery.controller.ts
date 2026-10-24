@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } fr
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../../common/auth/current-user.decorator';
 import type { JwtPrincipal } from '../../../common/auth/jwt.types';
-import { Roles } from '../../../common/auth/roles.decorator';
+import { RequirePermission } from '../../../common/auth/permissions.decorator';
 import { AdminJobsQueryDto, AssignJobDto, ChangeContactDto, ReasonDto, ReassignJobDto } from '../dto';
 import { JobQueryService } from '../jobs/job-query.service';
 import { JobService } from '../jobs/job.service';
@@ -14,7 +14,7 @@ import { DeliveryOtpService } from '../otp/delivery-otp.service';
  * marks a job delivered: only the partner can, with the customer's code (BR-D38).
  */
 @ApiTags('admin-delivery')
-@Roles('order_manager')
+@RequirePermission('delivery.jobs')
 @Controller('admin')
 export class AdminDeliveryController {
   constructor(

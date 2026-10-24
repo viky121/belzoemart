@@ -4,7 +4,7 @@ import { exportRowToInput, type SheetIssue, type SheetKey, type SheetRowInput } 
 import { BulkSheetService } from './bulk-sheet.service';
 import { ProductService } from './product.service';
 import { AdminCatalogueController } from './admin-catalogue.controller';
-import { ROLES_KEY } from '../../common/auth/roles.decorator';
+import { PERMISSIONS_KEY } from '../../common/auth/permissions.decorator';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { InventoryService } from './inventory.service';
 import type { CategoryService } from './category.service';
@@ -1278,8 +1278,10 @@ describe('BulkSheetService — round trip (AC-9)', () => {
 });
 
 describe('AdminCatalogueController sheet routes', () => {
-  it('sit under the class-level catalogue_manager role', () => {
-    expect(Reflect.getMetadata(ROLES_KEY, AdminCatalogueController)).toContain('catalogue_manager');
+  it('are guarded by products.bulk; the rest of the controller defaults to products.edit', () => {
+    expect(Reflect.getMetadata(PERMISSIONS_KEY, AdminCatalogueController)).toEqual(['products.edit']);
+    expect(Reflect.getMetadata(PERMISSIONS_KEY, AdminCatalogueController.prototype.bulkSheetImport)).toEqual(['products.bulk']);
+    expect(Reflect.getMetadata(PERMISSIONS_KEY, AdminCatalogueController.prototype.bulkSheetExport)).toEqual(['products.view']);
     expect(typeof AdminCatalogueController.prototype.bulkSheetImport).toBe('function');
     expect(typeof AdminCatalogueController.prototype.bulkSheetExport).toBe('function');
     expect('exportProducts' in AdminCatalogueController.prototype).toBe(false);

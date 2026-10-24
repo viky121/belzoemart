@@ -1,7 +1,10 @@
-import { Body, Controller, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
+import { CurrentUser } from '../../common/auth/current-user.decorator';
+import type { JwtPrincipal } from '../../common/auth/jwt.types';
+import { AnyAdmin } from '../../common/auth/permissions.decorator';
 import { Public } from '../../common/auth/public.decorator';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminLoginDto } from './dto';
@@ -24,6 +27,13 @@ export class AdminAuthController {
     const { tokens, admin } = await this.auth.login(dto.email, dto.password, dto.mfaCode, req.ip);
     setRefreshCookie(res, tokens.refreshToken, 'admin');
     return { accessToken: tokens.accessToken, expiresIn: tokens.expiresIn, admin };
+  }
+
+  /** Who am I and what may I do? Read fresh every time; the admin panel builds its menu from this. */
+  @AnyAdmin()
+  @Get('me')
+  me(@CurrentUser() user: JwtPrincipal) {
+    return this.auth.me(user.sub);
   }
 
   @Public()

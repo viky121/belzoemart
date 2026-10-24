@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import {
-  ADMIN_ROLES,
   MAX_PAGE_SIZE,
   ORDER_STATUSES,
   PAYMENT_METHODS,
@@ -525,7 +524,7 @@ export const adminLoginSchema = z.object({
 });
 export type AdminLogin = z.infer<typeof adminLoginSchema>;
 
-export const adminRoleSchema = z.enum(ADMIN_ROLES);
+export const adminRoleSchema = z.string().trim().min(1).max(40);
 
 // ---------------------------------------------------------------------------
 // Standard API error envelope
