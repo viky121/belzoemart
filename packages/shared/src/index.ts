@@ -26,3 +26,5 @@ export * from './product-link';
 export * from './report-types';
 export * from './report-calc';
 export * from './permissions';
+export * from './offers';
+export * from './offers-view';

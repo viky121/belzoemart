@@ -2306,3 +2306,12 @@
   .acc-picker { grid-template-columns: 1fr; }
   .acc-actions { white-space: normal; }
 }
+
+/* ---------- Offers admin (offerpick) ---------- */
+.offerpick { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 1px solid #e6e9ef; border-radius: 10px; background: #fff; text-align: left; cursor: pointer; }
+.offerpick:hover { border-color: #2874f0; }
+.offerpick--chosen { cursor: default; border-color: #16a34a; background: #f0fdf4; }
+.offerpick img { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; flex: none; }
+.offerpick span { flex: 1; min-width: 0; }
+.offerpick__list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.acc-check { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-weight: 600; font-size: .85rem; }

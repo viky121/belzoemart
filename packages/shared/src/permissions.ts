@@ -43,6 +43,9 @@ export const PERMISSION_DEFS = [
   { key: 'coupons.view', label: 'View', help: 'See coupons.', group: 'Coupons' },
   { key: 'coupons.edit', label: 'Edit', help: 'Add, change and delete coupons.', group: 'Coupons', requires: ['coupons.view'] },
 
+  { key: 'offers.view', label: 'View', help: 'See special price offers (for example "shop 2000, get sugar at 29").', group: 'Offers' },
+  { key: 'offers.edit', label: 'Edit', help: 'Add, change, switch off and delete special price offers.', group: 'Offers', requires: ['offers.view'], sensitive: true },
+
   { key: 'content.edit', label: 'Banners and pages', help: 'Edit website banners and the text pages (terms, privacy and others).', group: 'Content' },
   { key: 'mobile.edit', label: 'Mobile app and home page design', help: 'Change the mobile app home screen and the website home page layout.', group: 'Content' },
   { key: 'media.manage', label: 'Media library', help: 'Upload and browse pictures.', group: 'Content' },
@@ -158,7 +161,7 @@ export const ROLE_TEMPLATES: readonly RoleTemplate[] = [
     permissions: normalizePermissions([
       'dashboard.view', 'products.view', 'products.edit', 'products.bulk', 'stock.adjust', 'taxonomy.view', 'taxonomy.edit',
       'orders.view', 'orders.manage', 'returns.view', 'returns.manage', 'payments.view', 'customers.view', 'customers.block',
-      'reviews.moderate', 'coupons.view', 'coupons.edit', 'content.edit', 'mobile.edit', 'media.manage',
+      'reviews.moderate', 'coupons.view', 'coupons.edit', 'offers.view', 'offers.edit', 'content.edit', 'mobile.edit', 'media.manage',
       'reports.view', 'reports.export', 'delivery.partners', 'delivery.jobs', 'serviceability.edit',
     ]),
   },
@@ -187,7 +190,7 @@ export const ROLE_TEMPLATES: readonly RoleTemplate[] = [
     name: 'marketing',
     description: 'Coupons, banners, pages, the mobile app home screen, pictures and reports.',
     permissions: normalizePermissions([
-      'dashboard.view', 'payments.view', 'customers.view', 'coupons.view', 'coupons.edit', 'content.edit', 'mobile.edit',
+      'dashboard.view', 'payments.view', 'customers.view', 'coupons.view', 'coupons.edit', 'offers.view', 'offers.edit', 'content.edit', 'mobile.edit',
       'media.manage', 'reports.view', 'reports.export',
     ]),
   },

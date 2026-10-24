@@ -15,6 +15,8 @@ interface AdminItem {
   unitPrice: number;
   quantity: number;
   taxRatePct: number;
+  offerId?: string | null;
+  offerName?: string | null;
   imageUrl: string | null;
   slug: string | null;
   isReturnable: boolean;
@@ -264,6 +266,7 @@ export default function AdminOrderDetailPage() {
                           <span className="aod-prod-title">{i.title}</span>
                         )}
                         {vt && <div className="admin-muted" style={{ fontSize: '0.8rem' }}>{vt}</div>}
+                        {i.offerName && <div className="admin-muted" style={{ fontSize: '0.8rem' }}>🎁 Offer price · {i.offerName}</div>}
                         <span className={`admin-status ${i.isReturnable ? 'admin-status--info' : ''}`} style={{ marginTop: 4 }}>
                           {i.isReturnable ? 'Returnable' : 'Non-returnable'}
                         </span>

@@ -2,14 +2,21 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   discountPct,
   effectiveOrderLimits,
+  evaluateOffers,
   MAX_CART_QTY,
+  offerLimitMessage,
+  offerUnitCaps,
   orderLimitsMessage,
   resolveSlabPrice,
   variantUnitLabel,
+  type CartOffer,
   type Money,
+  type OrderLimits,
+  type OrderLimitsInput,
   type PriceSlabTier,
 } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { liveOfferRules } from '../offers/live-offers';
 
 const MAX_QTY = MAX_CART_QTY;
 const clampQty = (q: number): number => Math.max(1, Math.min(MAX_QTY, Math.trunc(q)));
@@ -23,6 +30,10 @@ export interface CartRef {
  * Persistent cart (FR-4.1, FR-4.2, BR-1..BR-3). Supports guest carts (by token)
  * and user carts, quantity clamping, save-for-later, and guest→user merge.
  * Reads revalidate live price/stock from the catalogue.
+ *
+ * Special-price offers ("shop 2000, get sugar 1 kg at 29") are applied here, on the server: the unit price of
+ * an offer pack is the offer price once the other items reach the spend amount, and while an offer is on the
+ * pack is limited to the offer units per order. Checkout and order placement read the same cart.
  */
 @Injectable()
 export class CartService {
@@ -38,6 +49,21 @@ export class CartService {
       return existing ?? this.prisma.cart.create({ data: { guestToken: ref.guestToken } });
     }
     throw new Error('CartRef requires customerId or guestToken');
+  }
+
+  /**
+   * The variant's purchase limits with any live offer limit applied. `offerCapped` tells which one is in force,
+   * so the message can say "while this offer is on".
+   */
+  private limitsWithOffers(v: OrderLimitsInput | undefined | null, cap: number | undefined): OrderLimits & { offerCapped: boolean } {
+    const base = effectiveOrderLimits(v);
+    if (cap === undefined || cap >= base.max) return { ...base, offerCapped: false };
+    return { min: base.min, max: Math.max(base.min, cap), offerCapped: true };
+  }
+
+  private limitError(title: string, limits: OrderLimits & { offerCapped: boolean }, qty: number): BadRequestException {
+    if (limits.offerCapped && qty > limits.max) return new BadRequestException(offerLimitMessage(title, limits.max));
+    return new BadRequestException(orderLimitsMessage(title, limits, qty));
   }
 
   async getCart(ref: CartRef) {
@@ -62,7 +88,10 @@ export class CartService {
       productQty.set(v.productId, (productQty.get(v.productId) ?? 0) + item.quantity);
     }
 
-    const lines = items.map((item) => {
+    const offers = await liveOfferRules(this.prisma);
+    const caps = offerUnitCaps(offers);
+
+    const regular = items.map((item) => {
       const v = byId.get(item.variantId);
       // A lingering line for a removed variant is shown as unavailable; checkout blocks it.
       const unavailable = !v || !v.isActive;
@@ -71,9 +100,26 @@ export class CartService {
       const slabs = (v?.priceSlabsJson as unknown as PriceSlabTier[] | null) ?? [];
       // Resolve the tier by the product's total quantity across all its packs.
       const tierQty = (v?.productId && productQty.get(v.productId)) || item.quantity;
-      const unitPrice = resolveSlabPrice(base, slabs, tierQty);
+      const regularUnitPrice = resolveSlabPrice(base, slabs, tierQty);
       const unit = variantUnitLabel(v);
-      const limits = effectiveOrderLimits(v);
+      const limits = this.limitsWithOffers(v, caps.get(item.variantId));
+      return { item, v, unavailable, available, base, slabs, tierQty, regularUnitPrice, unit, limits };
+    });
+
+    const evaluation = evaluateOffers(
+      regular.map((r) => ({
+        variantId: r.item.variantId,
+        quantity: r.item.quantity,
+        regularUnitPrice: r.regularUnitPrice,
+        counts: !r.item.savedForLater && !r.unavailable,
+      })),
+      offers,
+    );
+
+    const lines = regular.map((r) => {
+      const { item, v, unavailable, available, base, slabs, tierQty, regularUnitPrice, unit, limits } = r;
+      const offer = item.savedForLater ? undefined : evaluation.prices.get(item.variantId);
+      const unitPrice = (offer?.unitPrice ?? regularUnitPrice) as Money;
       return {
         id: item.id,
         variantId: item.variantId,
@@ -85,6 +131,11 @@ export class CartService {
         unit,
         imageUrl: v?.product.images[0]?.url ?? v?.imageUrl ?? null,
         unitPrice,
+        /** The price before any special offer (the bulk price when one applies). */
+        regularUnitPrice,
+        /** Set when the special-offer price is being charged on this line. */
+        offerId: offer?.offerId ?? null,
+        offerName: offer?.offerName ?? null,
         basePrice: base,
         mrp: (v?.mrp ?? 0) as Money,
         discountPct: discountPct((v?.mrp ?? 0) as Money, unitPrice),
@@ -100,7 +151,34 @@ export class CartService {
       };
     });
 
-    return { cartId: cart.id, items: lines };
+    return { cartId: cart.id, items: lines, offers: await this.offerViews(evaluation.statuses) };
+  }
+
+  /** The offers for the cart screen: progress plus enough about the pack to show and add it. */
+  private async offerViews(statuses: ReturnType<typeof evaluateOffers>['statuses']): Promise<CartOffer[]> {
+    if (statuses.length === 0) return [];
+    const rows = await this.prisma.variant.findMany({
+      where: { id: { in: statuses.map((s) => s.variantId) } },
+      include: { inventory: true, product: { include: { images: { take: 1, orderBy: { position: 'asc' } } } } },
+    });
+    const info = new Map(rows.map((v) => [v.id, v]));
+    const out: CartOffer[] = [];
+    for (const s of statuses) {
+      const row = info.get(s.variantId);
+      if (!row || !row.isActive) continue;
+      const limits = effectiveOrderLimits(row);
+      if ((row.inventory?.available ?? 0) < limits.min) continue; // nobody can buy it
+      out.push({
+        ...s,
+        productId: row.productId,
+        title: row.product.title,
+        unit: variantUnitLabel(row) ?? '',
+        imageUrl: row.product.images[0]?.url ?? row.imageUrl ?? null,
+        regularPrice: row.sellingPrice,
+        mrp: row.mrp,
+      });
+    }
+    return out;
   }
 
   /**
@@ -122,7 +200,8 @@ export class CartService {
     if (!variant || !variant.isActive) {
       throw new BadRequestException('This product option is no longer available');
     }
-    const limits = effectiveOrderLimits(variant);
+    const caps = offerUnitCaps(await liveOfferRules(this.prisma));
+    const limits = this.limitsWithOffers(variant, caps.get(variantId));
     const title = variant.product?.title ?? 'this product';
     const cart = await this.findOrCreateCart(ref);
     const existing = await this.prisma.cartItem.findUnique({
@@ -131,7 +210,7 @@ export class CartService {
     let target = clampQty((existing?.quantity ?? 0) + quantity);
     if (target < limits.min) target = limits.min;
     if (target > limits.max) {
-      if (!opts.clamp) throw new BadRequestException(orderLimitsMessage(title, limits, target));
+      if (!opts.clamp) throw this.limitError(title, limits, target);
       target = limits.max;
     }
     if (existing) {
@@ -156,9 +235,10 @@ export class CartService {
       select: { minOrderQty: true, maxOrderQty: true, product: { select: { title: true } } },
     });
     if (variant) {
-      const limits = effectiveOrderLimits(variant);
+      const caps = offerUnitCaps(await liveOfferRules(this.prisma));
+      const limits = this.limitsWithOffers(variant, caps.get(variantId));
       if (qty < limits.min || qty > limits.max) {
-        throw new BadRequestException(orderLimitsMessage(variant.product?.title ?? 'this product', limits, qty));
+        throw this.limitError(variant.product?.title ?? 'this product', limits, qty);
       }
     }
     await this.prisma.cartItem.update({
@@ -179,15 +259,16 @@ export class CartService {
     const data: { savedForLater: boolean; quantity?: number } = { savedForLater: saved };
     if (!saved) {
       // The limits may have changed while the line was parked, so bring the quantity back inside them.
-      const [item, variant] = await Promise.all([
+      const [item, variant, offers] = await Promise.all([
         this.prisma.cartItem.findUnique({ where: { cartId_variantId: { cartId: cart.id, variantId } } }),
         this.prisma.variant.findUnique({
           where: { id: variantId },
           select: { minOrderQty: true, maxOrderQty: true },
         }),
+        liveOfferRules(this.prisma),
       ]);
       if (item && variant) {
-        const limits = effectiveOrderLimits(variant);
+        const limits = this.limitsWithOffers(variant, offerUnitCaps(offers).get(variantId));
         const qty = Math.min(limits.max, Math.max(limits.min, item.quantity));
         if (qty !== item.quantity) data.quantity = qty;
       }
@@ -222,14 +303,14 @@ export class CartService {
       where: { id: { in: guestCart.items.map((i) => i.variantId) } },
       select: { id: true, minOrderQty: true, maxOrderQty: true },
     });
-    const limitsById = new Map(limitRows.map((v) => [v.id, effectiveOrderLimits(v)]));
+    const caps = offerUnitCaps(await liveOfferRules(this.prisma));
+    const limitsById = new Map(limitRows.map((v) => [v.id, this.limitsWithOffers(v, caps.get(v.id))]));
     // Nobody chose this quantity (login did), so trim it into the variant's limits instead of failing.
     const fit = (variantId: string, qty: number) => {
       const l = limitsById.get(variantId);
       const q = clampQty(qty);
       return l ? Math.min(l.max, Math.max(l.min, q)) : q;
     };
-
     for (const gi of guestCart.items) {
       const existing = await this.prisma.cartItem.findUnique({
         where: { cartId_variantId: { cartId: userCart.id, variantId: gi.variantId } },

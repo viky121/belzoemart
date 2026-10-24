@@ -17,6 +17,7 @@ export const qk = {
   /** identity = session.status === 'authenticated' ? 'customer' : 'guest' (useCartIdentity). */
   cart: (identity: 'customer' | 'guest') => ['cart', identity] as const,
   wishlist: ['wishlist'] as const,
+  activeOffers: ['offers', 'active'] as const,
   me: ['me'] as const,
   addresses: ['addresses'] as const,
   preview: (addressId: string, coupon: string | null | undefined, method: string) =>

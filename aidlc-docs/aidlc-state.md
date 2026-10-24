@@ -94,4 +94,4 @@
 - [ ] (remaining stages) (EXECUTE); Functional Design + NFR Design per unit (EXECUTE); NFR Requirements + Infrastructure Design (SKIP)
 - [ ] Construction (per phase) and Build and Test
 - [x] Admin Roles and Access: answers Q1-Q7 = A; built and tested (API + web), committed, NOT deployed; see `aidlc-docs/construction/admin-roles/code/summary.md`
-- [ ] Spend and Get Special Price Offers (e.g. sugar 1 kg at 29 rupees above 2000 spend, admin setup): questions issued `aidlc-docs/inception/requirements/spend-offers-questions.md` (Q1-Q8); AWAITING ANSWERS
+- [x] Spend and Get Special Price Offers: answers Q1-Q7 (A, B, A, A, A, A, A); built and tested (shared, API, admin, web, mobile), committed, NOT deployed; see `aidlc-docs/construction/spend-offers/code/summary.md`

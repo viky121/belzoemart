@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
+  discountableSubtotal,
   effectiveOrderLimits,
   orderLimitsMessage,
   paise,
@@ -44,7 +45,7 @@ interface PricingConfig {
 export interface CheckoutPreviewResult {
   breakup: PriceBreakup;
   coupon: { code: string; valid: boolean; reason?: string } | null;
-  items: { variantId: string; title: string; quantity: number; unitPrice: number }[];
+  items: { variantId: string; title: string; quantity: number; unitPrice: number; offerName?: string | null }[];
   /** False when the delivery address PIN is outside the serviceable list. */
   serviceable: boolean;
   /** Whether Cash on Delivery is currently offered (admin-configurable). */
@@ -135,7 +136,16 @@ export class CheckoutService {
 
   private async buildLines(ref: CartRef): Promise<{
     lines: PriceLine[];
-    snapshot: { variantId: string; title: string; sku: string; unitPrice: number; quantity: number; taxRatePct: number }[];
+    snapshot: {
+      variantId: string;
+      title: string;
+      sku: string;
+      unitPrice: number;
+      quantity: number;
+      taxRatePct: number;
+      offerId: string | null;
+      offerName: string | null;
+    }[];
   }> {
     const cart = await this.cart.getCart(ref);
     const active = cart.items.filter((i) => !i.savedForLater);
@@ -156,11 +166,14 @@ export class CheckoutService {
       if (item.quantity < limits.min || item.quantity > limits.max) {
         throw new BadRequestException(orderLimitsMessage(item.title, limits, item.quantity));
       }
-      lines.push({ unitPrice: item.unitPrice, quantity: item.quantity, taxRatePct: item.taxRatePct });
+      // A line sold through a special-price offer is never discounted by a coupon.
+      lines.push({ unitPrice: item.unitPrice, quantity: item.quantity, taxRatePct: item.taxRatePct, noDiscount: item.offerId != null });
       snapshot.push({
         variantId: item.variantId,
         title: item.title,
         sku: item.sku,
+        offerId: item.offerId,
+        offerName: item.offerName,
         unitPrice: item.unitPrice,
         quantity: item.quantity,
         taxRatePct: item.taxRatePct,
@@ -202,7 +215,7 @@ export class CheckoutService {
     let couponResult: CheckoutPreviewResult['coupon'] = null;
     let spec;
     if (couponCode) {
-      const evalResult = await this.coupons.evaluate(couponCode, subtotal as never, ref.customerId);
+      const evalResult = await this.coupons.evaluate(couponCode, discountableSubtotal(lines) as never, ref.customerId);
       couponResult = { code: evalResult.code, valid: evalResult.valid, reason: evalResult.reason };
       if (evalResult.valid) spec = evalResult.spec;
     }
@@ -228,6 +241,7 @@ export class CheckoutService {
       codEnabled,
       shippingWaived,
       items: snapshot.map((s) => ({
+        offerName: s.offerName,
         variantId: s.variantId,
         title: s.title,
         quantity: s.quantity,
@@ -286,7 +300,7 @@ export class CheckoutService {
 
     let spec;
     if (input.couponCode) {
-      const evalResult = await this.coupons.evaluate(input.couponCode, subtotal as never, ref.customerId);
+      const evalResult = await this.coupons.evaluate(input.couponCode, discountableSubtotal(lines) as never, ref.customerId);
       if (!evalResult.valid) throw new BadRequestException(evalResult.reason ?? 'Invalid coupon');
       spec = evalResult.spec;
     }
@@ -324,6 +338,8 @@ export class CheckoutService {
               quantity: s.quantity,
               taxRatePct: s.taxRatePct,
               costPrice: costs.get(s.variantId) ?? null,
+              offerId: s.offerId,
+              offerName: s.offerName,
             })),
           },
           payments: {

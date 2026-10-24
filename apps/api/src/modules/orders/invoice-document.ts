@@ -111,6 +111,9 @@ export interface InvoiceOrderItem {
   unitPrice: number;
   quantity: number;
   taxRatePct: number;
+  /** Set when the item was sold through a special-price offer: a coupon never discounted it. */
+  offerId?: string | null;
+  offerName?: string | null;
 }
 
 export interface InvoicePayment {
@@ -325,10 +328,13 @@ export function buildInvoiceDocument(input: BuildInvoiceInput): InvoiceDocument 
   // Discount: pro-rata by gross, capped at each line's gross; sums to order.discount.
   const gross = items.map((i) => i.unitPrice * i.quantity);
   const grossSum = sum(gross);
+  // Special-offer items carry no share of a coupon discount.
+  const discountable = gross.map((g, idx) => (items[idx]!.offerId ? 0 : g));
+  const discountableSum = sum(discountable);
   const discounts =
     items.length === 0
       ? []
-      : allocateProportional(order.discount, gross, order.discount <= grossSum ? gross : undefined);
+      : allocateProportional(order.discount, discountable, order.discount <= discountableSum ? discountable : undefined);
   const net = gross.map((g, idx) => Math.max(0, g - discounts[idx]!));
 
   // Order taxable value derived from the snapshot so it is right for both
@@ -382,7 +388,7 @@ export function buildInvoiceDocument(input: BuildInvoiceInput): InvoiceDocument 
     const rate = i.taxRatePct;
     return {
       sr: idx + 1,
-      title: i.title,
+      title: i.offerId ? `${i.title} (offer price)` : i.title,
       sku: i.sku,
       hsn: clean(input.hsnByVariant.get(i.variantId)) ?? '-',
       quantity: i.quantity,

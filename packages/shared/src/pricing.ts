@@ -13,6 +13,11 @@ export interface PriceLine {
   quantity: number;
   /** GST rate percent for this line's product (by HSN). */
   taxRatePct: number;
+  /**
+   * True for a special-offer line: a coupon never discounts it, and it does not count towards the coupon's
+   * minimum order. Omitted for ordinary lines.
+   */
+  noDiscount?: boolean;
 }
 
 export type CouponKind = 'flat' | 'percent' | 'free_shipping';
@@ -36,6 +41,10 @@ export interface PriceComputationInput {
   coupon?: CouponSpec;
 }
 
+/** The part of the subtotal a coupon may discount: every line except special-offer lines. */
+export function discountableSubtotal(lines: PriceLine[]): Money {
+  return subtotalOf(lines.filter((l) => !l.noDiscount));
+}
 /** Subtotal = Σ (unitPrice × quantity). */
 export function subtotalOf(lines: PriceLine[]): Money {
   return lines.reduce<Money>((sum, l) => {
@@ -96,7 +105,9 @@ export function inclusiveLineTaxes(lines: PriceLine[], discount: Money): Inclusi
     }
     return l.unitPrice * l.quantity;
   });
-  const shares = lines.length === 0 || discount === 0 ? gross.map(() => 0) : allocateProportional(discount, gross, gross);
+  // Special-offer lines carry no share of the discount.
+  const weights = lines.map((l, i) => (l.noDiscount ? 0 : gross[i]!));
+  const shares = lines.length === 0 || discount === 0 ? gross.map(() => 0) : allocateProportional(discount, weights, gross);
   return lines.map((l, i) => {
     const net = gross[i]! - shares[i]!;
     // Integer paise × integer rate / integer denominator: IEEE division is
@@ -137,14 +148,16 @@ export function couponDiscount(coupon: CouponSpec | undefined, subtotal: Money):
  */
 export function computeTotals(input: PriceComputationInput): PriceBreakup {
   const subtotal = subtotalOf(input.lines);
-  const discount = couponDiscount(input.coupon, subtotal);
+  // A coupon looks only at the lines it may discount (special-offer lines are left out).
+  const couponBase = discountableSubtotal(input.lines);
+  const discount = couponDiscount(input.coupon, couponBase);
   const net = clampNonNegative(subtractMoney(subtotal, discount));
 
   const tax = addMoney(...inclusiveLineTaxes(input.lines, discount).map((l) => l.tax));
   const gst = splitGst(tax, input.sameState);
 
   const shipping =
-    input.coupon?.kind === 'free_shipping' && (!input.coupon.minOrder || subtotal >= input.coupon.minOrder)
+    input.coupon?.kind === 'free_shipping' && (!input.coupon.minOrder || couponBase >= input.coupon.minOrder)
       ? ZERO_MONEY
       : input.shipping;
 

@@ -106,6 +106,8 @@ export interface ReportItemInput {
   taxRatePct: number;
   /** Cost saved on the order item when it was placed; null for older orders. */
   costPrice: number | null;
+  /** Set when the item was sold through a special-price offer: a coupon never discounted it. */
+  offerId?: string | null;
 }
 
 export interface ReportOrderInput {
@@ -156,8 +158,13 @@ export function buildReportLines(
   returnedQty: ReadonlyMap<string, number>,
 ): ReportLine[] {
   const taxes = inclusiveLineTaxes(
-    order.items.map((i) => ({ unitPrice: paise(i.unitPrice), quantity: i.quantity, taxRatePct: i.taxRatePct })),
-    paise(Math.min(order.discount, order.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0))),
+    order.items.map((i) => ({
+      unitPrice: paise(i.unitPrice),
+      quantity: i.quantity,
+      taxRatePct: i.taxRatePct,
+      noDiscount: !!i.offerId,
+    })),
+    paise(Math.min(order.discount, order.items.reduce((s, i) => s + (i.offerId ? 0 : i.unitPrice * i.quantity), 0))),
   );
   return order.items.map((item, idx) => {
     const t = taxes[idx]!;

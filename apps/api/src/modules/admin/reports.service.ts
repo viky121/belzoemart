@@ -183,6 +183,7 @@ export class ReportsService {
             quantity: true,
             taxRatePct: true,
             costPrice: true,
+            offerId: true,
           },
         },
       },

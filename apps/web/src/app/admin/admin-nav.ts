@@ -41,6 +41,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: '/admin/mobile', label: 'Mobile app', icon: '📱', testid: 'admin-nav-mobile', anyOf: ['mobile.edit'] },
       { href: '/admin/pages', label: 'Pages', icon: '📄', testid: 'admin-nav-pages', anyOf: ['content.edit', 'mobile.edit'] },
       { href: '/admin/coupons', label: 'Coupons', icon: '🏷️', testid: 'admin-nav-coupons', anyOf: ['coupons.view'] },
+      { href: '/admin/offers', label: 'Offers', icon: '🎁', testid: 'admin-nav-offers', anyOf: ['offers.view'] },
       { href: '/admin/reports', label: 'Reports', icon: '📈', testid: 'admin-nav-reports', anyOf: ['reports.view'] },
     ],
   },

@@ -146,6 +146,7 @@ export function OrderItems({ order }: { order: OrderDetail }) {
                   <span className="od-item__title">{i.title}</span>
                 )}
                 {vt && <span className="od-item__meta">{vt}</span>}
+                {i.offerName && <span className="od-item__meta od-item__offer">🎁 Offer price · {i.offerName}</span>}
                 <span className="od-item__meta">SKU {i.sku}</span>
                 <span className="od-item__meta">
                   {i.quantity} × {formatInr(i.unitPrice)}

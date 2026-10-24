@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { qk, STALE } from '@/api/query-keys';
-import type { CartView } from '@/api/types';
+import type { ActiveOfferView, CartView } from '@/api/types';
 import { useCartIdentity } from '@/store/session';
 import { useToast } from '@/ui/Toast';
 
 import {
   addToCart,
+  fetchActiveOffers,
   fetchCart,
   moveToCart,
   removeCartLine,
@@ -25,6 +26,14 @@ export function useCart() {
   });
 }
 
+/** Live special-price offers. A failure means "no offers": the page then shows normal prices. */
+export function useActiveOffers() {
+  return useQuery<ActiveOfferView[]>({
+    queryKey: qk.activeOffers,
+    queryFn: () => fetchActiveOffers().catch(() => []),
+    staleTime: STALE.settings,
+  });
+}
 /** Add a variant to the cart; replaces the cart cache and toasts (design §6.5). */
 export function useAddToCart() {
   const queryClient = useQueryClient();

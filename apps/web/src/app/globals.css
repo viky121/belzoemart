@@ -7466,3 +7466,22 @@ a.offer-banner:hover {
   font-weight: 700;
   text-decoration: underline;
 }
+
+/* ---------- Special-price offers (spend and get) ---------- */
+.offerbar { display: grid; gap: 10px; margin-bottom: 14px; }
+.offerbar__card { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px dashed #f59e0b; background: #fffbeb; border-radius: 12px; }
+.offerbar__card--applied { border-style: solid; border-color: #16a34a; background: #f0fdf4; }
+.offerbar__card--add { border-style: solid; border-color: #2874f0; background: #eff6ff; }
+.offerbar__img { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; background: #fff; flex: none; }
+.offerbar__body { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.offerbar__title { font-size: .92rem; color: #1f2937; overflow-wrap: anywhere; }
+.offerbar__detail { font-size: .8rem; color: #64748b; }
+.offerbar__track { height: 8px; border-radius: 999px; background: #fde68a; overflow: hidden; }
+.offerbar__fill { height: 100%; background: #f59e0b; border-radius: 999px; transition: width .3s ease; }
+.offerbar__add { flex: none; background: #2874f0; color: #fff; border: 0; border-radius: 8px; padding: 9px 18px; font-weight: 700; cursor: pointer; min-height: 40px; }
+.offerbar__add:disabled { opacity: .55; cursor: default; }
+.cline__offer { display: inline-block; font-size: .72rem; font-weight: 700; color: #15803d; background: #dcfce7; border-radius: 999px; padding: 2px 8px; margin-left: 6px; }
+.cox__offer { color: #15803d; font-style: normal; font-weight: 600; }
+.od-item__offer { color: #15803d; font-weight: 600; }
+.pdp-offer { display: flex; flex-direction: column; gap: 2px; margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: #fffbeb; border: 1px dashed #f59e0b; color: #92400e; font-size: .88rem; }
+.pdp-offer span { font-size: .78rem; color: #b45309; }

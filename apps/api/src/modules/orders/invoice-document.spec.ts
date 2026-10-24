@@ -663,3 +663,49 @@ describe('renderInvoiceHtml — content and escaping', () => {
     expect(bad).not.toContain('javascript:');
   });
 });
+
+describe('buildInvoiceDocument — an order with a special-offer item and a coupon', () => {
+  const OFFER_ITEMS = [
+    { variantId: 'v-1', title: 'Basmati Rice 5kg', sku: 'RICE-5KG', unitPrice: 49900, quantity: 4, taxRatePct: 5, offerId: null as string | null, offerName: null as string | null },
+    { variantId: 'v-2', title: 'Sugar 1 kg', sku: 'SUGAR-1', unitPrice: 2900, quantity: 1, taxRatePct: 5, offerId: 'o1' as string | null, offerName: 'Sugar at 29' as string | null },
+  ];
+  function offerOrder(sameState: boolean): InvoiceOrder {
+    const b = computeTotals({
+      lines: OFFER_ITEMS.map((i) => ({ unitPrice: paise(i.unitPrice), quantity: i.quantity, taxRatePct: i.taxRatePct, noDiscount: i.offerId != null })),
+      sameState,
+      shipping: paise(0),
+      codFee: paise(0),
+      coupon: { kind: 'percent', value: 10 },
+    });
+    return {
+      id: 'c1b2c3d4-0000-4000-8000-000000000009',
+      createdAt: new Date('2025-03-14T10:00:00Z'),
+      couponCode: 'TEN',
+      subtotal: b.subtotal,
+      discount: b.discount,
+      shipping: b.shipping,
+      codFee: b.codFee,
+      tax: b.tax,
+      cgst: b.gst.cgst,
+      sgst: b.gst.sgst,
+      igst: b.gst.igst,
+      grandTotal: b.grandTotal,
+      items: OFFER_ITEMS,
+      payments: [{ provider: 'cod', status: 'created', method: null, createdAt: new Date('2025-03-14T10:00:00Z') }],
+    };
+  }
+
+  it('the coupon discount is shared over the other items only, and the invoice still reconciles exactly', () => {
+    const order = offerOrder(true);
+    expect(order.discount).toBe(19960); // 10% of 4 x 499, not of the offer item
+    const doc = buildInvoiceDocument(input(order, { hsnByVariant: new Map([['v-1', '1006'], ['v-2', '1701']]) }));
+    expectReconciles(order, doc);
+    expect(doc.lines[1]).toMatchObject({ discount: 0, total: 2900 });
+    expect(doc.lines[0]!.discount).toBe(19960);
+  });
+
+  it('reconciles for an inter-state order too', () => {
+    const order = offerOrder(false);
+    expectReconciles(order, buildInvoiceDocument(input(order, { hsnByVariant: new Map([['v-1', '1006'], ['v-2', '1701']]), address: ADDRESS_MH })));
+  });
+});

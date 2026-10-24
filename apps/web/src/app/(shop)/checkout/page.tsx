@@ -372,6 +372,7 @@ export default function CheckoutPage() {
                     <span className="cox__item-info">
                       <strong>{i.title}</strong>
                       <em>{i.unit ? `${i.unit} · ` : ''}Qty {i.quantity}</em>
+                      {i.offerId && <em className="cox__offer">🎁 Offer price</em>}
                     </span>
                     <span className="cox__item-price">{formatInr(i.unitPrice * i.quantity)}</span>
                   </li>

@@ -1,4 +1,12 @@
-import { formatInr, resolveSlabPrice, type ProductCardDto } from '@belzo/shared';
+import {
+  effectiveOrderLimits,
+  formatInr,
+  limitsWithOffer,
+  offerForVariant,
+  productOfferBanner,
+  resolveSlabPrice,
+  type ProductCardDto,
+} from '@belzo/shared';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
@@ -6,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { isApiError } from '@/api/errors';
 import { env } from '@/config/env';
-import { useAddToCart } from '@/features/cart/hooks';
+import { useActiveOffers, useAddToCart } from '@/features/cart/hooks';
 import { useToggleWishlist, useWishlist } from '@/features/wishlist/hooks';
 import { requireAuth } from '@/navigation/RequireAuth';
 import type { RootScreenProps } from '@/navigation/types';
@@ -59,6 +67,7 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
   const add = useAddToCart();
   const isCustomer = useSessionStore((s) => s.status === 'authenticated');
   const wishlist = useWishlist();
+  const activeOffers = useActiveOffers();
   const toggleWishlist = useToggleWishlist();
   const pushRecent = useRecentlyViewedStore((s) => s.push);
 
@@ -108,6 +117,9 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
 
   const variants = p.variants;
   const variant = variants.find((v) => v.id === selectedId) ?? variants.find((v) => v.inStock) ?? variants[0];
+  // While a special-price offer is on, the pack is limited to its units per order (the server enforces it too).
+  const offer = offerForVariant(activeOffers.data ?? [], variant?.id);
+  const limits = limitsWithOffer(effectiveOrderLimits({ minOrderQty: variant?.minQty, maxOrderQty: variant?.maxQty }), offer);
   const price = variant ? resolveSlabPrice(variant.sellingPrice, variant.priceSlabs, qty) : p.sellingPrice;
   const mrp = variant?.mrp ?? p.mrp;
   const saving = mrp != null && mrp > price ? mrp - price : 0;
@@ -195,10 +207,18 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
           </Card>
         ) : null}
 
+        {offer ? (
+          <Card>
+            <View style={styles.offerBox} testID="pdp-offer">
+              <Text style={styles.offerHead}>🎁 {productOfferBanner(offer).headline}</Text>
+              <Text style={styles.offerNote}>{productOfferBanner(offer).note}</Text>
+            </View>
+          </Card>
+        ) : null}
         <Card>
           <View style={styles.qtyRow}>
             <Text style={styles.qtyLabel}>Quantity</Text>
-            <QuantitySelector value={qty} onChange={setQty} min={1} max={99} disabled={!inStock} label={p.title} />
+            <QuantitySelector value={Math.min(qty, limits.max)} onChange={setQty} min={1} max={limits.max} disabled={!inStock} label={p.title} />
           </View>
           <View style={styles.divider} />
           <DeliveryCheck />
@@ -359,6 +379,9 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   qtyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  offerBox: { gap: 2, padding: theme.spacing.sm, borderRadius: theme.radius.lg, borderWidth: 1, borderStyle: 'dashed', borderColor: '#f59e0b', backgroundColor: '#fffbeb' },
+  offerHead: { ...theme.typography.body, color: '#92400e', fontWeight: '800' },
+  offerNote: { ...theme.typography.caption, color: '#b45309' },
   qtyLabel: { ...theme.typography.bodyLg, color: theme.colors.inkStrong, fontWeight: '700' },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.sm },
   cardTitleBar: { width: 4, height: 16, borderRadius: 2 },

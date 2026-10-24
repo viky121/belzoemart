@@ -570,3 +570,21 @@ answer: both"
 **Context**: INCEPTION - Requirements Analysis (Spend and Get offers), questions issued
 
 ---
+
+---
+## Spend and Get Special Price Offers - Answers Received
+**Timestamp**: 2026-10-24T19:30:00Z
+**User Input**: "DONE" (answers filled in aidlc-docs/inception/requirements/spend-offers-questions.md: Q1=A, Q2=B, Q3=A, Q4=A, Q5=A, Q6=A, Q7=A, Q8 empty)
+**AI Response**: "Recorded. Q1 spend counts other items before coupon; Q2 B: while an offer is on, the pack is limited to the offer units per order; Q3 one pack (variant); Q4 once per order; Q5 lower of offer and bulk price, no coupon on the offer item; Q6 many offers at once; Q7 website and mobile app. Requirements written to aidlc-docs/inception/requirements/spend-offers-requirements.md. Starting the build; no deploy until the user says deploy."
+**Context**: INCEPTION -> CONSTRUCTION (Spend and Get offers), answers recorded
+
+---
+
+---
+## Spend and Get Special Price Offers - Build Complete
+**Timestamp**: 2026-10-24T20:00:00Z
+**User Input**: "(none - continuing the build after the answers)"
+**AI Response**: "Built shared offer rules, Prisma model and migration, API (offers module, cart pricing and limits, checkout coupon exclusion, order snapshot, invoice and reports), admin Offers screen, website and mobile cart/product display. API 1033, shared 503, web 322, mobile 256 tests pass; tsc, eslint and next build clean; migration matches schema; real HTTP run on a scratch DB passed. Not deployed, waiting for the user to say deploy. Summary in construction/spend-offers/code/summary.md."
+**Context**: CONSTRUCTION - Spend and Get offers, code generation and build-and-test complete
+
+---

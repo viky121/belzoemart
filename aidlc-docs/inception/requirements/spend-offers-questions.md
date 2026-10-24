@@ -34,7 +34,7 @@ B) The whole cart value, including the offer item
 C) The whole cart value **after** the coupon discount
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]:A
 
 ## Question Q2
 What happens to extra units? Example: the offer is 1 kg sugar at ₹29 and the customer wants 3 packs.
@@ -44,7 +44,7 @@ B) The customer can buy only the offer quantity of that product in total. The ca
 C) The admin chooses this for each offer (a tick box "Allow extra units at normal price")
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]:B
 
 ## Question Q3
 Which product can an offer cover?
@@ -54,7 +54,7 @@ B) A whole product, so every pack size of it gets the special price
 C) A pack or a whole category (for example, any one item from "Staples" at ₹29)
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]:A
 
 ## Question Q4
 Can the customer use the same offer again?
@@ -64,7 +64,7 @@ B) Once per customer, ever
 C) The admin chooses for each offer (a setting "Once per order / Once per customer")
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]:A
 
 ## Question Q5
 What if the product also has a bulk price, or the customer uses a coupon?
@@ -74,7 +74,7 @@ B) The offer price always wins over the bulk price. A coupon does not discount t
 C) The offer price always wins. A coupon may also take money off the offer item
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]:A
 
 ## Question Q6
 Can several offers run at the same time (for example sugar at ₹29 above ₹2000 and oil at ₹99 above ₹3000)?
@@ -84,7 +84,7 @@ B) Only one offer can be on at a time
 C) Yes, but a customer gets only the single best offer in a cart
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]:A
 
 ## Question Q7
 Where should the customer see it, and on which apps?
@@ -94,7 +94,7 @@ B) Website first (product page, cart, checkout). The mobile app gets the right p
 C) Cart and checkout only, no banner on the product page
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]:A
 
 ## Question Q8
 Anything else, or the shortcut?

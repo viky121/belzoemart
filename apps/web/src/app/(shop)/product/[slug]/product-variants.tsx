@@ -1,13 +1,15 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { effectiveOrderLimits, orderLimitsHint, type VariantDto } from '@belzo/shared';
+import { effectiveOrderLimits, orderLimitsHint, type ActiveOfferView, type VariantDto } from '@belzo/shared';
 import { formatInr } from '@/lib/catalogue-api';
 import { cartApi } from '@/lib/cart-api';
 import { useAuth } from '@/lib/auth-context';
 import { QtyStepper } from '@/components/qty-stepper';
 import { buildSlabs, slabIndexForQty } from '@/lib/slab-pricing';
+import { fetchActiveOffers } from '@/lib/offers-api';
+import { limitsWithOffer, offerForVariant, productOfferBanner } from '@/lib/spend-offers';
 
 
 /**
@@ -34,7 +36,19 @@ export function ProductVariants({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const selected = variants.find((v) => v.id === selectedId) ?? variants[0];
-  const limits = effectiveOrderLimits({ minOrderQty: selected?.minQty, maxOrderQty: selected?.maxQty });
+  // Special-price offers that are on now. While one is on, the pack is limited to its units per order.
+  const [offers, setOffers] = useState<ActiveOfferView[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void fetchActiveOffers().then((list) => {
+      if (alive) setOffers(list);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const offer = offerForVariant(offers, selected?.id);
+  const limits = limitsWithOffer(effectiveOrderLimits({ minOrderQty: selected?.minQty, maxOrderQty: selected?.maxQty }), offer);
   const limitsHint = orderLimitsHint(limits);
   const fit = (n: number) => Math.min(limits.max, Math.max(limits.min, n));
 
@@ -167,6 +181,12 @@ export function ProductVariants({
       </div>
       )}
 
+      {offer && (
+        <div className="pdp-offer" data-testid="pdp-offer">
+          <strong>🎁 {productOfferBanner(offer).headline}</strong>
+          <span>{productOfferBanner(offer).note}</span>
+        </div>
+      )}
       <p className={`pdp__stock${selected.inStock ? '' : ' pdp__stock--out'}`} data-testid="pdp-stock">
         {selected.inStock ? '● In stock' : '● Out of stock'}
       </p>

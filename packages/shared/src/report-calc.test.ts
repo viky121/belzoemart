@@ -258,3 +258,18 @@ describe('groupLines / costStatus', () => {
     expect(costStatus({ linesMissingCost: 1, linesEstimatedCost: 2 })).toBe('missing');
   });
 });
+
+describe('buildReportLines with a special-offer item', () => {
+  it('leaves the coupon discount off the offer item and still adds up to the order', () => {
+    const rice = item({ id: 'i1', variantId: 'v1', unitPrice: 50_000, quantity: 4 });
+    const sugar = item({ id: 'i2', variantId: 'v2', unitPrice: 2_900, quantity: 1, offerId: 'o1' });
+    const discount = 20_000;
+    const lines = [rice, sugar].map((i) => ({ unitPrice: paise(i.unitPrice), quantity: i.quantity, taxRatePct: i.taxRatePct, noDiscount: !!i.offerId }));
+    const tax = inclusiveLineTaxes(lines, paise(discount)).reduce((s, t) => s + t.tax, 0);
+    const o = order([rice, sugar], { discount, tax, grandTotal: 202_900 - discount });
+    const out = buildReportLines(o, noCost, noReturns);
+    expect(out[0]).toMatchObject({ discount: 20_000, net: 180_000 });
+    expect(out[1]).toMatchObject({ discount: 0, net: 2_900 });
+    expect(out.reduce((s, l) => s + l.tax, 0)).toBe(tax);
+  });
+});
