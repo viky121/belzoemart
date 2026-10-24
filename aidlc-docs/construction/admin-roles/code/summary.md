@@ -1,6 +1,6 @@
 # Admin Roles and Access - code summary
 
-Answers Q1-Q7 = A ("a SAB"). Built, tested, committed. **Not deployed** (waiting for "deploy").
+Answers Q1-Q7 = A ("a SAB"). Built, tested and **deployed on 2026-10-24**.
 
 ## What the user gets
 - Admin menu "Staff and types" (`/admin/access`), Super Admin only.

@@ -1,6 +1,6 @@
 # Spend and Get Special Price Offers - code summary
 
-Answers Q1-Q7 (A, B, A, A, A, A, A). Built, tested, committed. **Not deployed** (waiting for "deploy").
+Answers Q1-Q7 (A, B, A, A, A, A, A). Built, tested and **deployed on 2026-10-24**.
 
 ## What the shop owner gets
 - Admin menu **Offers** (`/admin/offers`, permissions `offers.view` and `offers.edit`). Add an offer: name, spend amount, product pack, special price, units per order, optional start and end, on/off. List shows status (Live / Scheduled / Ended / Switched off), units sold, and a "Below cost price" warning (cost is admin only).

@@ -93,5 +93,6 @@
 - [x] Admin Reports: questions answered (Q1=C skip Purchasing, Q2 to Q5 = A); built and verified, summary `aidlc-docs/construction/admin-reports/code/summary.md`; not deployed
 - [ ] (remaining stages) (EXECUTE); Functional Design + NFR Design per unit (EXECUTE); NFR Requirements + Infrastructure Design (SKIP)
 - [ ] Construction (per phase) and Build and Test
-- [x] Admin Roles and Access: answers Q1-Q7 = A; built and tested (API + web), committed, NOT deployed; see `aidlc-docs/construction/admin-roles/code/summary.md`
-- [x] Spend and Get Special Price Offers: answers Q1-Q7 (A, B, A, A, A, A, A); built and tested (shared, API, admin, web, mobile), committed, NOT deployed; see `aidlc-docs/construction/spend-offers/code/summary.md`
+- [x] Admin Roles and Access: answers Q1-Q7 = A; built, tested and DEPLOYED 2026-10-24 (API + web); see `aidlc-docs/construction/admin-roles/code/summary.md`
+- [x] Spend and Get Special Price Offers: answers Q1-Q7 (A, B, A, A, A, A, A); built, tested and DEPLOYED 2026-10-24 (shared, API, admin, web, mobile APK 0.1.10+); see `aidlc-docs/construction/spend-offers/code/summary.md`
+- [x] Mobile/web fixes 2026-10-24 (deployed, APK 0.1.13): bottom buttons no longer hidden by the Android nav bar (common `Screen`), product page solid top bar, home categories as one sliding row, profile photo upload fixed (relative upload path was refused by the profile schema), address edit/default fixes, web account page with profile photo and address manager, web checkout shows COD only when enabled, production `payment.codEnabled` switched on.
