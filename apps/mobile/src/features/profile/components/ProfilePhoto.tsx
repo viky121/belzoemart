@@ -4,13 +4,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { userMessage } from '@/api/errors';
+import { isApiError, userMessage } from '@/api/errors';
 import { uploadImage } from '@/api/upload';
 import { theme } from '@/theme';
 import { useBrand } from '@/theme/use-brand';
 import { RemoteImage } from '@/ui/RemoteImage';
 import { useToast } from '@/ui/Toast';
 
+import { uploadProfilePhoto } from '../api';
 import { useProfile, useUpdateProfile } from '../hooks';
 
 const PROFILE_UPLOAD_PATH = '/me/photo/upload';
@@ -23,6 +24,52 @@ export function initialsOf(name: string): string {
   return (parts[0]!.charAt(0) + (parts.length > 1 ? parts[parts.length - 1]!.charAt(0) : '')).toUpperCase();
 }
 
+/** Widths tried in turn until the picture fits in one JSON request (a profile picture shows at 96 px). */
+const WIDTHS = [600, 400, 256];
+/** The JSON request limit is 1 MB; stay well inside it. */
+const MAX_BASE64_CHARS = 900_000;
+
+/** Shrinks the picked picture and returns it as base64 JPEG text. */
+async function prepare(uri: string): Promise<string> {
+  for (const width of WIDTHS) {
+    const out = await ImageManipulator.manipulateAsync(uri, [{ resize: { width } }], {
+      compress: 0.75,
+      format: ImageManipulator.SaveFormat.JPEG,
+      base64: true,
+    });
+    if (out.base64 && out.base64.length <= MAX_BASE64_CHARS) return out.base64;
+  }
+  throw new Error('The picture is too large');
+}
+
+/** Upload as JSON; if this server does not have that route yet, fall back to the file upload route. */
+async function upload(uri: string, base64: string): Promise<{ url: string }> {
+  try {
+    return await uploadProfilePhoto(base64);
+  } catch (e) {
+    if (isApiError(e) && e.kind === 'http' && (e.status === 404 || e.status === 405)) {
+      return uploadImage(PROFILE_UPLOAD_PATH, uri);
+    }
+    throw e;
+  }
+}
+
+/** Plain words for whatever went wrong, saying WHICH step failed (a blind "you're offline" hid the real cause). */
+function failureMessage(stage: 'open' | 'prepare' | 'upload' | 'save', e: unknown): string {
+  if (isApiError(e)) return userMessage(e) || 'Could not update the photo. Please try again.';
+  const detail = e instanceof Error && e.message ? ` (${e.message})` : '';
+  switch (stage) {
+    case 'open':
+      return `Could not open your photos${detail}`;
+    case 'prepare':
+      return `Could not read that picture. Please choose another one${detail}`;
+    case 'upload':
+      return `Could not send the picture${detail}`;
+    default:
+      return `Could not save the picture${detail}`;
+  }
+}
+
 /**
  * Round profile picture with a camera badge. Tapping the buttons picks a photo (camera or
  * gallery), shrinks it, uploads it and saves the URL on the profile straight away.
@@ -33,11 +80,11 @@ export function ProfilePhoto() {
   const { data: profile } = useProfile();
   const update = useUpdateProfile();
   const [busy, setBusy] = useState(false);
-
   const name = profile && profile.name !== 'Belzo Customer' ? profile.name : '';
 
   async function pick(source: 'camera' | 'library') {
     if (busy) return;
+    let stage: 'open' | 'prepare' | 'upload' | 'save' = 'open';
     try {
       if (source === 'camera') {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -58,18 +105,17 @@ export function ProfilePhoto() {
           ? await ImagePicker.launchCameraAsync(options)
           : await ImagePicker.launchImageLibraryAsync(options);
       if (result.canceled || !result.assets[0]) return;
+      const picked = result.assets[0].uri;
       setBusy(true);
-      const normalised = await ImageManipulator.manipulateAsync(
-        result.assets[0].uri,
-        [{ resize: { width: 600 } }],
-        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
-      );
-      const uploaded = await uploadImage(PROFILE_UPLOAD_PATH, normalised.uri);
+      stage = 'prepare';
+      const base64 = await prepare(picked);
+      stage = 'upload';
+      const uploaded = await upload(picked, base64);
+      stage = 'save';
       await update.mutateAsync({ photoUrl: uploaded.url });
       toast.show({ message: 'Profile photo updated' });
     } catch (e) {
-      // Say what went wrong (too large, not signed in, no network) instead of a blind "try again".
-      toast.show({ message: userMessage(e) || 'Could not update the photo. Please try again.', tone: 'error' });
+      toast.show({ message: failureMessage(stage, e), tone: 'error' });
     } finally {
       setBusy(false);
     }

@@ -40,6 +40,9 @@ export function showToast(opts: ToastOptions): void {
   globalShow?.(opts);
 }
 
+/** How far above the bottom inset the message floats: clears a 50 px button plus its padding. */
+const TOAST_LIFT = 96;
+
 /** Bottom snackbar, 3 s, announced to screen readers (design §3.4). */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<(ToastOptions & { id: number }) | null>(null);
@@ -72,7 +75,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           style={[
             styles.toast,
             {
-              bottom: insets.bottom + theme.spacing.xl,
+              // Above the usual bottom button (Save, Place order, Add to cart), so a message never covers it.
+              bottom: insets.bottom + TOAST_LIFT,
               backgroundColor: TONE_BG[toast.tone ?? 'info'],
             },
           ]}

@@ -22,24 +22,25 @@ import { completeLogin } from './session';
  * typing. If the check cannot be made it says false: the server still refuses at OTP time and at sign-up.
  */
 export function useAlreadyRegistered(kind: 'phone' | 'email', target: string | null): boolean {
-  const [registered, setRegistered] = useState(false);
+  const key = target ? `${kind}:${target}` : null;
+  // The answer is kept together with the number or email it was asked for, so a new target reads as "not
+  // registered" until its own answer arrives (no stale "already registered" while typing).
+  const [answer, setAnswer] = useState<{ key: string; registered: boolean } | null>(null);
   useEffect(() => {
-    setRegistered(false);
-    if (!target) return;
+    if (!key || !target) return;
     let live = true;
     const timer = setTimeout(() => {
       checkRegistered(kind === 'phone' ? { phone: target } : { email: target })
-        .then((r) => live && setRegistered(r))
+        .then((r) => live && setAnswer({ key, registered: r }))
         .catch(() => undefined);
     }, 400);
     return () => {
       live = false;
       clearTimeout(timer);
     };
-  }, [kind, target]);
-  return registered;
+  }, [kind, target, key]);
+  return key !== null && answer?.key === key && answer.registered;
 }
-
 /** Request a phone/email OTP (no session change yet; the code is verified on OtpVerify or with `useProveOtp`). */
 export function useRequestOtp() {
   return useMutation<OtpRequestResult, unknown, { phone?: string; email?: string; purpose?: OtpPurpose }>({
