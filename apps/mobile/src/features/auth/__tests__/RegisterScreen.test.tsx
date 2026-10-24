@@ -11,6 +11,8 @@ jest.mock('../session', () => ({ completeLogin: jest.fn(async () => undefined) }
 const mockApi = apiRequest as jest.Mock;
 const PHONE_PROOF = 'phone-proof-'.padEnd(40, 'x');
 const EMAIL_PROOF = 'email-proof-'.padEnd(40, 'y');
+const TAKEN_PHONE = '9000000009';
+const TAKEN_EMAIL = 'taken@example.com';
 
 const AUTH = {
   accessToken: 'a',
@@ -27,6 +29,10 @@ beforeEach(() => {
       return opts.body?.code === '123456'
         ? { proof: PHONE_PROOF, kind: 'phone', value: '9412807767' }
         : { proof: EMAIL_PROOF, kind: 'email', value: 'ravi@example.com' };
+    }
+    if (path === '/auth/identifier/check') {
+      const body = (opts.body ?? {}) as { phone?: string; email?: string };
+      return { registered: body.phone === TAKEN_PHONE || body.email === TAKEN_EMAIL };
     }
     if (path === '/auth/register') return AUTH;
     throw new Error(`unexpected ${path}`);
@@ -135,6 +141,30 @@ describe('RegisterScreen', () => {
 
     await fireEvent.changeText(screen.getByLabelText('Email (optional)'), '');
     await waitFor(() => expect(screen.getByTestId('register-submit')).toBeEnabled());
+  });
+
+  it('says "already registered" before any OTP when the mobile number has an account', async () => {
+    await renderScreen();
+    await fireEvent.changeText(screen.getByLabelText('Mobile number'), TAKEN_PHONE);
+    expect(await screen.findByTestId('register-taken-phone')).toBeTruthy();
+    expect(screen.getByText(/This mobile number is already registered/)).toBeTruthy();
+    expect(screen.queryByTestId('register-phone-otp-send')).toBeNull();
+    expect(mockApi.mock.calls.some(([p]) => p === '/auth/otp/request')).toBe(false);
+
+    await fireEvent.press(screen.getByLabelText('Sign in'));
+    expect(navigation.navigate).toHaveBeenCalledWith('Login', { redirect: undefined });
+    expect(screen.getByTestId('register-submit')).toBeDisabled();
+  });
+
+  it('says it for an email too, and offers OTP again once the email is changed', async () => {
+    await renderScreen();
+    await fireEvent.changeText(screen.getByLabelText('Email (optional)'), TAKEN_EMAIL);
+    expect(await screen.findByTestId('register-taken-email')).toBeTruthy();
+    expect(screen.queryByTestId('register-email-otp-send')).toBeNull();
+
+    await fireEvent.changeText(screen.getByLabelText('Email (optional)'), 'fresh@example.com');
+    expect(await screen.findByTestId('register-email-otp-send')).toBeTruthy();
+    expect(screen.queryByTestId('register-taken-email')).toBeNull();
   });
 
   it('a verification does not carry over when the number is changed', async () => {

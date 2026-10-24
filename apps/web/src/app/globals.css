@@ -7455,3 +7455,14 @@ a.offer-banner:hover {
   color: var(--muted-2, #94a3b8);
   font-size: 0.8em;
 }
+
+/* "Already registered" notice under the mobile / email field */
+.vf__error--block {
+  margin: 6px 0 4px;
+  line-height: 1.45;
+}
+.vf__error--block a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}

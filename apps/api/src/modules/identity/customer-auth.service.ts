@@ -88,6 +88,16 @@ export class CustomerAuthService {
     return this.otp.request(target, purpose);
   }
 
+  /**
+   * Whether this mobile number / email already belongs to a finished account (password + mobile), the
+   * same rule `requestOtp('register')` and `registerAccount` use. The sign-up form asks this as soon as a
+   * number or email is typed, so the customer is told to sign in before any OTP is sent.
+   */
+  async isRegistered(target: { phone?: string; email?: string }): Promise<boolean> {
+    const existing = await this.findByIdentifier(target);
+    return Boolean(existing?.passwordHash && existing.phone);
+  }
+
   private findByIdentifier(target: { phone?: string; email?: string }) {
     if (target.phone) {
       return this.prisma.customer.findUnique({ where: { phone: OtpService.normalizePhone(target.phone) } });

@@ -1,10 +1,12 @@
 import type { OtpPurpose } from '@belzo/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 
 import { tokenManager } from '@/api/token-manager';
 import type { OtpRequestResult } from '@/api/types';
 
 import {
+  checkRegistered,
   loginWithIdentifier,
   proveOtp,
   registerAccount,
@@ -14,6 +16,29 @@ import {
   type OtpProof,
 } from './api';
 import { completeLogin } from './session';
+
+/**
+ * True when this (already validated) mobile number / email has an account. Asked after a short pause in
+ * typing. If the check cannot be made it says false: the server still refuses at OTP time and at sign-up.
+ */
+export function useAlreadyRegistered(kind: 'phone' | 'email', target: string | null): boolean {
+  const [registered, setRegistered] = useState(false);
+  useEffect(() => {
+    setRegistered(false);
+    if (!target) return;
+    let live = true;
+    const timer = setTimeout(() => {
+      checkRegistered(kind === 'phone' ? { phone: target } : { email: target })
+        .then((r) => live && setRegistered(r))
+        .catch(() => undefined);
+    }, 400);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [kind, target]);
+  return registered;
+}
 
 /** Request a phone/email OTP (no session change yet; the code is verified on OtpVerify or with `useProveOtp`). */
 export function useRequestOtp() {

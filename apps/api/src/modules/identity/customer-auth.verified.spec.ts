@@ -253,6 +253,37 @@ describe('CustomerAuthService - OTP purposes, proofs and password reset', () => 
     expect(otp.request).toHaveBeenCalledTimes(1);
   });
 
+  describe('isRegistered (the sign-up form asks before any OTP is sent)', () => {
+    it('is true for a mobile number or email that has a finished account', async () => {
+      const { svc } = build([acct]);
+      expect(await svc.isRegistered({ phone: '9412807767' })).toBe(true);
+      expect(await svc.isRegistered({ phone: '+91 94128 07767' })).toBe(true);
+      expect(await svc.isRegistered({ email: 'ravi@example.com' })).toBe(true);
+      expect(await svc.isRegistered({ email: ' Ravi@Example.com ' })).toBe(true);
+    });
+
+    it('is false for an unknown number or email', async () => {
+      const { svc } = build([acct]);
+      expect(await svc.isRegistered({ phone: '9000000001' })).toBe(false);
+      expect(await svc.isRegistered({ email: 'new@example.com' })).toBe(false);
+      expect(await svc.isRegistered({})).toBe(false);
+    });
+
+    it('is false for older half-finished accounts, which sign-up completes instead', async () => {
+      const otpOnly: Row = { id: 'o', phone: '9111111111', email: null, name: 'Belzo Customer', passwordHash: null, status: 'active', locale: 'en' };
+      const emailOnly: Row = { id: 'e', phone: null, email: 'old@example.com', name: 'Old', passwordHash: 'h', status: 'active', locale: 'en' };
+      const { svc } = build([otpOnly, emailOnly]);
+      expect(await svc.isRegistered({ phone: '9111111111' })).toBe(false);
+      expect(await svc.isRegistered({ email: 'old@example.com' })).toBe(false);
+    });
+
+    it('sends nothing: it only looks the account up', async () => {
+      const { svc, otp } = build([acct]);
+      await svc.isRegistered({ phone: '9412807767' });
+      expect(otp.request).not.toHaveBeenCalled();
+    });
+  });
+
   it('reset and login OTPs only go to existing accounts', async () => {
     const { svc, otp } = build([acct]);
     await expect(svc.requestOtp({ phone: '9000000001' }, 'reset')).rejects.toBeInstanceOf(NotFoundException);

@@ -6,7 +6,15 @@ import { passwordProblems } from '@belzo/shared';
 import { apiFetch, ApiClientError } from '@/lib/api-client';
 import { useAuth, type LoginResponse } from '@/lib/auth-context';
 import { postAuthTarget } from '@/lib/auth-redirect';
-import { isEmail, OtpVerifyField, PasswordField, PasswordRules, toMobile10 } from '@/components/auth-parts';
+import {
+  AlreadyRegistered,
+  isEmail,
+  OtpVerifyField,
+  PasswordField,
+  PasswordRules,
+  toMobile10,
+  useRegisteredCheck,
+} from '@/components/auth-parts';
 
 /**
  * Create an account: full name, mobile (verified by an OTP) and a strong password entered twice. The email
@@ -35,9 +43,13 @@ export default function SignupPage() {
   const strong = passwordProblems(password).length === 0;
   const matches = confirm.length > 0 && confirm === password;
   const emailBlank = email.trim() === '';
+  // Is this number / email already registered? Say so before any OTP is sent.
+  const phoneTaken = useRegisteredCheck('phone', phone10) === 'registered';
+  const emailTaken = useRegisteredCheck('email', !emailBlank && isEmail(email) ? email.trim().toLowerCase() : null) === 'registered';
   // Email is optional, but a typed one has to be a real address and verified.
-  const emailOk = emailBlank || (isEmail(email) && Boolean(emailProof));
-  const ready = name.trim().length >= 2 && Boolean(phone10) && Boolean(phoneProof) && emailOk && strong && matches;
+  const emailOk = emailBlank || (isEmail(email) && Boolean(emailProof) && !emailTaken);
+  const ready =
+    name.trim().length >= 2 && Boolean(phone10) && Boolean(phoneProof) && !phoneTaken && emailOk && strong && matches;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -111,7 +123,11 @@ export default function SignupPage() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
-            <OtpVerifyField kind="phone" value={phone} purpose="register" onVerified={setPhoneProof} testId="signup-phone-otp" />
+            {phoneTaken ? (
+              <AlreadyRegistered kind="phone" loginHref={loginLink} />
+            ) : (
+              <OtpVerifyField kind="phone" value={phone} purpose="register" onVerified={setPhoneProof} testId="signup-phone-otp" />
+            )}
 
             <label className="auth-label" htmlFor="email">
               Email <span className="auth-optional">(optional)</span>
@@ -126,9 +142,12 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            {!emailBlank && (
-              <OtpVerifyField kind="email" value={email} purpose="register" onVerified={setEmailProof} testId="signup-email-otp" />
-            )}
+            {!emailBlank &&
+              (emailTaken ? (
+                <AlreadyRegistered kind="email" loginHref={loginLink} />
+              ) : (
+                <OtpVerifyField kind="email" value={email} purpose="register" onVerified={setEmailProof} testId="signup-email-otp" />
+              ))}
 
             <label className="auth-label" htmlFor="password">
               Password
@@ -166,7 +185,7 @@ export default function SignupPage() {
             {!ready && (
               <p className="auth-hint auth-hint--center">
                 Verify your mobile number and set a matching strong password to continue.
-                {!emailBlank && !emailOk ? ' Verify the email too, or clear it.' : ''}
+                {!emailBlank && !emailOk && !emailTaken ? ' Verify the email too, or clear it.' : ''}
               </p>
             )}
           </div>

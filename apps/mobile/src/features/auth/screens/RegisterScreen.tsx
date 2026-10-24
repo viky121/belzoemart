@@ -15,7 +15,7 @@ import { AuthLogo } from '@/ui/brand/AuthLogo';
 import { OtpVerifyRow } from '../components/OtpVerifyRow';
 import { PasswordField } from '../components/PasswordField';
 import { PasswordRules } from '../components/PasswordRules';
-import { useRegister } from '../hooks';
+import { useAlreadyRegistered, useRegister } from '../hooks';
 import { normalizeEmail, normalizeMobile } from '../identifiers';
 
 const formSchema = z
@@ -36,6 +36,18 @@ type FormValues = z.infer<typeof formSchema>;
 interface Verified {
   target: string;
   proof: string;
+}
+
+/** Shown instead of "Send OTP" when the mobile number / email already has an account. */
+function AlreadyRegistered({ what, onSignIn }: { what: string; onSignIn: () => void }) {
+  return (
+    <View style={styles.taken} accessibilityRole="alert" testID={`register-taken-${what === 'email' ? 'email' : 'phone'}`}>
+      <Text style={styles.takenText}>This {what} is already registered. Please sign in instead.</Text>
+      <Pressable onPress={onSignIn} accessibilityRole="link" accessibilityLabel="Sign in">
+        <Text style={styles.link}>Sign in</Text>
+      </Pressable>
+    </View>
+  );
 }
 
 /**
@@ -63,11 +75,14 @@ export function RegisterScreen({ navigation, route }: RootScreenProps<'Register'
   const phoneProof = phoneOk && phoneOk.target === phoneTarget ? phoneOk.proof : null;
   const emailProof = emailOk && emailOk.target === emailTarget ? emailOk.proof : null;
   // Email may stay empty; a typed one needs its own verification.
-  const emailReady = emailBlank || Boolean(emailTarget && emailProof);
-  const ready = Boolean(phoneProof) && emailReady && passwordProblems(password).length === 0;
+  // Already has an account? Say so before any OTP is sent.
+  const phoneTaken = useAlreadyRegistered('phone', phoneTarget);
+  const emailTaken = useAlreadyRegistered('email', emailTarget);
+  const emailReady = emailBlank || Boolean(emailTarget && emailProof && !emailTaken);
+  const ready = Boolean(phoneProof) && !phoneTaken && emailReady && passwordProblems(password).length === 0;
 
   function submit(values: FormValues) {
-    if (!phoneTarget || !phoneProof || !emailReady) return;
+    if (!phoneTarget || !phoneProof || phoneTaken || !emailReady) return;
     register.mutate(
       {
         name: values.name.trim(),
@@ -110,7 +125,9 @@ export function RegisterScreen({ navigation, route }: RootScreenProps<'Register'
         placeholder="10-digit mobile number"
         error={formState.errors.phone?.message}
       />
-      {phoneTarget ? (
+      {phoneTarget && phoneTaken ? (
+        <AlreadyRegistered what="mobile number" onSignIn={() => navigation.navigate('Login', { redirect })} />
+      ) : phoneTarget ? (
         <OtpVerifyRow
           key={phoneTarget}
           kind="phone"
@@ -132,7 +149,9 @@ export function RegisterScreen({ navigation, route }: RootScreenProps<'Register'
         placeholder="you@example.com"
         error={formState.errors.email?.message}
       />
-      {emailTarget ? (
+      {emailTarget && emailTaken ? (
+        <AlreadyRegistered what="email" onSignIn={() => navigation.navigate('Login', { redirect })} />
+      ) : emailTarget ? (
         <OtpVerifyRow
           key={emailTarget}
           kind="email"
@@ -182,7 +201,7 @@ export function RegisterScreen({ navigation, route }: RootScreenProps<'Register'
       {!ready ? (
         <Text style={styles.hint}>
           Verify your mobile number and set a strong password to continue.
-          {!emailBlank && !emailReady ? ' Verify the email too, or clear it.' : ''}
+          {!emailBlank && !emailReady && !emailTaken ? ' Verify the email too, or clear it.' : ''}
         </Text>
       ) : null}
 
@@ -216,6 +235,8 @@ const styles = StyleSheet.create({
   linkRow: { flexDirection: 'row', marginTop: theme.spacing.xl, alignItems: 'center', justifyContent: 'center' },
   muted: { ...theme.typography.body, color: theme.colors.muted },
   link: { ...theme.typography.body, color: theme.colors.primaryStrong, fontWeight: '700' },
+  taken: { marginTop: theme.spacing.xs, marginBottom: theme.spacing.sm, gap: 2 },
+  takenText: { ...theme.typography.caption, color: theme.colors.danger },
   legal: { ...theme.typography.caption, color: theme.colors.muted, marginTop: theme.spacing.lg },
   bottomPad: { height: theme.spacing.xl },
 });
