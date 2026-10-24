@@ -46,7 +46,7 @@ import { useOpenHref } from '../use-open-href';
 
 type Nav = NavigationProp<RootStackParamList>;
 
-/** Home tab (Belzo eMart design): header, search, banner, category grid, Deals of the Day. */
+/** Home tab (Belzo eMart design): header, search, banner, category slider, Deals of the Day. */
 export function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const queryClient = useQueryClient();
