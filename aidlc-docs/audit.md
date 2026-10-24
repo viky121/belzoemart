@@ -561,3 +561,12 @@ answer: both"
 **Context**: CONSTRUCTION - Admin Roles and Access, code generation complete (summary in construction/admin-roles/code/summary.md)
 
 ---
+
+---
+## Spend and Get Special Price Offers - New Request
+**Timestamp**: 2026-10-24T19:00:00Z
+**User Input**: "agar buyer 2000 ki shopping karta hai to 1 kg sugar 29 ₹ me aayegi iss trah ke offer ka check kar lena and and sugar me bhi 1 kg hi buy kar sakte hai\n\nasia kuch system banna hai and iska config admin me v bna do vailble price and product offfer ke lea"
+**AI Response**: "Checked cart, checkout and coupon code (no such offer exists; variant min/max order qty and bulk slabs exist). Issued questions Q1-Q8 in aidlc-docs/inception/requirements/spend-offers-questions.md and am waiting for answers."
+**Context**: INCEPTION - Requirements Analysis (Spend and Get offers), questions issued
+
+---
