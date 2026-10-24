@@ -544,3 +544,20 @@ answer: both"
 **AI Response**: "Read the current RBAC (fixed 5 role names in code, unused DB role/permission tables, no staff UI, no 'me' endpoint, 15 minute tokens, full inventory of admin routes). Created aidlc-docs/inception/requirements/admin-roles-questions.md with Q1-Q8 (detail level, existing roles, who may manage staff, roles per person, staff screen, when changes apply, what staff see) and a proposed permission list. Waiting for answers before building."
 **Context**: INCEPTION - Requirements Analysis (Admin Roles and Access), awaiting answers
 ---
+
+---
+## Admin Roles and Access - Answers Received
+**Timestamp**: 2026-10-24T14:30:00Z
+**User Input**: "a SAB"
+**AI Response**: "Recorded Q1-Q7 = A (per-area permission levels; keep the 5 old roles as editable types and add Admin, Manager, Accountant; only Super Admin manages staff and roles; one type per person; full staff screen; changes apply on the next click; menu and pages follow the permissions). Starting the build."
+**Context**: INCEPTION -> CONSTRUCTION (Admin Roles and Access), answers recorded
+---
+
+---
+## Admin Roles and Access - Build Complete
+**Timestamp**: 2026-10-24T18:30:00Z
+**User Input**: "(none - continuing the build after \"a SAB\")"
+**AI Response**: "Built the permission catalogue, server-side permission guard (fail closed), roles and staff APIs, bootstrap of ready-made types, and the Staff and types admin screen with a permission-aware menu. API 986 tests, shared 482, web 288 pass; tsc, eslint and next build clean; real HTTP run on a scratch DB passed. Not deployed, waiting for the user to say deploy."
+**Context**: CONSTRUCTION - Admin Roles and Access, code generation complete (summary in construction/admin-roles/code/summary.md)
+
+---

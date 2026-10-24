@@ -2252,3 +2252,57 @@
   .rep-custom label { flex: 1 1 140px; }
   .rep-bars__row { grid-template-columns: minmax(70px, 120px) 1fr auto; }
 }
+
+/* ---------- Staff and types (acc-*) ---------- */
+.acc-tabs { display: flex; gap: 6px; border-bottom: 1px solid #e6e9ef; margin: 8px 0 16px; flex-wrap: wrap; }
+.acc-tabs button { background: none; border: 0; padding: 10px 16px; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 3px solid transparent; }
+.acc-tabs button.is-on { color: #2874f0; border-bottom-color: #2874f0; }
+.acc-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.acc-hint { color: #64748b; font-size: .85rem; margin: 0; }
+.acc-msg { background: #ecfdf5; color: #166534; border-radius: 8px; padding: 8px 12px; font-size: .85rem; margin: 0 0 12px; }
+.acc-error { background: #fef2f2; color: #b91c1c; border-radius: 8px; padding: 8px 12px; font-size: .85rem; margin: 8px 0; }
+.acc-warn { background: #fffbeb; color: #92400e; border-radius: 8px; padding: 8px 12px; font-size: .85rem; margin: 10px 0; overflow-wrap: anywhere; }
+.acc-btn { background: #fff; border: 1px solid #cbd5e1; color: #344054; font-weight: 600; font-size: .85rem; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
+.acc-btn:hover:not(:disabled) { background: #f8fafc; }
+.acc-btn--primary { background: #2874f0; border-color: #2874f0; color: #fff; }
+.acc-btn--primary:hover:not(:disabled) { background: #1d62d0; }
+.acc-btn:disabled { opacity: .5; cursor: default; }
+.acc-link { background: none; border: 0; color: #2874f0; font-weight: 600; font-size: .85rem; cursor: pointer; padding: 4px 6px; }
+.acc-link:disabled { color: #94a3b8; cursor: default; }
+.acc-link--danger { color: #b91c1c; }
+.acc-link--danger:disabled { color: #cbd5e1; }
+.acc-actions { white-space: nowrap; text-align: right; }
+.acc-sub { display: block; color: #94a3b8; font-size: .75rem; }
+.acc-badge { font-style: normal; font-size: .68rem; font-weight: 700; background: #e0e7ff; color: #3730a3; border-radius: 999px; padding: 1px 8px; margin-left: 6px; }
+.acc-badge--warn { background: #fef3c7; color: #b45309; }
+.acc-off td { opacity: .6; }
+.acc-editor { padding: 16px; margin-bottom: 14px; }
+.acc-editor h2 { margin: 0 0 8px; font-size: 1.1rem; }
+.acc-editor h3 { margin: 16px 0 8px; font-size: .95rem; }
+.acc-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.acc-fields label { display: flex; flex-direction: column; gap: 4px; font-size: .8rem; font-weight: 600; color: #475569; }
+.acc-fields label small { font-weight: 400; color: #94a3b8; }
+.acc-footer { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.acc-footer .acc-hint { margin-right: auto; }
+.acc-manage { display: flex; flex-direction: column; gap: 12px; padding: 8px 4px; }
+.acc-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.acc-row .auth-input { max-width: 260px; }
+.acc-code { display: block; margin-top: 6px; font-size: .75rem; overflow-wrap: anywhere; user-select: all; }
+.acc-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.acc-group { border: 1px solid #e6e9ef; border-radius: 10px; padding: 8px 12px 10px; margin: 0; min-width: 0; }
+.acc-group legend { display: flex; gap: 10px; align-items: center; font-weight: 700; font-size: .85rem; padding: 0 6px; }
+.acc-perm { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; cursor: pointer; }
+.acc-perm input { margin-top: 3px; flex: none; }
+.acc-perm__text { display: flex; flex-direction: column; min-width: 0; }
+.acc-perm__label { font-weight: 600; font-size: .85rem; color: #1f2937; }
+.acc-perm__text small { color: #64748b; font-size: .75rem; line-height: 1.3; }
+.acc-noaccess, .acc-welcome { max-width: 560px; margin: 40px auto; text-align: center; }
+.acc-welcome__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top: 12px; }
+.acc-welcome__tile { background: #fff; border: 1px solid #e6e9ef; border-radius: 10px; padding: 14px; font-weight: 600; color: #1f2937; text-decoration: none; }
+.acc-welcome__tile:hover { border-color: #2874f0; color: #2874f0; }
+.acc-loading { color: #64748b; padding: 24px; }
+.acc-typebadge { color: #64748b; font-weight: 500; }
+@media (max-width: 640px) {
+  .acc-picker { grid-template-columns: 1fr; }
+  .acc-actions { white-space: normal; }
+}
