@@ -2,7 +2,7 @@ import { breakupView, formatInr, snapshotFromBreakup } from '@belzo/shared';
 import { usePreventRemove } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useInsets } from '@/lib/use-bottom-inset';
 
@@ -30,6 +30,12 @@ import { computeFingerprint, getOrCreateAttempt, settleAttempt } from '../checko
 import { handlePaymentOutcome } from '../payment-outcome';
 import { usePreview } from '../hooks';
 
+type ConfirmationParams = {
+  orderId: string;
+  provider: string;
+  notice?: 'payment_unavailable' | 'payment_unavailable_cancel_failed' | 'payment_incomplete';
+};
+
 const AMBIGUOUS_COPY =
   "We couldn't confirm your order. Check your connection and tap Place order again — you won't be charged twice.";
 
@@ -50,6 +56,8 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
 
   const [method, setMethod] = useState<CheckoutMethod>('cod');
   const [placing, setPlacing] = useState(false);
+  // Where to go once the order is placed. Set together with placing=false; see the effect below.
+  const [nextRoute, setNextRoute] = useState<ConfirmationParams | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const preview = usePreview(address?.id ?? null, couponCode, method);
@@ -69,10 +77,19 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
     toast.show({ message: 'Placing your order…', tone: 'info' });
   });
 
+  // Leaving the page is blocked while an order is being placed (so a back press cannot drop a payment half way).
+  // The move to the confirmation page must therefore happen AFTER `placing` has turned false and that has been
+  // applied. Doing it straight away was refused by the block itself: the order was created but the customer
+  // stayed here with "Placing your order…" and no confirmation.
+  useEffect(() => {
+    if (!nextRoute || placing) return;
+    navigation.reset({ index: 1, routes: [{ name: 'Main' }, { name: 'OrderConfirmation', params: nextRoute }] });
+  }, [nextRoute, placing, navigation]);
   const activeLines = (cart.data?.items ?? []).filter((l) => !l.savedForLater);
 
-  function resetToConfirmation(params: { orderId: string; provider: string; notice?: 'payment_unavailable' | 'payment_unavailable_cancel_failed' | 'payment_incomplete' }) {
-    navigation.reset({ index: 1, routes: [{ name: 'Main' }, { name: 'OrderConfirmation', params }] });
+  function resetToConfirmation(params: ConfirmationParams) {
+    setPlacing(false);
+    setNextRoute(params);
   }
 
   async function place() {
@@ -154,7 +171,7 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
   const view = preview.data ? breakupView(snapshotFromBreakup(preview.data.breakup)) : null;
   const shipping = view ? (view.rows.find((r) => r.key === 'shipping')?.amount ?? 0) : null;
   const canPlace =
-    Boolean(address) && methods.length > 0 && preview.isSuccess && Boolean(preview.data?.serviceable) && !placing;
+    Boolean(address) && methods.length > 0 && preview.isSuccess && Boolean(preview.data?.serviceable) && !placing && !nextRoute;
 
   return (
     <View style={styles.root}>
