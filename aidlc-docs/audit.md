@@ -631,3 +631,10 @@ answer: both"
 **AI Response**: "Read the attached sheet (only the store section was filled) and the Reliance receipt screenshot. Replaced the A4 invoice with an 80 mm receipt (HTML and PDF from one row model), added MRP snapshot on order items (migration order_item_mrp), FSSAI setting, QR code to the order page, GST breakup by rate, savings message. API tsc, eslint and the full jest pass; migration checked on a scratch database. Not deployed."
 **Context**: Quick build, decisions listed in aidlc-docs/construction/invoice-receipt/code/summary.md
 ---
+---
+## Deploy - invoice as 80 mm shop receipt
+**Timestamp**: 2026-10-25T18:00:00Z
+**User Input**: "deploy"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-25-2252-predeploy.sql), deployed commit d3e539a (api, web, worker). Migration 20261025130000_order_item_mrp applied. Inserted setting store.fssai = 21426510000951. Live checks: health ok, pages 200, admin route 401, no error-level API log lines, the production image renders the receipt HTML (QR, FSSAI) and a valid PDF."
+**Context**: Deploy approved by the user
+---
