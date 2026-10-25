@@ -624,3 +624,10 @@ answer: both"
 **Context**: Deploy approved by the user
 
 ---
+---
+## Invoice as an 80 mm shop receipt
+**Timestamp**: 2026-10-25T17:00:00Z
+**User Input**: "bhai Invoice format, ais achiye screensot added hai, Belzo ka and details uska doccx file me hai aisa bna do"
+**AI Response**: "Read the attached sheet (only the store section was filled) and the Reliance receipt screenshot. Replaced the A4 invoice with an 80 mm receipt (HTML and PDF from one row model), added MRP snapshot on order items (migration order_item_mrp), FSSAI setting, QR code to the order page, GST breakup by rate, savings message. API tsc, eslint and the full jest pass; migration checked on a scratch database. Not deployed."
+**Context**: Quick build, decisions listed in aidlc-docs/construction/invoice-receipt/code/summary.md
+---

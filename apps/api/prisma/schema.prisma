@@ -539,6 +539,7 @@ model OrderItem {
   quantity   Int
   taxRatePct Int
   costPrice  Int? // cost of one unit when the order was placed (paise); null for older orders. ADMIN-ONLY
+  mrp        Int? // printed MRP of one unit when the order was placed (paise); null for older orders. Shown on the invoice
   offerId    String? // set when the item was sold through a special-price offer (no foreign key: the offer may be deleted later)
   offerName  String? // the offer's name when the order was placed
 

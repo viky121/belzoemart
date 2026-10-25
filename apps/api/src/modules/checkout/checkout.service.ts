@@ -145,6 +145,7 @@ export class CheckoutService {
       taxRatePct: number;
       offerId: string | null;
       offerName: string | null;
+      mrp: number | null;
     }[];
   }> {
     const cart = await this.cart.getCart(ref);
@@ -174,6 +175,7 @@ export class CheckoutService {
         sku: item.sku,
         offerId: item.offerId,
         offerName: item.offerName,
+        mrp: typeof item.mrp === 'number' && item.mrp > 0 ? item.mrp : null,
         unitPrice: item.unitPrice,
         quantity: item.quantity,
         taxRatePct: item.taxRatePct,
@@ -340,6 +342,7 @@ export class CheckoutService {
               costPrice: costs.get(s.variantId) ?? null,
               offerId: s.offerId,
               offerName: s.offerName,
+              mrp: s.mrp,
             })),
           },
           payments: {
