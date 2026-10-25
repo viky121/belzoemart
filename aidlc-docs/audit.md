@@ -615,3 +615,12 @@ answer: both"
 **Context**: Deploy approved by the user
 
 ---
+
+---
+## Deploy - mobile website filter panel, brand link on the mobile product page
+**Timestamp**: 2026-10-25T09:30:00Z
+**User Input**: "deploy"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-25-0853-predeploy.sql), deployed commit 1b8a018 (api, web, worker). No migrations. Live checks: health ok, pages 200, search page serves the Filters button and panel controls and the CSS has the mobile panel rules, admin routes 401, no error-level log lines. APK 0.1.15 built: https://expo.dev/artifacts/eas/ex382mEvRv7hchonwrzhybR7Uwmx97--VP6wUu77diY.apk"
+**Context**: Deploy approved by the user
+
+---
