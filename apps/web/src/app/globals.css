@@ -7503,3 +7503,104 @@ a.offer-banner:hover {
 .addrlist__danger { color: #b91c1c; }
 .addrlist__check { display: flex; align-items: center; gap: 8px; margin: 4px 0 10px; font-size: .9rem; }
 @media (max-width: 640px) { .addr-grid { grid-template-columns: 1fr; } }
+
+/* ---------- Filters on a phone: a "Filters" button that opens a full-screen panel ---------- */
+.plp-filterbar { display: none; }
+.plp-scrim { display: none; }
+.plp-filters__close { display: none; }
+.plp-filters__foot { display: none; }
+@media (max-width: 900px) {
+  .plp-filterbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 8px 12px;
+    position: sticky;
+    top: calc(var(--header-h) + 4px);
+    z-index: 20;
+  }
+  .plp-filterbar__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 16px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #fff;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  .plp-filterbar__count {
+    font-style: normal;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--fk-blue, #2874f0);
+    color: #fff;
+    font-size: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .plp-filterbar__clear { color: var(--fk-blue, #2874f0); font-weight: 700; font-size: 0.85rem; padding: 10px 6px; }
+
+  /* The filter column is hidden until the button opens it, then covers the whole screen. */
+  .plp-filters { display: none; }
+  .plp-filters.plp-filters--open {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    border-radius: 0;
+    padding-bottom: 0;
+    height: 100dvh;
+  }
+  .plp-scrim { display: block; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); z-index: 999; }
+  .plp-filters--open .plp-filters__head { flex: none; gap: 12px; }
+  .plp-filters--open .plp-filters__head > span:first-child { margin-right: auto; }
+  .plp-filters--open .plp-filters__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    background: #f1f5f9;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+  .plp-filters__scroll { overflow-y: auto; flex: 1 1 auto; -webkit-overflow-scrolling: touch; }
+  .plp-filters--open .filter-opt { min-height: 44px; }
+  .plp-filters--open .filter-group__body { gap: 0; }
+  .plp-filters--open .plp-filters__foot {
+    display: block;
+    flex: none;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--border-2);
+    background: #fff;
+  }
+  .plp-filters__apply {
+    width: 100%;
+    min-height: 48px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--fk-blue, #2874f0);
+    color: #fff;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+}
+/* The e-mart theme rounds the filter card; a full-screen panel must not have rounded corners. */
+@media (max-width: 900px) {
+  .theme-root[data-theme='emart'] .plp-filters.plp-filters--open { border-radius: 0; }
+}
