@@ -212,7 +212,24 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
         />
 
         <Card>
-          {p.brand ? <Text style={[styles.brand, { color: brand.primary }]}>{p.brand}</Text> : null}
+          {p.brand ? (
+            // Tapping the brand lists every product of that brand (falls back to a search by name).
+            <Pressable
+              onPress={() =>
+                p.brandId
+                  ? navigation.navigate('ProductList', { brandId: p.brandId, title: p.brand ?? undefined })
+                  : navigation.navigate('Search', { q: p.brand ?? undefined })
+              }
+              accessibilityRole="link"
+              accessibilityLabel={`See all ${p.brand} products`}
+              hitSlop={8}
+              style={styles.brandLink}
+              testID="pdp-brand"
+            >
+              <Text style={[styles.brand, { color: brand.primary }]}>{p.brand}</Text>
+              <MaterialCommunityIcons name="chevron-right" size={16} color={brand.primary} />
+            </Pressable>
+          ) : null}
           <Text style={styles.title}>{p.title}</Text>
           <Rating value={p.ratingAvg} count={p.ratingCount} />
 
@@ -349,6 +366,7 @@ const styles = StyleSheet.create({
   body: { paddingBottom: theme.spacing.xl },
   title: { fontSize: 20, lineHeight: 26, fontWeight: '800', color: theme.colors.inkStrong },
   brand: { fontSize: 12, lineHeight: 16, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
+  brandLink: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', minHeight: 28 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: theme.colors.border, marginVertical: theme.spacing.md },
   saving: { ...theme.typography.body, fontWeight: '700', marginTop: theme.spacing.xs },
   stockChip: {
