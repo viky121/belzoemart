@@ -50,7 +50,7 @@ export const PERMISSION_DEFS = [
   { key: 'mobile.edit', label: 'Mobile app and home page design', help: 'Change the mobile app home screen and the website home page layout.', group: 'Content' },
   { key: 'media.manage', label: 'Media library', help: 'Upload and browse pictures.', group: 'Content' },
 
-  { key: 'reports.view', label: 'View', help: 'Open the sales, orders, users, products, categories, brands, best sellers and payments reports.', group: 'Reports' },
+  { key: 'reports.view', label: 'View', help: 'Open the sales, orders, users, products, categories, brands, best sellers, payments and search terms reports.', group: 'Reports' },
   { key: 'reports.export', label: 'Download CSV', help: 'Download reports as CSV files.', group: 'Reports', requires: ['reports.view'] },
   { key: 'reports.profit', label: 'Profit and loss', help: 'Open the profit and loss report. It shows what products cost the shop.', group: 'Reports', requires: ['reports.view'], sensitive: true },
 

@@ -638,3 +638,17 @@ answer: both"
 **AI Response**: "Took a DB dump (belzo-backup-2026-10-25-2252-predeploy.sql), deployed commit d3e539a (api, web, worker). Migration 20261025130000_order_item_mrp applied. Inserted setting store.fssai = 21426510000951. Live checks: health ok, pages 200, admin route 401, no error-level API log lines, the production image renders the receipt HTML (QR, FSSAI) and a valid PDF."
 **Context**: Deploy approved by the user
 ---
+---
+## Search Terms report: request and questions
+**Timestamp**: 2026-10-25T18:30:00Z
+**User Input**: "bhai website and mobile app me jo search bar hai, waha pe jo koi kuch v search karta hai uska report wale module me \"Search Terms\" name se section or row bnao, waha pe sare keyword listed honge date wise and report i me dikhan hai ki kaun sa product sabse jada sech hua hai"
+**AI Response**: "Checked the search endpoints, the web and mobile search bars and the admin Reports module. Wrote 7 questions in aidlc-docs/inception/requirements/search-terms-questions.md (what counts as a search, most searched product, what is saved, date wise list, no-result searches, retention, permission). Waiting for answers."
+**Context**: Requirements Analysis, standard depth. Awaiting user answers.
+---
+---
+## Search Terms report: answers and build
+**Timestamp**: 2026-10-26T14:30:00Z
+**User Input**: "A sab"
+**AI Response**: "Took all recommended answers (Q1 to Q7 = A). Wrote search-terms-requirements.md, built the search log (table search_logs + migration 20261025170000_search_logs, POST /search/log, 12 month clean-up), the Search terms report (cards, top keywords chart, top keywords, most searched products, not found, day by day with paging and CSV), the web admin tab, website and app saving of real searches. shared, API, web and mobile tsc, eslint and jest pass; the report SQL was run against a real PostgreSQL. Not deployed."
+**Context**: Construction, summary in aidlc-docs/construction/search-terms/code/summary.md
+---

@@ -81,3 +81,28 @@ describe('SearchScreen', () => {
     expect(await screen.findByText('Retry', {}, { timeout: 2000 })).toBeTruthy();
   });
 });
+
+describe('SearchScreen: saving real searches for the admin report', () => {
+  // Only the saving is checked here, so the shop finds nothing (the result list is not drawn).
+  beforeEach(() => {
+    searchResult = { body: { items: [], total: 0, page: 1, pageSize: 20 } };
+  });
+  const logCalls = () =>
+    (globalThis.fetch as jest.Mock).mock.calls.filter((c) => String(c[0]).includes('/search/log')) as [string, { method?: string; body?: string }][];
+
+  it('does not save while typing; saves the keyword when a suggestion is tapped', async () => {
+    const screen = await renderWithProviders(<SearchScreen {...props()} />, { navigation: false });
+    const input = screen.getByPlaceholderText('Search products');
+    fireEvent.changeText(input, 'so');
+    fireEvent.changeText(input, 'soap');
+    const suggestion = await screen.findByText('Soap bar', {}, { timeout: 2000 });
+    expect(logCalls()).toHaveLength(0);
+    fireEvent.press(suggestion);
+    await waitFor(() => expect(logCalls()).toHaveLength(1), { timeout: 2000 });
+    const [url, init] = logCalls()[0]!;
+    expect(url).toContain('/api/v1/search/log');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body!)).toEqual({ q: 'Soap bar', source: 'app' });
+    expect(await screen.findByText('No results found', {}, { timeout: 2000 })).toBeTruthy();
+  });
+});

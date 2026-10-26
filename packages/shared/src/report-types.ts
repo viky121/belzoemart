@@ -12,6 +12,7 @@ export const REPORT_IDS = [
   'brands',
   'best-sellers',
   'payments',
+  'search-terms',
   'profit-loss',
 ] as const;
 export type ReportId = (typeof REPORT_IDS)[number];
@@ -46,6 +47,8 @@ export interface ReportChart {
   title: string;
   kind: 'money' | 'int';
   points: ReportChartPoint[];
+  /** `ranked` always draws a ranked list of bars (names), never day columns. */
+  layout?: 'ranked';
 }
 
 export type ReportCell = string | number | null;
@@ -54,6 +57,17 @@ export interface ReportPage {
   page: number;
   pageSize: number;
   total: number;
+  /** What the rows are, for the pager text ("orders" when missing). */
+  label?: string;
+}
+
+/** An extra small table shown above the main one (for example "Top keywords"). */
+export interface ReportTable {
+  title: string;
+  columns: ReportColumn[];
+  rows: Record<string, ReportCell>[];
+  /** Shown instead of the table when there are no rows. */
+  empty?: string;
 }
 
 export interface ReportResponse {
@@ -63,9 +77,13 @@ export interface ReportResponse {
   range: { from: string; to: string };
   cards: ReportCard[];
   chart: ReportChart | null;
+  /** Extra tables shown between the chart and the main table. */
+  tables?: ReportTable[];
+  /** Heading of the main table, when the page has more than one table. */
+  tableTitle?: string;
   columns: ReportColumn[];
   rows: Record<string, ReportCell>[];
-  /** Present when the rows are paged (orders). */
+  /** Present when the rows are paged (orders, search terms). */
   page?: ReportPage;
   /** Short plain-language remarks about how the numbers were worked out. */
   notes: string[];

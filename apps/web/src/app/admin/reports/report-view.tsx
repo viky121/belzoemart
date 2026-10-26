@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ORDER_STATUSES, type ReportChart, type ReportResponse } from '@belzo/shared';
+import { ORDER_STATUSES, type ReportCell, type ReportChart, type ReportColumn, type ReportResponse } from '@belzo/shared';
 import { ApiClientError } from '@/lib/api-client';
 import { adminDownload, adminFetch } from '@/lib/admin-api';
 import { compactMoney, formatCell, pageCount, reportQuery } from './report-format';
@@ -12,7 +12,7 @@ const ALIGN_RIGHT = new Set(['money', 'int', 'pct']);
 function Chart({ chart }: { chart: ReportChart }) {
   const max = Math.max(1, ...chart.points.map((p) => p.value));
   const show = (v: number) => (chart.kind === 'money' ? compactMoney(v) : v.toLocaleString('en-IN'));
-  const byDay = chart.points.every((p) => p.label.length <= 5);
+  const byDay = chart.layout !== 'ranked' && chart.points.every((p) => p.label.length <= 5);
 
   if (!byDay) {
     return (
@@ -60,7 +60,52 @@ function Chart({ chart }: { chart: ReportChart }) {
   );
 }
 
-/** One report: summary cards, a chart, the table, paging (orders) and a CSV download. */
+/** A report table: header from the columns, numbers on the right, a message when there are no rows. */
+function DataTable({
+  columns,
+  rows,
+  empty,
+  testId,
+}: {
+  columns: ReportColumn[];
+  rows: Record<string, ReportCell>[];
+  empty: string;
+  testId?: string;
+}) {
+  if (rows.length === 0) return <div className="admin-empty">{empty}</div>;
+  return (
+    <div className="rep-table-wrap">
+      <table className="admin-table" data-testid={testId}>
+        <thead>
+          <tr>
+            {columns.map((c) => (
+              <th key={c.key} className={ALIGN_RIGHT.has(c.kind) ? 'rep-num' : undefined}>
+                {c.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i}>
+              {columns.map((c) => (
+                <td key={c.key} className={ALIGN_RIGHT.has(c.kind) ? 'rep-num' : undefined}>
+                  {c.kind === 'status' && typeof row[c.key] === 'string' && row[c.key] !== '' ? (
+                    <span className="admin-status">{formatCell(row[c.key], 'status')}</span>
+                  ) : (
+                    formatCell(row[c.key], c.kind)
+                  )}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** One report: summary cards, a chart, extra tables, the main table, paging and a CSV download. */
 export function ReportView({ id, from, to }: { id: string; from: string; to: string }) {
   const [data, setData] = useState<ReportResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -171,46 +216,22 @@ export function ReportView({ id, from, to }: { id: string; from: string; to: str
         </section>
       )}
 
+      {data.tables?.map((t) => (
+        <section className="admin-card" key={t.title} data-testid="report-extra-table">
+          <h3>{t.title}</h3>
+          <DataTable columns={t.columns} rows={t.rows} empty={t.empty ?? 'No data for this period.'} />
+        </section>
+      ))}
       <section className="admin-card">
-        {data.rows.length === 0 ? (
-          <div className="admin-empty">No data for this period.</div>
-        ) : (
-          <div className="rep-table-wrap">
-            <table className="admin-table" data-testid="report-table">
-              <thead>
-                <tr>
-                  {data.columns.map((c) => (
-                    <th key={c.key} className={ALIGN_RIGHT.has(c.kind) ? 'rep-num' : undefined}>
-                      {c.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.rows.map((row, i) => (
-                  <tr key={i}>
-                    {data.columns.map((c) => (
-                      <td key={c.key} className={ALIGN_RIGHT.has(c.kind) ? 'rep-num' : undefined}>
-                        {c.kind === 'status' && typeof row[c.key] === 'string' && row[c.key] !== '' ? (
-                          <span className="admin-status">{formatCell(row[c.key], 'status')}</span>
-                        ) : (
-                          formatCell(row[c.key], c.kind)
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {data.tableTitle && <h3>{data.tableTitle}</h3>}
+        <DataTable columns={data.columns} rows={data.rows} empty="No data for this period." testId="report-table" />
         {data.page && pages > 1 && (
           <div className="rep-pager">
             <button type="button" className="rep-btn" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>
               ← Previous
             </button>
             <span>
-              Page {data.page.page} of {pages} ({data.page.total} orders)
+              Page {data.page.page} of {pages} ({data.page.total} {data.page.label ?? 'orders'})
             </span>
             <button type="button" className="rep-btn" disabled={page >= pages || loading} onClick={() => setPage((p) => p + 1)}>
               Next →

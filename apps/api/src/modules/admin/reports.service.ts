@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { OrderStatus } from '@prisma/client';
+import { buildSearchTermsReport } from './reports-search';
 import {
   REPORT_IDS,
   SUPER_ADMIN_REPORTS,
@@ -125,6 +126,8 @@ export class ReportsService {
         return this.bestSellers(range);
       case 'payments':
         return this.payments(range);
+      case 'search-terms':
+        return buildSearchTermsReport(this.prisma, range, q.page ?? 1, opts.all === true);
       case 'profit-loss':
         return this.profitLossReport(range);
     }

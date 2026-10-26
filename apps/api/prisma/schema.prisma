@@ -74,6 +74,7 @@ model Customer {
 
   addresses    Address[]
   dataRequests DataRequest[]
+  searchLogs   SearchLog[]
 
   @@map("customers")
 }
@@ -882,6 +883,33 @@ model AdminAuditLog {
 
   @@index([actorId, createdAt])
   @@map("admin_audit_logs")
+}
+
+// ===========================================================================
+// Search terms report: one row per real customer search
+// (requirements: aidlc-docs/inception/requirements/search-terms-requirements.md)
+// ===========================================================================
+
+enum SearchLogSource {
+  web
+  app
+}
+
+model SearchLog {
+  id           String          @id @default(uuid())
+  term         String // as typed (tidied, at most 100 characters)
+  termNorm     String // lowercase, used for counting
+  source       SearchLogSource
+  resultCount  Int // products found at that moment
+  topProductId String? // the product found first (no relation: the product may be deleted later)
+  customerId   String? // only when the customer was logged in
+  createdAt    DateTime        @default(now())
+
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([termNorm, createdAt])
+  @@map("search_logs")
 }
 
 // ===========================================================================

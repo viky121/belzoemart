@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { StorageModule } from '../../integrations/storage/storage.module';
 import { SearchModule } from './search/search.module';
+import { SearchLogService } from './search/search-log.service';
 import { CategoryService } from './category.service';
 import { BrandService } from './brand.service';
 import { AttributeService } from './attribute.service';
@@ -29,6 +30,7 @@ import { AdminCatalogueController } from './admin-catalogue.controller';
     InventoryService,
     MediaService,
     BulkSheetService,
+    SearchLogService,
   ],
   exports: [InventoryService, ProductService, CategoryService],
 })

@@ -16,6 +16,7 @@ export const REPORT_TABS: { id: ReportId | 'gst'; label: string; superAdminOnly?
   { id: 'brands', label: 'Brands' },
   { id: 'best-sellers', label: 'Best sellers' },
   { id: 'payments', label: 'Payments' },
+  { id: 'search-terms', label: 'Search terms' },
   { id: 'profit-loss', label: 'Profit & loss', superAdminOnly: true },
   { id: 'gst', label: 'GST & stock' },
 ];

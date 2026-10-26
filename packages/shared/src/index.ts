@@ -24,6 +24,7 @@ export * from './weight';
 export * from './order-limits';
 export * from './product-link';
 export * from './report-types';
+export * from './search-term';
 export * from './report-calc';
 export * from './permissions';
 export * from './offers';

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { catalogueApi, type Paginated, type BrandDto } from '@/lib/catalogue-api';
 import { ProductCard } from '@/components/product-card';
 import { FilterSidebar } from '@/components/filter-sidebar';
+import { TrackSearch } from '@/components/track-search';
 import type { CategoryNodeDto, ProductCardDto } from '@belzo/shared';
 
 export const dynamic = 'force-dynamic';
@@ -71,6 +72,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
 
   return (
     <div className="plp" data-testid="search-page">
+      {q && <TrackSearch q={q} />}
       <FilterSidebar
         basePath="/search"
         categories={categories.map((c) => ({ id: c.id, name: c.name, slug: c.slug }))}

@@ -1,7 +1,7 @@
 import type { ProductCardDto, ProductSort } from '@belzo/shared';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useCardCart } from '@/features/cart/use-card-cart';
@@ -14,6 +14,7 @@ import { Chip, EmptyState, ErrorState, ProductCard, Screen } from '@/ui';
 import { SearchBar } from '@/ui/SearchBar';
 import { ProductGridSkeleton } from '@/ui/Skeleton';
 
+import { logSearch } from '../api';
 import { useAutocomplete, useSearchResults } from '../hooks';
 
 const SEARCH_SORTS: { key: ProductSort; label: string }[] = [
@@ -43,10 +44,17 @@ export function SearchScreen({ navigation, route }: RootScreenProps<'Search'>) {
   const results = useSearchResults(resultsQ, sort);
   const items = useMemo(() => results.data?.pages.flatMap((p) => p.items) ?? [], [results.data]);
 
+  // Opened with a keyword already chosen (for example the brand link on a product page): that is a search too.
+  const startQ = route.params?.q;
+  useEffect(() => {
+    if (startQ) logSearch(startQ);
+  }, [startQ]);
+
   function selectTerm(term: string) {
     setQ(term);
     setSubmitted(true);
     recent.add(term);
+    logSearch(term);
   }
 
   const showSuggestions = !submitted && autoQ.length >= 2 && (auto.data?.length ?? 0) > 0;

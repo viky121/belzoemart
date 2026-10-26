@@ -70,7 +70,7 @@ d('admin reports against a real database', () => {
           grandTotal: subtotal + 4_000,
           createdAt,
           items: { create: [{ variantId: variant.id, title: 'Atta 5kg', sku: variant.sku, unitPrice: 25_000, quantity: qty, taxRatePct: 5, costPrice: cost }] },
-          payments: { create: { provider: 'cod', amount: subtotal + 4_000, status: 'pending' } },
+          payments: { create: { provider: 'cod', amount: subtotal + 4_000, status: 'pending', createdAt } },
         },
         include: { items: true },
       });
@@ -93,6 +93,7 @@ d('admin reports against a real database', () => {
 
   afterAll(async () => {
     if (prisma) {
+      await prisma.searchLog.deleteMany({ where: { termNorm: { endsWith: suffix } } });
       await prisma.returnRequest.deleteMany({ where: { orderId: { in: [ids.o1, ids.o2, ids.o3] } } });
       await prisma.order.deleteMany({ where: { id: { in: [ids.o1, ids.o2, ids.o3] } } });
       await prisma.address.deleteMany({ where: { id: ids.addr } });
@@ -143,6 +144,49 @@ d('admin reports against a real database', () => {
     expect(pay.rows.some((x) => x.method === 'Cash on delivery')).toBe(true);
   });
 
+  it('search terms: counts by keyword and India day, first products, not found, outside the period left out', async () => {
+    const sugar = `sugar-${suffix}`;
+    const rare = `rareword-${suffix}`;
+    const log = (termNorm: string, source: 'web' | 'app', createdAt: string, resultCount: number, customerId: string | null = null) => ({
+      term: termNorm.toUpperCase(),
+      termNorm,
+      source,
+      resultCount,
+      topProductId: resultCount > 0 ? ids.prod : null,
+      customerId,
+      createdAt: new Date(createdAt),
+    });
+    await prisma.searchLog.createMany({
+      data: [
+        log(sugar, 'web', '2026-10-23T05:00:00Z', 2),
+        log(sugar, 'app', '2026-10-23T08:00:00Z', 2, ids.c1),
+        log(sugar, 'web', '2026-10-23T19:00:00Z', 3), // 24 Oct 00:30 in India
+        log(rare, 'web', '2026-10-22T05:00:00Z', 0),
+        log(sugar, 'web', '2026-10-01T05:00:00Z', 2), // outside the period
+      ],
+    });
+    const r = await svc.build('search-terms', Q);
+    expect(r.id).toBe('search-terms');
+    expect(card(r, 'Searches') as number).toBeGreaterThanOrEqual(4);
+    expect(card(r, 'Searches with no result') as number).toBeGreaterThanOrEqual(1);
+    const top = r.tables?.find((t) => t.title === 'Top keywords');
+    expect(top?.rows.find((x) => x.term === sugar)).toMatchObject({ searches: 3, web: 2, app: 1, found: 3, topProduct: `Atta ${suffix}` });
+    expect(r.chart?.points.find((p) => p.label === sugar)?.value).toBe(3);
+    expect(r.tables?.find((t) => t.title === 'Most searched products')?.rows.find((x) => x.product === `Atta ${suffix}`)).toMatchObject({ searches: 3, keywords: 1 });
+    expect(r.tables?.find((t) => t.title.startsWith('Not found'))?.rows.find((x) => x.term === rare)).toMatchObject({ searches: 1 });
+    const mine = r.rows.filter((x) => String(x.term).endsWith(suffix));
+    expect(mine.find((x) => x.date === '2026-10-23' && x.term === sugar)).toMatchObject({ searches: 2, web: 1, app: 1, found: 2, noResult: 0 });
+    expect(mine.find((x) => x.date === '2026-10-24' && x.term === sugar)).toMatchObject({ searches: 1, found: 3 });
+    expect(mine.find((x) => x.date === '2026-10-22' && x.term === rare)).toMatchObject({ searches: 1, noResult: 1 });
+    // newest day first
+    const days = r.rows.map((x) => String(x.date));
+    expect([...days].sort().reverse()).toEqual(days);
+    expect(r.page).toMatchObject({ page: 1, pageSize: 50, label: 'keyword rows' });
+    expect(r.page!.total).toBeGreaterThanOrEqual(3);
+    const csv = svc.toCsv(await svc.build('search-terms', Q, { all: true }));
+    expect(csv.split('\n')[0]).toBe('Date,Keyword,Times searched,Website,App,Products found,No result');
+    expect(csv).toContain(`2026-10-23,${sugar},2,1,1,2,0`);
+  });
   it('profit and loss: saved cost, today\'s cost as an estimate, and the refund taken out', async () => {
     const r = await svc.build('profit-loss', Q);
     // o1: 2 x 250 @5% = 47,619 ex GST, 1 unit refunded -> 23,810 back; cost 2 x 200 saved, 1 unit back on the shelf.

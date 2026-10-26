@@ -10,7 +10,7 @@ describe('Admin Reports page', () => {
   const html = renderToStaticMarkup(<AdminReportsPage />);
 
   it('has a tab for every report, the GST tab, and marks profit and loss as Super Admin only', () => {
-    for (const id of ['sales', 'orders', 'users', 'products', 'categories', 'brands', 'best-sellers', 'payments', 'profit-loss', 'gst']) {
+    for (const id of ['sales', 'orders', 'users', 'products', 'categories', 'brands', 'best-sellers', 'payments', 'search-terms', 'profit-loss', 'gst']) {
       expect(html).toContain(`data-testid="report-tab-${id}"`);
     }
     expect(html).toContain('title="Super Admin only"');
