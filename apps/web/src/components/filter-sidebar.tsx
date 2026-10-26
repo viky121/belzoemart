@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type { BrandDto } from '@/lib/catalogue-api';
-import { activeFilterCount, isPanelOpen } from '@/lib/filter-state';
+import { activeFilterCount, isPanelOpen, visibleBrands, BRANDS_COLLAPSED } from '@/lib/filter-state';
 
 interface CategoryOpt {
   id: string;
@@ -56,6 +56,7 @@ export function FilterSidebar({
     price: true,
   });
   const toggle = (k: string) => setOpen((o) => ({ ...o, [k]: !o[k] }));
+  const [allBrands, setAllBrands] = useState(false);
 
   // The phone panel is open for ONE set of filters: it remembers which URL it was opened on, so any change
   // of the filters (a new brand, price or clear) closes it by itself, with no extra effect needed.
@@ -176,23 +177,35 @@ export function FilterSidebar({
               </button>
               {open.brand && (
                 <div className="filter-group__body">
-                  {brands.map((b) => {
-                    const active = b.id === brandId;
-                    return (
-                      <Link
-                        key={b.id}
-                        href={hrefWith({ brandId: active ? null : b.id })}
-                        className="filter-opt filter-opt--check"
-                        onClick={closePanel}
-                        data-testid={`filter-brand-${b.slug}`}
-                      >
-                        <span className={`box${active ? ' box--on' : ''}`} aria-hidden>
-                          {active ? '✓' : ''}
-                        </span>
-                        {b.name}
-                      </Link>
-                    );
-                  })}
+                  <div className={`brand-grid${allBrands ? ' brand-grid--all' : ''}`} data-testid="brand-grid">
+                    {visibleBrands(brands, brandId, allBrands).map((b) => {
+                      const active = b.id === brandId;
+                      return (
+                        <Link
+                          key={b.id}
+                          href={hrefWith({ brandId: active ? null : b.id })}
+                          className={`brand-chip${active ? ' brand-chip--on' : ''}`}
+                          onClick={closePanel}
+                          title={b.name}
+                          aria-current={active ? 'true' : undefined}
+                          data-testid={`filter-brand-${b.slug}`}
+                        >
+                          {b.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                  {brands.length > BRANDS_COLLAPSED && (
+                    <button
+                      type="button"
+                      className="brand-more"
+                      onClick={() => setAllBrands((v) => !v)}
+                      aria-expanded={allBrands}
+                      data-testid="brand-more"
+                    >
+                      {allBrands ? 'Show fewer' : `Show all ${brands.length} brands`}
+                    </button>
+                  )}
                 </div>
               )}
             </section>

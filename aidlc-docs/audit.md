@@ -673,3 +673,10 @@ answer: both"
 **AI Response**: "Removed the delivery PIN popup (web PincodeGate, app PincodeGate), the 'Deliver to' PIN button in the web header and the app home header, the 'Change Location' PIN pill and menu item in the app drawer, the PIN check box on the product page (web and app), the PIN badge on the app address form, and the auto-saved PIN after login. The only PIN check left is checkout: the selected address is checked by the server (preview and place order), the checkout page shows 'not serviceable' and blocks the order button. Web and app tsc, eslint and jest pass. Not deployed."
 **Context**: Small change, no questions needed. Web and app both change; the app needs a new APK.
 ---
+---
+## All products on scroll, smaller brand filter (web)
+**Timestamp**: 2026-10-26T18:00:00Z
+**User Input**: "bhai ek aue change hai,, catgeory me 44 product hai but ispe sirf 20 show ho raha hai, jitne v product hai sab dinhane chiye, on scoll, and ye jo left side me filter hai, website me laptop me, ye brand wala list bahut bda hai isko chta karo, and ek grid me kar ke dikha do"
+**AI Response**: "The category and search pages showed only the first page of 20. They now draw the first page on the server and load the next pages while the customer scrolls (with a Load more button as fallback), until every product is shown; the count line now says '44 products'. The Brand filter is now a 2-column grid of small chips: first 8 brands, the chosen brand always visible, and a 'Show all N brands' button (scrolls inside 260px when expanded). Web tsc, eslint and jest pass (361 tests)."
+**Context**: Small change, no questions needed. Web only.
+---

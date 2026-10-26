@@ -12,3 +12,18 @@ export function activeFilterCount(params: { get(name: string): string | null }):
 export function isPanelOpen(openedOn: string | null, currentQuery: string): boolean {
   return openedOn !== null && openedOn === currentQuery;
 }
+
+/** Brands shown in the filter before "Show all". */
+export const BRANDS_COLLAPSED = 8;
+
+/**
+ * The brands to draw in the filter. Collapsed: the first few, and the chosen brand is always among them (moved
+ * to the front) so the customer can see and switch off what is on. Expanded: every brand.
+ */
+export function visibleBrands<T extends { id: string }>(brands: readonly T[], selectedId: string, expanded: boolean, limit = BRANDS_COLLAPSED): T[] {
+  if (expanded || brands.length <= limit) return [...brands];
+  const head = brands.slice(0, limit);
+  if (!selectedId || head.some((b) => b.id === selectedId)) return head;
+  const chosen = brands.find((b) => b.id === selectedId);
+  return chosen ? [chosen, ...head.slice(0, limit - 1)] : head;
+}

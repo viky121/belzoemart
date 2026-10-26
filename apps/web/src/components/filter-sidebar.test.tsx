@@ -62,6 +62,28 @@ describe('FilterSidebar on a phone', () => {
   });
 });
 
+describe('FilterSidebar brands', () => {
+  const many = Array.from({ length: 25 }, (_, i) => ({ id: `b${i}`, name: `Brand ${i}`, slug: `brand-${i}` })) as never;
+  const renderMany = () => renderToStaticMarkup(<FilterSidebar basePath="/search" categories={categories} brands={many} />);
+
+  it('shows brands as a small grid with only the first few and a Show all button', () => {
+    search = '';
+    const html = renderMany();
+    expect(html).toContain('data-testid="brand-grid"');
+    expect(html.match(/class="brand-chip/g)).toHaveLength(8);
+    expect(html).toContain('Show all 25 brands');
+  });
+  it('highlights the chosen brand and keeps it in the short list', () => {
+    search = 'brandId=b20';
+    const html = renderMany();
+    expect(html).toMatch(/class="brand-chip brand-chip--on"[^>]*>Brand 20</);
+  });
+  it('has no Show all button when there are only a few brands', () => {
+    search = '';
+    expect(render()).not.toContain('brand-more');
+  });
+});
+
 describe('filter panel state', () => {
   it('counts a brand and a price band as one filter each', () => {
     expect(activeFilterCount(new URLSearchParams(''))).toBe(0);

@@ -7482,3 +7482,110 @@ a.offer-banner:hover {
 @media (max-width: 900px) {
   .theme-root[data-theme='emart'] .plp-filters.plp-filters--open { border-radius: 0; }
 }
+
+/* ===== Brand filter as a small grid of chips ===== */
+.brand-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.brand-grid--all {
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+.brand-chip {
+  display: block;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border-2, #e2e8f0);
+  border-radius: 8px;
+  background: #fff;
+  color: #212121;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.brand-chip:hover {
+  border-color: var(--fk-blue, #2874f0);
+  color: var(--fk-blue, #2874f0);
+}
+.brand-chip--on,
+.brand-chip--on:hover {
+  background: var(--fk-blue, #2874f0);
+  border-color: var(--fk-blue, #2874f0);
+  color: #fff;
+  font-weight: 600;
+}
+.theme-root[data-theme='emart'] .brand-chip:hover {
+  border-color: var(--fk-green, #16a34a);
+  color: var(--fk-green, #16a34a);
+}
+.theme-root[data-theme='emart'] .brand-chip--on,
+.theme-root[data-theme='emart'] .brand-chip--on:hover {
+  background: var(--fk-green, #16a34a);
+  border-color: var(--fk-green, #16a34a);
+  color: #fff;
+}
+.brand-more {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--fk-blue, #2874f0);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.theme-root[data-theme='emart'] .brand-more {
+  color: var(--fk-green, #16a34a);
+}
+/* A finger needs a bigger target inside the full-screen filter panel. */
+@media (max-width: 900px) {
+  .plp-filters--open .brand-chip {
+    padding: 11px 8px;
+    font-size: 0.86rem;
+  }
+  .plp-filters--open .brand-more {
+    padding: 10px 0;
+  }
+}
+
+/* ===== Product list: loading more as the customer scrolls ===== */
+.plp-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 24px;
+}
+.plp-more__btn {
+  min-height: 44px;
+  padding: 0 22px;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 999px;
+  background: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+.plp-more__btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.plp-more__err {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+.plp-end {
+  margin: 0;
+  padding: 8px 16px 24px;
+  text-align: center;
+  color: var(--muted, #64748b);
+  font-size: 0.85rem;
+}

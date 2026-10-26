@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { catalogueApi, type Paginated, type BrandDto } from '@/lib/catalogue-api';
-import { ProductCard } from '@/components/product-card';
+import { InfiniteProducts } from '@/components/infinite-products';
 import { FilterSidebar } from '@/components/filter-sidebar';
 import { iconFor, gradientFor, isUsableImageUrl } from '@/lib/category-theme';
 import { categoryNav } from '@/lib/category-trail';
@@ -153,7 +153,7 @@ export default async function CategoryPage({
 
         <div className="plp-heading">
           <span className="plp-count">
-            Showing {data.items.length} of {data.total} products
+            {data.total} {data.total === 1 ? 'product' : 'products'}
           </span>
         </div>
 
@@ -181,11 +181,13 @@ export default async function CategoryPage({
             )}
           </div>
         ) : (
-          <div className="product-grid" data-testid="product-grid">
-            {data.items.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
+          <InfiniteProducts
+            key={qs.toString()}
+            initial={data}
+            endpoint="products"
+            query={qs.toString()}
+            testId="product-grid"
+          />
         )}
       </main>
     </div>

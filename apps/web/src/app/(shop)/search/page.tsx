@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { catalogueApi, type Paginated, type BrandDto } from '@/lib/catalogue-api';
-import { ProductCard } from '@/components/product-card';
+import { InfiniteProducts } from '@/components/infinite-products';
 import { FilterSidebar } from '@/components/filter-sidebar';
 import { TrackSearch } from '@/components/track-search';
 import type { CategoryNodeDto, ProductCardDto } from '@belzo/shared';
@@ -89,7 +89,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
         <div className="plp-heading">
           <h1>{heading}</h1>
           <span className="plp-count">
-            (Showing {data.items.length} of {data.total} products)
+            ({data.total} {data.total === 1 ? 'product' : 'products'})
           </span>
         </div>
 
@@ -121,11 +121,13 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
             )}
           </div>
         ) : (
-          <div className="product-grid" data-testid="search-results">
-            {data.items.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
+          <InfiniteProducts
+            key={qs.toString()}
+            initial={data}
+            endpoint={q ? 'search' : 'products'}
+            query={qs.toString()}
+            testId="search-results"
+          />
         )}
       </main>
     </div>
