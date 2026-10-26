@@ -714,3 +714,10 @@ answer: both"
 **AI Response**: "The filter column sticks to the top of the screen but was taller than the screen (long Categories list plus Brand), so the Price block below it was cut off and could not be scrolled to. On a computer (901px and wider) the column now has a maximum height of the screen and scrolls inside itself. The phone panel is unchanged. Standing rule noted: ask before every deploy and before every build (APK)."
 **Context**: Web CSS only. Nothing deployed or built.
 ---
+---
+## Deploy - filter column scroll fix (web only)
+**Timestamp**: 2026-10-27T09:00:00Z
+**User Input**: "okay deploy and build chla do"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-26-2319-predeploy.sql), deployed commit 41bfc13 (web only, API unchanged). Live checks: health ok, home, search and category pages 200, the new filter CSS is served, no error lines in the web log. No new APK: the app code is unchanged since 0.1.18 (commit 1685213). APK 0.1.17 finished: https://expo.dev/artifacts/eas/AGZ-KgJP5d8ZJwZ0i7ufqdUuA4XxujXlcDRPfDVgVxQ.apk ; APK 0.1.18 (25704300-2ed8-4825-af3f-ecb507623526) is still queued on EAS."
+**Context**: Deploy and build approved by the user
+---
