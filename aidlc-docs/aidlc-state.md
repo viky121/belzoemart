@@ -103,3 +103,4 @@
 - [x] Category/search pages load every product while scrolling, brand filter as a small grid (2026-10-26): web only; built and verified.
 - [x] PIN only at checkout + all products on scroll + brand grid: DEPLOYED 2026-10-26 (web, commit d56acec); APK 0.1.17 building.
 - [x] Brand filter limited to the category's own brands (web, app, API): built and verified 2026-10-26; NOT deployed (needs API + web deploy and a new APK).
+- [x] Checkout PIN check at the address form (web + app): a new address with a PIN we do not deliver to is refused on the form; the "not deliverable" message sits with the address. Built and verified 2026-10-26; NOT deployed (web and a new APK; no API change).

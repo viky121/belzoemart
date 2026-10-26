@@ -11,6 +11,7 @@ import { breakupView, snapshotFromBreakup } from '@/lib/price-breakup';
 import { cartApi, type CartLine } from '@/lib/cart-api';
 import { placeholderImage, isUsableImageUrl } from '@/lib/category-theme';
 import { safeUuid } from '@/lib/uuid';
+import { checkPin, pinRefusal, pinVerdict, type PinVerdict } from '@/lib/pin-check';
 import { safeSession } from '@/lib/safe-storage';
 import { openRazorpayCheckout, verifyBody, type RazorpayClientConfig } from '@/lib/razorpay';
 
@@ -77,6 +78,23 @@ export default function CheckoutPage() {
     }));
   }, [profileName, profilePhone, showForm]);
   const [addrError, setAddrError] = useState<string | null>(null);
+  // Is the PIN typed in the new-address form one we deliver to? Checked as soon as 6 digits are typed.
+  const [pinInfo, setPinInfo] = useState<{ pin: string; verdict: PinVerdict | 'checking' } | null>(null);
+  useEffect(() => {
+    const pin = form.pincode.trim();
+    if (!/^[1-9]\d{5}$/.test(pin)) {
+      setPinInfo(null);
+      return;
+    }
+    let active = true;
+    setPinInfo({ pin, verdict: 'checking' });
+    void checkPin(pin).then((r) => {
+      if (active) setPinInfo({ pin, verdict: pinVerdict(r) });
+    });
+    return () => {
+      active = false;
+    };
+  }, [form.pincode]);
 
   const loadAddresses = useCallback(async () => {
     const a = await authFetch<Address[]>('/me/addresses').catch(() => [] as Address[]);
@@ -117,6 +135,11 @@ export default function CheckoutPage() {
     }
   }, [addressId, coupon, authFetch, method]);
 
+  // Totals of the previously chosen address must never stay on screen (or keep "Place order" enabled)
+  // while the new address is being checked.
+  useEffect(() => {
+    setPreview(null);
+  }, [addressId]);
   useEffect(() => {
     void runPreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -138,6 +161,11 @@ export default function CheckoutPage() {
     }
     setSavingAddr(true);
     try {
+      // Ask the shop's delivery list first, so a PIN we do not deliver to is refused here, on the form.
+      if (pinVerdict(await checkPin(form.pincode.trim())) === 'bad') {
+        setAddrError(pinRefusal(form.pincode.trim()));
+        return;
+      }
       const created = await authFetch<Address>('/me/addresses', {
         method: 'POST',
         body: { ...form, line2: form.line2 || undefined },
@@ -288,6 +316,12 @@ export default function CheckoutPage() {
               </div>
             )}
 
+            {notServiceable && !showForm && (
+              <p className="co-notserviceable" role="alert" data-testid="checkout-address-not-serviceable">
+                🚫 We don&apos;t deliver to the PIN code of this address yet. Please choose another address or add a new
+                one with a PIN code we deliver to.
+              </p>
+            )}
             {showForm && (
               <div className="addr-form" data-testid="checkout-add-address">
                 {addrError && <p className="auth-error">{addrError}</p>}
@@ -310,7 +344,14 @@ export default function CheckoutPage() {
                   </div>
                   <div>
                     <label className="auth-label">PIN code</label>
-                    <input className="auth-input" value={form.pincode} onChange={set('pincode')} placeholder="560001" data-testid="addr-pincode" />
+                    <input className="auth-input" value={form.pincode} onChange={set('pincode')} placeholder="560001" inputMode="numeric" maxLength={6} data-testid="addr-pincode" />
+                    {pinInfo?.verdict === 'checking' && <p className="co-pin">Checking delivery…</p>}
+                    {pinInfo?.verdict === 'ok' && <p className="co-pin co-pin--ok" data-testid="addr-pin-ok">✓ We deliver to {pinInfo.pin}</p>}
+                    {pinInfo?.verdict === 'bad' && (
+                      <p className="co-pin co-pin--bad" role="alert" data-testid="addr-pin-bad">
+                        ✗ {pinRefusal(pinInfo.pin)}
+                      </p>
+                    )}
                   </div>
                   <div className="addr-grid__full">
                     <label className="auth-label">Address (house no, street, area)</label>
@@ -330,7 +371,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
                 <div className="addr-form__actions">
-                  <button className="auth-btn" onClick={saveAddress} disabled={savingAddr} data-testid="addr-save">
+                  <button className="auth-btn" onClick={saveAddress} disabled={savingAddr || pinInfo?.verdict === 'bad'} data-testid="addr-save">
                     {savingAddr ? 'Saving…' : 'Save address'}
                   </button>
                   {addresses.length > 0 && (

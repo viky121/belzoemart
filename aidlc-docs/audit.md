@@ -693,3 +693,10 @@ answer: both"
 **AI Response**: "GET /brands now takes categoryId (the category and the ones below it) or q (a search) and returns only the active brands that have a published product on sale there. The category page and the search page ask for that list; the app product list asks for the brands of the category it shows. API, web and app tsc, eslint and tests pass; the brand query was also run against a real PostgreSQL. Not deployed: needs an API and web deploy (and a new APK for the app)."
 **Context**: Small fix, no questions needed.
 ---
+---
+## Checkout: PIN code of a new address is validated on the form
+**Timestamp**: 2026-10-26T19:00:00Z
+**User Input**: "bhai checkout page pe delivery wala jo pincode hai, usse alag pincode dal raha hu to vaildate nahi kar raha, error nahi show kar raha aage proceed hone de raha hai, maine ye test kea jab maine dusra address add karke proceed karna chaa. check and fix it fist"
+**AI Response**: "Checked: the server already refuses an order to a PIN that is not on the delivery list (production list: 472001) and the checkout total showed the warning only at the bottom, after the address was saved, so the customer felt nothing stopped them. Fixed on web and in the app: while adding an address in checkout the PIN is checked as soon as 6 digits are typed, a PIN we do not deliver to shows a red message under the field and Save is blocked (also checked again at Save); the 'not deliverable' message for the chosen address now sits with the address (the app moved it under the address card); old totals are cleared when another address is chosen so 'Place order' cannot stay enabled on stale totals. Outside checkout the address form asks nothing. Web and app tsc, eslint, jest pass. Not deployed."
+**Context**: Bug fix. No API change.
+---

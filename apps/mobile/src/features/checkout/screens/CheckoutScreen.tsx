@@ -202,6 +202,11 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
           </View>
         ) : null}
 
+        {preview.data && !preview.data.serviceable && address ? (
+          <Text style={styles.banner} testID="checkout-not-serviceable">
+            {`Sorry, we don't deliver to PIN code ${address.pincode} yet. Tap Edit to choose or add an address with a PIN code we deliver to.`}
+          </Text>
+        ) : null}
         <Text style={styles.section}>Delivery Method</Text>
         <View style={[styles.card, styles.methodCard]}>
           <View style={styles.radioOn}>
@@ -242,9 +247,6 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
 
         {preview.isError ? <ErrorState error={preview.error} onRetry={() => void preview.refetch()} /> : null}
 
-        {preview.data && !preview.data.serviceable ? (
-          <Text style={styles.banner}>This address is not serviceable. Choose another address.</Text>
-        ) : null}
 
         {view ? (
           <View style={styles.summary}>

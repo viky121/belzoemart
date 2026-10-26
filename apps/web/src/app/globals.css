@@ -7589,3 +7589,18 @@ a.offer-banner:hover {
   color: var(--muted, #64748b);
   font-size: 0.85rem;
 }
+
+/* ===== Checkout: PIN code check under the new-address PIN field ===== */
+.co-pin {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted, #64748b);
+}
+.co-pin--ok {
+  color: #15803d;
+  font-weight: 600;
+}
+.co-pin--bad {
+  color: #b91c1c;
+  font-weight: 700;
+}
