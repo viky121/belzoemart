@@ -707,3 +707,10 @@ answer: both"
 **AI Response**: "Took a DB dump (belzo-backup-2026-10-26-2250-predeploy.sql), deployed commit 44abb6c (api, web; no migrations). Live checks: health ok, home, search and checkout pages 200, admin route 401 without login, GET /brands returns 160 brands, 13 for one category and 80 for another, a bad category id answers 400, no error-level API log lines. Mobile APK 0.1.18 (commit 1685213) queued on EAS: 25704300-2ed8-4825-af3f-ecb507623526; APK 0.1.17 (6526ddc9-51ac-4825-a723-1a0e123b8c90) still building."
 **Context**: Deploy approved by the user
 ---
+---
+## Filter column: Price filter cut off on a computer
+**Timestamp**: 2026-10-27T08:00:00Z
+**User Input**: "price wala filter hide ho raha hai upar scroll karne pe v nahi dikha raha, isko sahi karo, and deopy ya build nahi karoge pahel puchoge every time before deploy or build"
+**AI Response**: "The filter column sticks to the top of the screen but was taller than the screen (long Categories list plus Brand), so the Price block below it was cut off and could not be scrolled to. On a computer (901px and wider) the column now has a maximum height of the screen and scrolls inside itself. The phone panel is unchanged. Standing rule noted: ask before every deploy and before every build (APK)."
+**Context**: Web CSS only. Nothing deployed or built.
+---

@@ -7604,3 +7604,14 @@ a.offer-banner:hover {
   color: #b91c1c;
   font-weight: 700;
 }
+
+/* ===== Filter column on a computer: it stays in view while scrolling, and scrolls inside itself when
+   it is taller than the screen, so the Price filter at the bottom can always be reached. ===== */
+@media (min-width: 901px) {
+  .plp-filters {
+    max-height: calc(100vh - var(--header-h) - 16px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+}
