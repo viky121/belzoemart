@@ -652,3 +652,10 @@ answer: both"
 **AI Response**: "Took all recommended answers (Q1 to Q7 = A). Wrote search-terms-requirements.md, built the search log (table search_logs + migration 20261025170000_search_logs, POST /search/log, 12 month clean-up), the Search terms report (cards, top keywords chart, top keywords, most searched products, not found, day by day with paging and CSV), the web admin tab, website and app saving of real searches. shared, API, web and mobile tsc, eslint and jest pass; the report SQL was run against a real PostgreSQL. Not deployed."
 **Context**: Construction, summary in aidlc-docs/construction/search-terms/code/summary.md
 ---
+---
+## Deploy - Search terms report
+**Timestamp**: 2026-10-26T15:30:00Z
+**User Input**: "deploy kardo"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-26-2025-predeploy.sql), deployed commit f3d1cc1 (api, web, worker). Migration 20261025170000_search_logs applied. Live checks: health ok, pages 200, search page 200, report route 401 without login, POST /search/log answers 204 and a test row was saved in search_logs (then deleted), no error-level API log lines. The site was slow to answer for a few minutes while the server was building. Mobile APK 0.1.16 build queued on EAS (3b1331d5-8a32-475c-813a-a83ad9070acb, commit a9086bb)."
+**Context**: Deploy approved by the user
+---
