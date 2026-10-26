@@ -19,11 +19,9 @@ export interface HomeHeaderProps {
   /** Unread notifications (signed-in customers only). */
   unread?: number;
   cartCount: number;
-  pincode: string | null;
   onBell: () => void;
   onCart: () => void;
   onSearch: () => void;
-  onPin: () => void;
   /** Opens the ☰ menu (button hidden when omitted). */
   onMenu?: () => void;
   /** Whether the Home tab is on screen (light status-bar icons are only set then). Default true. */
@@ -37,36 +35,15 @@ export interface HomeHeaderProps {
 export function HomeHeader({
   unread,
   cartCount,
-  pincode,
   onBell,
   onCart,
   onSearch,
-  onPin,
   onMenu,
   focused = true,
 }: HomeHeaderProps) {
   const brand = useBrand();
   const fest = brand.active;
   const iconColor = fest ? WHITE : theme.colors.inkStrong;
-
-  const pin = (
-    <Pressable
-      style={[styles.pinRow, fest && styles.pinFestive]}
-      onPress={onPin}
-      accessibilityRole="button"
-      accessibilityLabel={pincode ? `Delivering to ${pincode}. Change PIN` : 'Set delivery PIN'}
-    >
-      <MaterialCommunityIcons
-        name="map-marker-outline"
-        size={14}
-        color={fest ? WHITE : theme.colors.primaryStrong}
-      />
-      <Text style={[styles.pinText, fest && { color: WHITE }]} numberOfLines={1}>
-        {pincode ? `Deliver to ${pincode}` : 'Set delivery PIN'}
-      </Text>
-      <MaterialCommunityIcons name="chevron-down" size={15} color={fest ? WHITE : theme.colors.muted} />
-    </Pressable>
-  );
 
   const content = (
     <>
@@ -104,7 +81,6 @@ export function HomeHeader({
                 {brand.greetingLocal}
               </Text>
             ) : null}
-            {pin}
           </View>
           <FestivalArt festival={brand.festival} motifs={brand.motifs} accent={brand.accent} />
         </View>
@@ -122,7 +98,6 @@ export function HomeHeader({
         </Text>
       </Pressable>
 
-      {fest ? null : pin}
     </>
   );
 
@@ -180,13 +155,6 @@ const styles = StyleSheet.create({
   greetText: { flex: 1, gap: 1, alignItems: 'flex-start' },
   greet: { fontSize: 18, lineHeight: 22, fontWeight: '800', color: WHITE },
   greetLocal: { fontSize: 12, lineHeight: 16, color: 'rgba(255,255,255,0.92)' },
-  pinFestive: {
-    marginTop: 4,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-  },
   search: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -200,6 +168,4 @@ const styles = StyleSheet.create({
   },
   searchFestive: { backgroundColor: WHITE, borderColor: WHITE },
   searchText: { ...theme.typography.body, color: theme.colors.muted, flex: 1 },
-  pinRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  pinText: { ...theme.typography.caption, color: theme.colors.ink, flexShrink: 1, fontWeight: '600' },
 });

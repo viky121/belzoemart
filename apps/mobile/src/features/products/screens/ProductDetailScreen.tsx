@@ -35,7 +35,6 @@ import {
 import { ProductRail } from '@/ui/ProductRail';
 import { DetailSkeleton } from '@/ui/Skeleton';
 
-import { DeliveryCheck } from '../components/DeliveryCheck';
 import { Gallery } from '../components/Gallery';
 import { ReviewsList } from '../components/ReviewsList';
 import { SlabTable } from '../components/SlabTable';
@@ -281,8 +280,6 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
             <Text style={styles.qtyLabel}>Quantity</Text>
             <QuantitySelector value={Math.min(qty, limits.max)} onChange={setQty} min={1} max={limits.max} disabled={!inStock} label={p.title} />
           </View>
-          <View style={styles.divider} />
-          <DeliveryCheck />
         </Card>
 
         {p.description ? (

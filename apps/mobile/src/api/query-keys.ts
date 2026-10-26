@@ -13,7 +13,6 @@ export const qk = {
   reviews: (productId: string) => ['reviews', productId] as const,
   search: (p: SearchParams) => ['search', p] as const,
   autocomplete: (q: string) => ['autocomplete', q] as const,
-  serviceability: (pin: string) => ['serviceability', pin] as const,
   /** identity = session.status === 'authenticated' ? 'customer' : 'guest' (useCartIdentity). */
   cart: (identity: 'customer' | 'guest') => ['cart', identity] as const,
   wishlist: ['wishlist'] as const,

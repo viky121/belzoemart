@@ -7,7 +7,6 @@ import { useBottomInset } from '@/lib/use-bottom-inset';
 import type { CartView } from '@/api/types';
 import { ViewCartBar } from '@/features/cart/components/ViewCartBar';
 import { CategoriesScreen } from '@/features/categories/screens/CategoriesScreen';
-import { PincodeGate } from '@/features/home/components/PincodeGate';
 import { HomeScreen } from '@/features/home/screens/HomeScreen';
 import { OffersScreen } from '@/features/offers/screens/OffersScreen';
 import { AccountScreen } from '@/features/profile/screens/AccountScreen';
@@ -91,7 +90,6 @@ export function MainTabs() {
       </Tab.Navigator>
       {/* Sibling (not a tab-bar child) so Android still delivers touches outside the bar's bounds. */}
       <ViewCartBar bottom={contentHeight + bottomPad} />
-      <PincodeGate />
     </View>
   );
 }

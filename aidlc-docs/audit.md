@@ -666,3 +666,10 @@ answer: both"
 **AI Response**: "APK 0.1.16 finished (commit a9086bb): https://expo.dev/artifacts/eas/2bwwV88VexquBzmRpitleeY5mqaPAIGD0GVc_Mr98iA.apk"
 **Context**: Part of the Search terms deploy
 ---
+---
+## PIN code check only at checkout (web and app)
+**Timestamp**: 2026-10-26T17:00:00Z
+**User Input**: "Ye initially PIN code mangta hai ise check out per kardo, both web and andriod. isko sirf checkout tume v check kare baki sabhi jagh se hta do"
+**AI Response**: "Removed the delivery PIN popup (web PincodeGate, app PincodeGate), the 'Deliver to' PIN button in the web header and the app home header, the 'Change Location' PIN pill and menu item in the app drawer, the PIN check box on the product page (web and app), the PIN badge on the app address form, and the auto-saved PIN after login. The only PIN check left is checkout: the selected address is checked by the server (preview and place order), the checkout page shows 'not serviceable' and blocks the order button. Web and app tsc, eslint and jest pass. Not deployed."
+**Context**: Small change, no questions needed. Web and app both change; the app needs a new APK.
+---

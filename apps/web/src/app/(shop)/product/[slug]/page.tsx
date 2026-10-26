@@ -6,7 +6,6 @@ import { ProductGallery } from '@/components/product-gallery';
 import { ProductRail } from '@/components/product-rail';
 import { ProductVariants } from './product-variants';
 import { ReviewsPanel } from './reviews-panel';
-import { DeliveryCheck } from '@/components/delivery-check';
 import { Breadcrumbs, type Crumb } from '@/components/breadcrumbs';
 import { categoryTrailById } from '@/lib/category-trail';
 import type { CategoryNodeDto, ProductCardDto } from '@belzo/shared';
@@ -71,11 +70,6 @@ export default async function ProductPage({ params }: { params: { slug: string }
     .filter(Boolean);
 
   const fallback = placeholderImage(product.title, product.slug);
-  const deliveryDate = new Date(Date.now() + 3 * 86400000).toLocaleDateString('en-IN', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'short',
-  });
 
   return (
     <section style={{ padding: '1.5rem 0' }} data-testid="product-detail">
@@ -107,8 +101,6 @@ export default async function ProductPage({ params }: { params: { slug: string }
           )}
 
           <ProductVariants variants={product.variants} taxRatePct={product.taxRatePct}>
-          {/* Delivery details — PIN-aware serviceability check */}
-          <DeliveryCheck deliveryDate={deliveryDate} />
 
           {/* Trust badges */}
           <div className="trust-row">

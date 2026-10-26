@@ -1,4 +1,4 @@
-import { act, configure, fireEvent, screen } from '@testing-library/react-native';
+import { act, configure, screen } from '@testing-library/react-native';
 
 import { useSessionStore } from '@/store/session';
 import { renderWithProviders } from '@/test-utils';
@@ -12,7 +12,7 @@ jest.mock('@/features/profile/hooks', () => ({ useProfile: () => ({ data: undefi
 configure({ defaultIncludeHiddenElements: true });
 
 async function renderMenu() {
-  const props = { visible: true, onClose: jest.fn(), onChangeLocation: jest.fn() };
+  const props = { visible: true, onClose: jest.fn() };
   await renderWithProviders(<MenuDrawer {...props} />);
   return { props };
 }
@@ -39,7 +39,6 @@ describe('MenuDrawer', () => {
       'My Profile',
       'My Orders',
       'Wishlist',
-      'Change Location',
       'Store Locator',
       'Help & Support',
       'Customer Care',
@@ -60,13 +59,6 @@ describe('MenuDrawer', () => {
   it('shows the app version', async () => {
     await renderMenu();
     expect(screen.getByTestId('menu-version')).toHaveTextContent(/^Version \d/);
-  });
-
-  it('closes and asks the screen to open the location sheet', async () => {
-    const { props } = await renderMenu();
-    await fireEvent.press(screen.getByTestId('menu-location'));
-    expect(props.onClose).toHaveBeenCalled();
-    expect(props.onChangeLocation).toHaveBeenCalled();
   });
 
   it('shows the customer, a masked number and Logout once signed in', async () => {

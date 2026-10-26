@@ -6,7 +6,6 @@ import { qk } from '@/api/query-keys';
 import { tokenManager } from '@/api/token-manager';
 import type { CartView } from '@/api/types';
 import { secure } from '@/lib/secure';
-import { usePincodeStore } from '@/store/pincode';
 import { useSessionStore } from '@/store/session';
 
 import { completeLogin } from '../session';
@@ -39,8 +38,6 @@ const CART: CartView = { cartId: 'cart-1', items: [] };
 
 beforeEach(() => {
   jest.clearAllMocks();
-  // A PIN already set skips the default-address fetch, isolating the merge assertions.
-  usePincodeStore.setState({ pincode: '560001' });
   useSessionStore.setState({ status: 'guest', customer: null });
   mockSetSession.mockResolvedValue(undefined);
   mockSetPending.mockResolvedValue(undefined);

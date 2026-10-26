@@ -1,13 +1,10 @@
 import { addressInputSchema, GST_STATES, type AddressInput } from '@belzo/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
-import { apiRequest } from '@/api/client';
 import { userMessage } from '@/api/errors';
-import { qk, STALE } from '@/api/query-keys';
 import type { RootScreenProps } from '@/navigation/types';
 import { useSessionStore } from '@/store/session';
 import { theme } from '@/theme';
@@ -19,7 +16,7 @@ import { toAddressInput } from './AddressesScreen';
 
 const LABELS: AddressInput['label'][] = ['home', 'work', 'other'];
 
-/** Add / edit address (design §11): PIN autofill, serviceability badge, state picker, select mode. */
+/** Add / edit address (design §11): PIN autofill, state picker, select mode. */
 export function AddressFormScreen({ navigation, route }: RootScreenProps<'AddressForm'>) {
   const addressId = route.params?.addressId;
   const selectForCheckout = route.params?.selectForCheckout === true;
@@ -52,16 +49,8 @@ export function AddressFormScreen({ navigation, route }: RootScreenProps<'Addres
   const [statePicker, setStatePicker] = useState(false);
 
   const labelValue = useWatch({ control, name: 'label' });
-  const pincode = useWatch({ control, name: 'pincode' });
   const stateValue = useWatch({ control, name: 'state' });
-  const validPin = /^[1-9]\d{5}$/.test(pincode);
 
-  const serviceability = useQuery<{ serviceable: boolean; configured: boolean }>({
-    queryKey: qk.serviceability(pincode),
-    queryFn: () => apiRequest('/settings/serviceability', { query: { pincode } }),
-    enabled: validPin,
-    staleTime: STALE.settings,
-  });
 
   // Autofill city/state when a known PIN resolves (fired from the field's onChange).
   function onPincodeChange(value: string, onChange: (v: string) => void) {
@@ -92,13 +81,6 @@ export function AddressFormScreen({ navigation, route }: RootScreenProps<'Addres
     );
   }
 
-  const serviceMsg = validPin && serviceability.isSuccess
-    ? !serviceability.data.configured
-      ? 'Delivery available everywhere'
-      : serviceability.data.serviceable
-        ? 'Deliverable'
-        : 'Not deliverable to this PIN yet'
-    : '';
 
   return (
     <Screen scroll padded>
@@ -137,7 +119,6 @@ export function AddressFormScreen({ navigation, route }: RootScreenProps<'Addres
           </View>
         )}
       />
-      {serviceMsg ? <Text style={styles.service}>{serviceMsg}</Text> : null}
 
       <TextField control={control} name="line1" label="Address line 1" error={formState.errors.line1?.message} />
       <TextField control={control} name="line2" label="Address line 2 (optional)" error={formState.errors.line2?.message} />
@@ -204,7 +185,6 @@ const styles = StyleSheet.create({
   },
   inputError: { borderColor: theme.colors.danger },
   chips: { flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.md },
-  service: { ...theme.typography.caption, color: theme.colors.brandStrong, marginBottom: theme.spacing.sm },
   statePicker: {
     minHeight: theme.touch.minTouch,
     justifyContent: 'center',

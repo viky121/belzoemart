@@ -99,3 +99,4 @@
 - [x] Invoice as 80 mm shop receipt (2026-10-25): built and verified, summary `aidlc-docs/construction/invoice-receipt/code/summary.md`; NOT deployed. Needs migration `order_item_mrp` and setting `store.fssai` at deploy.
 - [ ] Search Terms report (2026-10-25): questions Q1-Q7 in `aidlc-docs/inception/requirements/search-terms-questions.md`; AWAITING USER ANSWERS. Next: requirements note, then build (search log table + migration, API logging, report, web admin tab, web and mobile hooks).
 - [x] Search Terms report: answers Q1-Q7 = A; built and verified 2026-10-26, summary `aidlc-docs/construction/search-terms/code/summary.md`; NOT deployed. Needs migration `20261025170000_search_logs` and a new mobile APK.
+- [x] PIN code check moved to checkout only (2026-10-26): popup, header PIN, product page check, app menu location and address-form badge removed (web + app). Built and verified; NOT deployed (needs web deploy and a new APK).

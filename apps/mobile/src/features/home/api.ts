@@ -3,11 +3,6 @@ import type { HomeSection, ProductCardDto } from '@belzo/shared';
 import { apiRequest } from '@/api/client';
 import type { Banner, Paginated, PublicSettings } from '@/api/types';
 
-export interface ServiceabilityResult {
-  serviceable: boolean;
-  configured: boolean;
-}
-
 export function fetchSettings(): Promise<PublicSettings> {
   return apiRequest<PublicSettings>('/settings/public');
 }
@@ -16,9 +11,6 @@ export function fetchHomeBanners(): Promise<Banner[]> {
   return apiRequest<Banner[]>('/banners', { query: { placement: 'home_hero' } });
 }
 
-export function fetchServiceability(pincode: string): Promise<ServiceabilityResult> {
-  return apiRequest<ServiceabilityResult>('/settings/serviceability', { query: { pincode } });
-}
 
 /** Products for one home-section rail; source drives the query (design §4.1). */
 export async function fetchSectionProducts(section: HomeSection): Promise<ProductCardDto[]> {
