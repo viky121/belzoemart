@@ -75,7 +75,7 @@ export function buildConfig(env: BuildEnv): ExpoConfig {
   return {
     name: isProd ? 'Belzo eMart' : 'Belzo eMart (Dev)',
     slug: 'belzo-emart',
-    version: '0.1.15',
+    version: '0.1.16',
     orientation: 'portrait',
     scheme: isProd ? 'belzoemart' : 'belzoemart-dev',
     userInterfaceStyle: 'light',
