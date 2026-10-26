@@ -659,3 +659,10 @@ answer: both"
 **AI Response**: "Took a DB dump (belzo-backup-2026-10-26-2025-predeploy.sql), deployed commit f3d1cc1 (api, web, worker). Migration 20261025170000_search_logs applied. Live checks: health ok, pages 200, search page 200, report route 401 without login, POST /search/log answers 204 and a test row was saved in search_logs (then deleted), no error-level API log lines. The site was slow to answer for a few minutes while the server was building. Mobile APK 0.1.16 build queued on EAS (3b1331d5-8a32-475c-813a-a83ad9070acb, commit a9086bb)."
 **Context**: Deploy approved by the user
 ---
+---
+## Mobile APK 0.1.16 (Search terms)
+**Timestamp**: 2026-10-26T16:10:00Z
+**User Input**: "deploy kardo"
+**AI Response**: "APK 0.1.16 finished (commit a9086bb): https://expo.dev/artifacts/eas/2bwwV88VexquBzmRpitleeY5mqaPAIGD0GVc_Mr98iA.apk"
+**Context**: Part of the Search terms deploy
+---
