@@ -18,7 +18,13 @@ export interface BrandDto {
 /** Server-side catalogue reads for storefront pages (public, cacheable). */
 export const catalogueApi = {
   categories: () => apiFetch<CategoryNodeDto[]>('/categories', { revalidate: 300 }),
-  brands: () => apiFetch<BrandDto[]>('/brands', { revalidate: 300 }),
+  /** All brands, or only the brands of one category (`categoryId`) or of a search (`q`). */
+  brands: (filter: { categoryId?: string; q?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (filter.categoryId) qs.set('categoryId', filter.categoryId);
+    if (filter.q) qs.set('q', filter.q);
+    return apiFetch<BrandDto[]>(`/brands${qs.size ? `?${qs.toString()}` : ''}`, { revalidate: 300 });
+  },
   products: (qs: string) =>
     apiFetch<Paginated<ProductCardDto>>(`/products${qs ? `?${qs}` : ''}`, { revalidate: 60 }),
   product: (idOrSlug: string) =>

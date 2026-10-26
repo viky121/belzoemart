@@ -101,3 +101,5 @@
 - [x] Search Terms report: answers Q1-Q7 = A; built and verified 2026-10-26, summary `aidlc-docs/construction/search-terms/code/summary.md`; NOT deployed. Needs migration `20261025170000_search_logs` and a new mobile APK.
 - [x] PIN code check moved to checkout only (2026-10-26): popup, header PIN, product page check, app menu location and address-form badge removed (web + app). Built and verified; NOT deployed (needs web deploy and a new APK).
 - [x] Category/search pages load every product while scrolling, brand filter as a small grid (2026-10-26): web only; built and verified.
+- [x] PIN only at checkout + all products on scroll + brand grid: DEPLOYED 2026-10-26 (web, commit d56acec); APK 0.1.17 building.
+- [x] Brand filter limited to the category's own brands (web, app, API): built and verified 2026-10-26; NOT deployed (needs API + web deploy and a new APK).

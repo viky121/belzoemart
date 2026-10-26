@@ -32,7 +32,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
 
   const [categories, brands] = await Promise.all([
     catalogueApi.categories().catch(() => [] as CategoryNodeDto[]),
-    catalogueApi.brands().catch(() => [] as BrandDto[]),
+    // With a search word, only the brands that have a product for it.
+    catalogueApi.brands({ q: q || undefined }).catch(() => [] as BrandDto[]),
   ]);
 
   const qs = new URLSearchParams();

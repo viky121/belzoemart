@@ -5,7 +5,7 @@ export const qk = {
   settings: ['settings', 'public'] as const,
   banners: ['banners', 'home_hero'] as const,
   categories: ['categories'] as const,
-  brands: ['brands'] as const,
+  brands: (categoryId?: string) => ['brands', categoryId ?? 'all'] as const,
   products: (p: ProductParams) => ['products', p] as const,
   productsByIds: (ids: string[]) => ['products', 'ids', ids.join(',')] as const,
   product: (idOrSlug: string) => ['product', idOrSlug] as const,

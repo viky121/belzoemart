@@ -680,3 +680,16 @@ answer: both"
 **AI Response**: "The category and search pages showed only the first page of 20. They now draw the first page on the server and load the next pages while the customer scrolls (with a Load more button as fallback), until every product is shown; the count line now says '44 products'. The Brand filter is now a 2-column grid of small chips: first 8 brands, the chosen brand always visible, and a 'Show all N brands' button (scrolls inside 260px when expanded). Web tsc, eslint and jest pass (361 tests)."
 **Context**: Small change, no questions needed. Web only.
 ---
+---
+## Deploy - PIN only at checkout, all products on scroll, brand grid
+**Timestamp**: 2026-10-26T16:55:00Z
+**User Input**: "deploy"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-26-2204-predeploy.sql), deployed commit d56acec (web only; API unchanged, no migrations). Live checks: health ok, home and search 200, no PIN popup in the home page, category page serves the brand grid and the Load more control. Mobile APK 0.1.17 (commit fa52673) queued on EAS: 6526ddc9-51ac-4825-a723-1a0e123b8c90."
+**Context**: Deploy approved by the user
+---
+## Brand filter shows only the brands of the category
+**Timestamp**: 2026-10-26T17:20:00Z
+**User Input**: "Website filter me, brand name sabhi category me show ho rahe hai category realted nahi show ho raha"
+**AI Response**: "GET /brands now takes categoryId (the category and the ones below it) or q (a search) and returns only the active brands that have a published product on sale there. The category page and the search page ask for that list; the app product list asks for the brands of the category it shows. API, web and app tsc, eslint and tests pass; the brand query was also run against a real PostgreSQL. Not deployed: needs an API and web deploy (and a new APK for the app)."
+**Context**: Small fix, no questions needed.
+---

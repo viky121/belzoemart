@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Inject, Param, Post, Query, Req } from
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
+import { z } from 'zod';
 import { productQuerySchema, searchLogSchema, type ProductQuery } from '@belzo/shared';
 import { Public } from '../../common/auth/public.decorator';
 import { CategoryService } from './category.service';
@@ -9,6 +10,12 @@ import { ProductService } from './product.service';
 import { BrandService } from './brand.service';
 import { SEARCH_PROVIDER, type SearchProvider } from './search/search.provider';
 import { SearchLogService } from './search/search-log.service';
+
+/** `GET /brands` filters: brands of one category (with its sub-categories) or of a search. */
+const brandQuerySchema = z.object({
+  categoryId: z.string().uuid().optional(),
+  q: z.string().trim().max(120).optional(),
+});
 
 /**
  * Public storefront catalogue endpoints (FR-2, FR-3). All read-only and public.
@@ -32,8 +39,8 @@ export class CatalogueController {
 
   @Public()
   @Get('brands')
-  brandList() {
-    return this.brands.list();
+  brandList(@Query() query: Record<string, string>) {
+    return this.brands.list(brandQuerySchema.parse(query));
   }
 
   @Public()

@@ -99,7 +99,8 @@ export function ProductListScreen({ navigation, route }: RootScreenProps<'Produc
   const [brandId, setBrandId] = useState<string | undefined>(params.brandId);
   const [sheet, setSheet] = useState<SheetKind>(null);
 
-  const brands = useBrands();
+  // Only the brands that sell in the category being shown, not every brand of the shop.
+  const brands = useBrands(subId ?? resolvedCategoryId);
   const activeBrands = (brands.data ?? []).filter((b) => b.isActive);
 
   const slugUnresolved =

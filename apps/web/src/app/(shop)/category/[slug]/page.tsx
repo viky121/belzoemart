@@ -41,11 +41,10 @@ export default async function CategoryPage({
   params: { slug: string };
   searchParams: SearchParams;
 }) {
-  const [categories, brands] = await Promise.all([
-    catalogueApi.categories().catch(() => [] as CategoryNodeDto[]),
-    catalogueApi.brands().catch(() => [] as BrandDto[]),
-  ]);
+  const categories = await catalogueApi.categories().catch(() => [] as CategoryNodeDto[]);
   const category = findCategory(categories, params.slug);
+  // Only the brands that sell in this category (and the ones below it), not every brand of the shop.
+  const brands = await catalogueApi.brands({ categoryId: category?.id }).catch(() => [] as BrandDto[]);
   const nav = categoryNav(categories, params.slug);
   const sort = searchParams.sort ?? 'popularity';
 

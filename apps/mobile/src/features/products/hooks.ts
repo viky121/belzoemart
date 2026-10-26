@@ -29,8 +29,12 @@ export function useProducts(params: ProductListParams) {
   });
 }
 
-export function useBrands() {
-  return useQuery<Brand[]>({ queryKey: qk.brands, queryFn: fetchBrands, staleTime: STALE.catalogue });
+export function useBrands(categoryId?: string) {
+  return useQuery<Brand[]>({
+    queryKey: qk.brands(categoryId),
+    queryFn: () => fetchBrands(categoryId),
+    staleTime: STALE.catalogue,
+  });
 }
 
 export function useProduct(idOrSlug: string) {
