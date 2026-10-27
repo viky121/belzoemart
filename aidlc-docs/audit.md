@@ -746,3 +746,10 @@ answer: both"
 **AI Response**: "Causes found in the code: (1) the hero banner had a fixed height of 170 against a width of about 328 to 360 (about 2:1) while the recommended upload is 2.5:1, so the picture was cropped on both sides; (2) the category name grew with the phone font size but the tile has a fixed width, so a long word was broken in the middle; (3) the ring around a circle (74) was wider than the tile on a 360 phone (72), so neighbours touched. Fix: new shared constant MOBILE_HERO_ASPECT = 2.5 (like the offer rows) and the banner height follows it, so a 1000 x 400 picture shows whole; circle 66 to 62, minimum tile 68 to 78 (8 clear gap between rings); the name may grow at most 1.15 times with the phone font. New HeroBanner tests, two new category tests. Mobile tsc, eslint and 333 tests pass. Not verified on a phone."
 **Context**: Mobile app (needs a new APK) plus one shared constant.
 ---
+---
+## Deploy - category bar slider, category page picture (web only), APK 0.1.19 queued
+**Timestamp**: 2026-10-27T17:05:00Z
+**User Input**: "okay, commit, deploy and build karo" (then, before the commit, the extra request about the app home banner and category names, which was done first)
+**AI Response**: "Committed in separate commits (MRP and unit text; home banner and category names; web category bar and category picture; version 0.1.19; audit). Not pushed. Took a DB dump (belzo-backup-2026-10-27-2223-predeploy.sql), deployed from the working tree at commit 73b6021 (web only; API unchanged, no migrations). Live checks: health ok, home, search and category pages 200, admin route 401 without login, the new CSS (one-line category bar, category picture) is served, the category page carries the picture markup, no errors in the web log. Mobile APK 0.1.19 (commit 4bc69e8 plus 73b6021) submitted to EAS: 69752ba5-165c-4121-9c55-ee8aa26a2e56; it was still waiting in the EAS queue after about 18 minutes when this entry was written, so there is no download link yet. APK 0.1.18 (finished) does not contain the MRP, banner and category-name fixes."
+**Context**: Deploy and build approved by the user
+---
