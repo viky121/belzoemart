@@ -2,13 +2,13 @@ import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, P
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../../common/auth/current-user.decorator';
 import type { JwtPrincipal } from '../../../common/auth/jwt.types';
-import { Roles } from '../../../common/auth/roles.decorator';
+import { RequirePermission } from '../../../common/auth/permissions.decorator';
 import { CreateZoneDto, UpdateZoneDto, ZonePincodesDto } from '../dto';
 import { ZoneService } from '../partners/zone.service';
 
 /** Delivery zones for staff (DL-1.5). */
 @ApiTags('admin-delivery')
-@Roles('order_manager')
+@RequirePermission('delivery.partners')
 @Controller('admin/delivery/zones')
 export class AdminZonesController {
   constructor(private readonly zones: ZoneService) {}

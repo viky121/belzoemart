@@ -14,6 +14,8 @@ import { I18nModule } from './common/i18n/i18n.module';
 import { SmsModule } from './integrations/sms/sms.module';
 import { StorageModule } from './integrations/storage/storage.module';
 import { IdentityModule } from './modules/identity/identity.module';
+import { OffersModule } from './modules/offers/offers.module';
+import { RbacBootstrapService } from './modules/identity/rbac-bootstrap.service';
 import { CatalogueModule } from './modules/catalogue/catalogue.module';
 import { PaymentModule } from './integrations/payment/payment.module';
 import { ShippingModule } from './integrations/shipping/shipping.module';
@@ -60,7 +62,10 @@ import { MediaModule } from './modules/media/media.module';
     EngagementModule,
     AdminModule,
     MediaModule,
+    OffersModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: ProxyAwareThrottlerGuard }],
+  // RbacBootstrapService runs in the API only (not the worker): it syncs the permission list and creates the
+  // ready-made staff types once.
+  providers: [{ provide: APP_GUARD, useClass: ProxyAwareThrottlerGuard }, RbacBootstrapService],
 })
 export class AppModule {}

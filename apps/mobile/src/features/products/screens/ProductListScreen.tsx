@@ -99,7 +99,8 @@ export function ProductListScreen({ navigation, route }: RootScreenProps<'Produc
   const [brandId, setBrandId] = useState<string | undefined>(params.brandId);
   const [sheet, setSheet] = useState<SheetKind>(null);
 
-  const brands = useBrands();
+  // Only the brands that sell in the category being shown, not every brand of the shop.
+  const brands = useBrands(subId ?? resolvedCategoryId);
   const activeBrands = (brands.data ?? []).filter((b) => b.isActive);
 
   const slugUnresolved =
@@ -147,7 +148,7 @@ export function ProductListScreen({ navigation, route }: RootScreenProps<'Produc
   const priceLabel = sort === 'price_asc' ? 'Price ↑' : sort === 'price_desc' ? 'Price ↓' : 'Price';
 
   return (
-    <Screen edges={['left', 'right']}>
+    <Screen edges={['left', 'right']} bottom="none">
       {handPicked ? null : (
       <View style={styles.toolbar}>
         {subs.length > 0 ? (
@@ -177,7 +178,7 @@ export function ProductListScreen({ navigation, route }: RootScreenProps<'Produc
           data={products}
           numColumns={2}
           keyExtractor={(p) => p.id}
-          contentContainerStyle={styles.grid}
+          contentContainerStyle={[styles.grid, { paddingBottom: 140 + bottomInset }]}
           onEndReachedThreshold={0.5}
           onEndReached={() => {
             if (list.hasNextPage && !list.isFetchingNextPage) void list.fetchNextPage();

@@ -5,9 +5,7 @@ import { useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
-import { apiRequest } from '@/api/client';
 import { userMessage } from '@/api/errors';
-import { qk, STALE } from '@/api/query-keys';
 import type { RootScreenProps } from '@/navigation/types';
 import { useSessionStore } from '@/store/session';
 import { theme } from '@/theme';
@@ -15,11 +13,16 @@ import { Button, Chip, Screen, TextField } from '@/ui';
 import { Sheet } from '@/ui/Sheet';
 
 import { useAddresses, useResolvePincode, useSaveAddress } from '../hooks';
+import { fetchPinServiceability, pinRefusal, pinVerdict } from '../pin-check';
 import { toAddressInput } from './AddressesScreen';
 
 const LABELS: AddressInput['label'][] = ['home', 'work', 'other'];
 
-/** Add / edit address (design §11): PIN autofill, serviceability badge, state picker, select mode. */
+/**
+ * Add / edit address (design §11): PIN autofill, state picker, select mode. When the address is being added
+ * for checkout, the PIN is checked against the shop's delivery PIN codes right here, so a PIN we do not deliver
+ * to is refused on the form and not found out later.
+ */
 export function AddressFormScreen({ navigation, route }: RootScreenProps<'AddressForm'>) {
   const addressId = route.params?.addressId;
   const selectForCheckout = route.params?.selectForCheckout === true;
@@ -52,16 +55,19 @@ export function AddressFormScreen({ navigation, route }: RootScreenProps<'Addres
   const [statePicker, setStatePicker] = useState(false);
 
   const labelValue = useWatch({ control, name: 'label' });
-  const pincode = useWatch({ control, name: 'pincode' });
   const stateValue = useWatch({ control, name: 'state' });
-  const validPin = /^[1-9]\d{5}$/.test(pincode);
-
-  const serviceability = useQuery<{ serviceable: boolean; configured: boolean }>({
-    queryKey: qk.serviceability(pincode),
-    queryFn: () => apiRequest('/settings/serviceability', { query: { pincode } }),
-    enabled: validPin,
-    staleTime: STALE.settings,
+  const pincode = useWatch({ control, name: 'pincode' });
+  const checkDelivery = selectForCheckout && !addressId;
+  const validPin = /^[1-9]\d{5}$/.test(pincode ?? '');
+  const delivery = useQuery({
+    queryKey: ['pin-delivery', pincode],
+    queryFn: () => fetchPinServiceability(pincode),
+    enabled: checkDelivery && validPin,
+    staleTime: 60_000,
   });
+  const verdict = checkDelivery && validPin && delivery.isSuccess ? pinVerdict(delivery.data) : 'unknown';
+  const [pinError, setPinError] = useState<string | null>(null);
+
 
   // Autofill city/state when a known PIN resolves (fired from the field's onChange).
   function onPincodeChange(value: string, onChange: (v: string) => void) {
@@ -77,7 +83,12 @@ export function AddressFormScreen({ navigation, route }: RootScreenProps<'Addres
     }
   }
 
-  function submit(values: AddressInput) {
+  async function submit(values: AddressInput) {
+    setPinError(null);
+    if (checkDelivery && pinVerdict(await fetchPinServiceability(values.pincode)) === 'bad') {
+      setPinError(pinRefusal(values.pincode));
+      return;
+    }
     save.mutate(
       { id: addressId, body: values, makeDefault },
       {
@@ -92,13 +103,6 @@ export function AddressFormScreen({ navigation, route }: RootScreenProps<'Addres
     );
   }
 
-  const serviceMsg = validPin && serviceability.isSuccess
-    ? !serviceability.data.configured
-      ? 'Delivery available everywhere'
-      : serviceability.data.serviceable
-        ? 'Deliverable'
-        : 'Not deliverable to this PIN yet'
-    : '';
 
   return (
     <Screen scroll padded>
@@ -134,10 +138,15 @@ export function AddressFormScreen({ navigation, route }: RootScreenProps<'Addres
               style={[styles.input, formState.errors.pincode ? styles.inputError : null]}
             />
             {formState.errors.pincode ? <Text style={styles.err}>{formState.errors.pincode.message}</Text> : null}
+            {!formState.errors.pincode && verdict === 'bad' ? (
+              <Text style={styles.err} testID="pin-bad">{pinRefusal(pincode)}</Text>
+            ) : null}
+            {!formState.errors.pincode && verdict === 'ok' ? (
+              <Text style={styles.ok} testID="pin-ok">We deliver to {pincode}</Text>
+            ) : null}
           </View>
         )}
       />
-      {serviceMsg ? <Text style={styles.service}>{serviceMsg}</Text> : null}
 
       <TextField control={control} name="line1" label="Address line 1" error={formState.errors.line1?.message} />
       <TextField control={control} name="line2" label="Address line 2 (optional)" error={formState.errors.line2?.message} />
@@ -156,12 +165,14 @@ export function AddressFormScreen({ navigation, route }: RootScreenProps<'Addres
         <Switch value={makeDefault} onValueChange={setMakeDefault} />
       </View>
 
+      {pinError ? <Text style={styles.err}>{pinError}</Text> : null}
       {save.isError ? <Text style={styles.err}>{userMessage(save.error)}</Text> : null}
 
       <Button
         title={addressId ? 'Save changes' : 'Save address'}
         fullWidth
         loading={save.isPending}
+        disabled={verdict === 'bad'}
         onPress={handleSubmit(submit)}
         style={styles.submit}
         testID="address-save"
@@ -204,7 +215,6 @@ const styles = StyleSheet.create({
   },
   inputError: { borderColor: theme.colors.danger },
   chips: { flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.md },
-  service: { ...theme.typography.caption, color: theme.colors.brandStrong, marginBottom: theme.spacing.sm },
   statePicker: {
     minHeight: theme.touch.minTouch,
     justifyContent: 'center',
@@ -220,6 +230,7 @@ const styles = StyleSheet.create({
   defaultRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: theme.spacing.md },
   defaultLabel: { ...theme.typography.body, color: theme.colors.ink },
   err: { ...theme.typography.caption, color: theme.colors.danger, marginBottom: theme.spacing.sm },
+  ok: { ...theme.typography.caption, color: theme.colors.primaryStrong, marginBottom: theme.spacing.sm },
   submit: { marginTop: theme.spacing.md },
   stateList: { maxHeight: 400 },
   stateRow: { minHeight: theme.touch.minTouch, justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: theme.colors.border },

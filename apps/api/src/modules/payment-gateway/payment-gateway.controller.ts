@@ -20,7 +20,7 @@ import { z } from 'zod';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import type { JwtPrincipal } from '../../common/auth/jwt.types';
 import { Public } from '../../common/auth/public.decorator';
-import { Roles } from '../../common/auth/roles.decorator';
+import { RequirePermission } from '../../common/auth/permissions.decorator';
 import { createZodDto } from '../identity/zod-dto';
 import { PaymentService } from '../checkout/payment.service';
 import { GatewaySettingsService } from './gateway-settings.service';
@@ -188,6 +188,7 @@ class CredentialsDto extends createZodDto(credentialsSchema) {}
 
 @ApiTags('payment-gateway')
 @ApiBearerAuth()
+@RequirePermission('gateway.edit')
 @Controller('admin/payment-gateway')
 export class AdminPaymentGatewayController {
   constructor(
@@ -195,7 +196,6 @@ export class AdminPaymentGatewayController {
     private readonly settings: GatewaySettingsService,
   ) {}
 
-  @Roles('super_admin')
   @Get('status')
   status() {
     return this.gateway.status();
@@ -205,7 +205,6 @@ export class AdminPaymentGatewayController {
    * Save new credentials. Secrets are encrypted at rest and never returned; a new key
    * pair is verified with Razorpay first. Omitted fields keep their current value.
    */
-  @Roles('super_admin')
   @Put('credentials')
   async save(@CurrentUser() user: JwtPrincipal, @Body() dto: CredentialsDto) {
     await this.settings.save(user.sub, dto);
@@ -213,7 +212,6 @@ export class AdminPaymentGatewayController {
   }
 
   /** Forget the admin-entered credentials and use the server environment's. */
-  @Roles('super_admin')
   @Delete('credentials')
   async reset(@CurrentUser() user: JwtPrincipal) {
     await this.settings.reset(user.sub);
@@ -221,7 +219,6 @@ export class AdminPaymentGatewayController {
   }
 
   /** Check the keys currently in use with Razorpay (read-only). */
-  @Roles('super_admin')
   @Post('test')
   @HttpCode(200)
   test() {

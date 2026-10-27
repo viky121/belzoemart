@@ -1,5 +1,5 @@
 import { apiRequest } from '@/api/client';
-import type { CartView } from '@/api/types';
+import type { ActiveOfferView, CartView } from '@/api/types';
 
 /** Cart endpoints share "cart identity": Bearer when signed in, else the guest token (design §4). */
 export function fetchCart(): Promise<CartView> {
@@ -48,6 +48,10 @@ export function moveToCart(variantId: string): Promise<CartView> {
   });
 }
 
+/** The special-price offers that are on now (public); the product page shows them. */
+export function fetchActiveOffers(): Promise<ActiveOfferView[]> {
+  return apiRequest<ActiveOfferView[]>('/offers/active', { auth: 'none' });
+}
 export interface CouponResult {
   code: string;
   valid: boolean;

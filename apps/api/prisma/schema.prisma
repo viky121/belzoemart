@@ -74,6 +74,7 @@ model Customer {
 
   addresses    Address[]
   dataRequests DataRequest[]
+  searchLogs   SearchLog[]
 
   @@map("customers")
 }
@@ -116,9 +117,10 @@ model AdminUser {
 }
 
 model Role {
-  id          String @id @default(uuid())
-  name        String @unique
-  description String @default("")
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String  @default("")
+  isSystem    Boolean @default(false) // the Super Admin type: cannot be edited, renamed or deleted
 
   permissions RolePermission[]
   admins      AdminUserRole[]
@@ -366,8 +368,9 @@ model Variant {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  product   Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
   inventory Inventory?
+  offers    SpendOffer[]
 
   @@index([productId])
   @@map("variants")
@@ -536,11 +539,38 @@ model OrderItem {
   unitPrice  Int
   quantity   Int
   taxRatePct Int
+  costPrice  Int? // cost of one unit when the order was placed (paise); null for older orders. ADMIN-ONLY
+  mrp        Int? // printed MRP of one unit when the order was placed (paise); null for older orders. Shown on the invoice
+  offerId    String? // set when the item was sold through a special-price offer (no foreign key: the offer may be deleted later)
+  offerName  String? // the offer's name when the order was placed
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+  @@index([offerId])
   @@map("order_items")
+}
+
+/// "Spend and get": when the other items in a cart reach `minSpend`, one pack (variant) costs `specialPrice`.
+/// While the offer is live the pack is limited to `units` per order. Money is in paise.
+model SpendOffer {
+  id           String    @id @default(uuid())
+  name         String
+  isActive     Boolean   @default(true)
+  startsAt     DateTime?
+  endsAt       DateTime?
+  minSpend     Int
+  variantId    String
+  specialPrice Int
+  units        Int       @default(1)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([variantId])
+  @@index([isActive])
+  @@map("spend_offers")
 }
 
 model Payment {
@@ -853,6 +883,33 @@ model AdminAuditLog {
 
   @@index([actorId, createdAt])
   @@map("admin_audit_logs")
+}
+
+// ===========================================================================
+// Search terms report: one row per real customer search
+// (requirements: aidlc-docs/inception/requirements/search-terms-requirements.md)
+// ===========================================================================
+
+enum SearchLogSource {
+  web
+  app
+}
+
+model SearchLog {
+  id           String          @id @default(uuid())
+  term         String // as typed (tidied, at most 100 characters)
+  termNorm     String // lowercase, used for counting
+  source       SearchLogSource
+  resultCount  Int // products found at that moment
+  topProductId String? // the product found first (no relation: the product may be deleted later)
+  customerId   String? // only when the customer was logged in
+  createdAt    DateTime        @default(now())
+
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([termNorm, createdAt])
+  @@map("search_logs")
 }
 
 // ===========================================================================

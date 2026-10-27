@@ -3,7 +3,9 @@
  * JSON; runtime parsing is applied only to auth/refresh responses and the error envelope.
  */
 import type {
+  ActiveOfferView,
   AddressInput,
+  CartOffer,
   HomeContent,
   PaymentMethod,
   PriceBreakup,
@@ -22,6 +24,14 @@ export interface CartLine {
   unit: string | null;
   imageUrl: string | null;
   unitPrice: number;
+  /** The price before any special offer (the bulk price when one applies). */
+  regularUnitPrice?: number;
+  /** Set when the special-offer price is being charged on this line. */
+  offerId?: string | null;
+  offerName?: string | null;
+  /** Fewest / most units per order (the offer limit included). */
+  minQty?: number;
+  maxQty?: number;
   basePrice: number;
   mrp: number;
   discountPct: number;
@@ -39,7 +49,11 @@ export interface CartLine {
 export interface CartView {
   cartId: string;
   items: CartLine[];
+  /** Special-price offers with the customer's progress towards each. */
+  offers?: CartOffer[];
 }
+
+export type { ActiveOfferView };
 
 export interface WishlistItem {
   id: string;

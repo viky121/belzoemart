@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
-import { Roles } from '../../common/auth/roles.decorator';
+import { RequirePermission } from '../../common/auth/permissions.decorator';
 import { createZodDto } from '../identity/zod-dto';
 import { CouponService } from './coupon.service';
 
@@ -28,11 +28,12 @@ class CouponUpdateDto extends createZodDto(couponUpdateSchema) {}
  */
 @ApiTags('admin-coupons')
 @ApiBearerAuth()
-@Roles('marketing')
+@RequirePermission('coupons.edit')
 @Controller('admin/coupons')
 export class AdminCouponController {
   constructor(private readonly coupons: CouponService) {}
 
+  @RequirePermission('coupons.view')
   @Get()
   list() {
     return this.coupons.adminList();

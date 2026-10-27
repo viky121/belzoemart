@@ -74,14 +74,17 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.sm,
+    // A little air under the pill so it never touches the tab bar or the system buttons.
+    paddingBottom: theme.spacing.md + 4,
   },
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.md,
-    maxWidth: 420,
-    width: '100%',
+    gap: theme.spacing.sm,
+    // A compact pill, not a full-width bar: it should not cover the page behind it.
+    maxWidth: 300,
+    minWidth: 220,
+    width: '68%',
     paddingVertical: theme.spacing.sm,
     paddingLeft: theme.spacing.sm,
     paddingRight: theme.spacing.sm,

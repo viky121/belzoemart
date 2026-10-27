@@ -56,7 +56,7 @@ describe('InvoiceService', () => {
         })),
       },
       customer: { findUnique: jest.fn(async () => ({ name: 'Asha', email: 'asha@example.com', phone: null })) },
-      variant: { findMany: jest.fn(async () => [{ id: 'v-1', product: { hsnCode: '8471' } }]) },
+      variant: { findMany: jest.fn(async () => [{ id: 'v-1', mrp: 60000, product: { hsnCode: '8471' } }]) },
       invoiceCounter: {
         upsert: jest.fn(async ({ where: { year } }: { where: { year: number } }) => ({ year, seq: 7 })),
       },
@@ -87,7 +87,7 @@ describe('InvoiceService', () => {
       await svc.generate('order-1');
       const html = getHtml();
       expect(html).toContain('29ABCDE1234F1Z5');
-      expect(html).toContain('PAN:</span> ABCDE1234F');
+      expect(html).toContain('PAN: ABCDE1234F');
       expect(html).toContain('Acme Traders');
       expect(html).not.toContain('Belzo eMart');
     });
@@ -113,7 +113,7 @@ describe('InvoiceService', () => {
       try {
         const { svc, getHtml } = build({});
         await svc.generate('order-1');
-        expect(getHtml()).toContain('GSTIN:</span> Not registered');
+        expect(getHtml()).toContain('GSTIN: Not registered');
         expect(getHtml()).not.toContain('GSTIN-UNSET');
         expect(getHtml()).not.toContain('PAN:');
       } finally {
@@ -121,6 +121,29 @@ describe('InvoiceService', () => {
       }
     });
 
+    it('prints the FSSAI licence and the food declaration only when store.fssai is set', async () => {
+      const on = build({ 'store.fssai': '21426510000951' });
+      await on.svc.generate('order-1');
+      expect(on.getHtml()).toContain('FSSAI Lic No: 21426510000951');
+      expect(on.getHtml()).toContain('food products mentioned in this invoice');
+      const off = build({});
+      await off.svc.generate('order-1');
+      expect(off.getHtml()).not.toContain('FSSAI');
+    });
+    it("takes today's MRP for an item whose order saved none, and links the QR code to the order page", async () => {
+      const prev = process.env.PUBLIC_BASE_URL;
+      process.env.PUBLIC_BASE_URL = 'https://belzoemart.com';
+      try {
+        const { svc, getHtml } = build({});
+        await svc.generate('order-1');
+        expect(getHtml()).toContain('MRP 600.00');
+        expect(getHtml()).toContain('You have saved Rs. 200.00');
+        expect(getHtml()).toContain('<svg class="qr"');
+      } finally {
+        if (prev === undefined) delete process.env.PUBLIC_BASE_URL;
+        else process.env.PUBLIC_BASE_URL = prev;
+      }
+    });
     it('renders the new store identity settings and the product HSN', async () => {
       const { svc, getHtml, prisma } = build({
         'store.name': 'Belzo eMart',
@@ -137,18 +160,16 @@ describe('InvoiceService', () => {
       await svc.generate('order-1');
       const html = getHtml();
       for (const s of [
-        'Belzo Retail Pvt Ltd',
-        'Trade name: Belzo eMart',
+        'BELZO RETAIL PVT LTD',
+        '(Belzo eMart)',
         '12 MG Road',
-        'Bengaluru - 560038',
-        'Karnataka (Code 29)',
+        'Bengaluru, Karnataka, 560038',
         '+91 80 1234 5678',
         'billing@belzo.example',
         'https://belzo.example',
         'No returns on perishables.',
-        '>8471<',
+        '>8471</span>',
         'Asha',
-        'asha@example.com',
         'Karnataka (29)',
       ]) {
         expect(html).toContain(s);
@@ -207,7 +228,7 @@ describe('InvoiceService', () => {
       expect(puts[0]!.key).toBe('invoices/order-1.html');
       expect(puts[0]!.cacheControl).toMatch(/^no-cache/);
       expect(getHtml()).toContain('BELZO/2025/00003');
-      expect(getHtml()).toContain('15 Mar 2025'); // original invoice date kept
+      expect(getHtml()).toContain('15/03/2025'); // original invoice date kept
 
       expect(res.url).toMatch(/^https:\/\/files\/invoices\/order-1\.html\?v=\d+$/);
       expect(prisma.invoice.update).toHaveBeenCalledWith({ where: { orderId: 'order-1' }, data: { url: res.url } });

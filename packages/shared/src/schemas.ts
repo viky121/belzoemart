@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import {
-  ADMIN_ROLES,
   MAX_PAGE_SIZE,
   ORDER_STATUSES,
   PAYMENT_METHODS,
@@ -121,20 +120,34 @@ export const strongPasswordSchema = z
 export const otpPurposeSchema = z.enum(['login', 'register', 'reset']);
 export type OtpPurpose = z.infer<typeof otpPurposeSchema>;
 
-/** Create an account. Name + email + mobile, the password twice, and the proofs from verifying the mobile and email by OTP. */
+/** A blank form field means "not given". */
+const blankToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
+
+/**
+ * Create an account. Name + mobile (verified by OTP), the password twice. The email is optional: when it is
+ * given it must be verified by OTP too (`emailProof`), so no one can attach someone else's address.
+ */
 export const registerAccountSchema = z
   .object({
     name: z.string().trim().min(2, 'Enter your full name').max(120),
-    email: emailSchema,
+    email: z.preprocess(blankToUndefined, emailSchema.optional()),
     phone: phoneSchema,
     password: strongPasswordSchema,
     confirmPassword: z.string().max(128),
     phoneProof: z.string().min(20).max(2000),
-    emailProof: z.string().min(20).max(2000),
+    emailProof: z.preprocess(blankToUndefined, z.string().min(20).max(2000).optional()),
   })
-  .refine((d) => d.password === d.confirmPassword, {
-    path: ['confirmPassword'],
-    message: 'Both passwords must match',
+  .superRefine((d, ctx) => {
+    if (d.password !== d.confirmPassword) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['confirmPassword'], message: 'Both passwords must match' });
+    }
+    if (d.email && !d.emailProof) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['emailProof'],
+        message: 'Verify your email with the OTP, or leave the email empty',
+      });
+    }
   });
 export type RegisterAccount = z.infer<typeof registerAccountSchema>;
 
@@ -217,7 +230,17 @@ export const profilePatchSchema = z.object({
     .optional(),
   gender: z.string().trim().max(20).optional(),
   dob: z.string().datetime().optional(),
-  photoUrl: z.string().url().optional(),
+  // The upload endpoint returns a host-relative path (/api/uploads/profile/<id>.jpg) unless a CDN is set, so
+  // accept that as well as a full https/http address. Nothing else (no javascript:, data: or other schemes).
+  photoUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .refine(
+      (v) => !v.includes('..') && (/^\/api\/uploads\/[A-Za-z0-9._\-/]+$/.test(v) || /^https?:\/\/[^\s]+$/i.test(v)),
+      'Enter a valid photo address',
+    )
+    .optional(),
   locale: z.enum(['en', 'hi']).optional(),
 });
 
@@ -230,7 +253,7 @@ export const addressInputSchema = z.object({
   fullName: z.string().trim().min(1).max(120),
   phone: phoneSchema,
   line1: z.string().trim().min(1).max(200),
-  line2: z.string().trim().max(200).optional(),
+  line2: z.string().trim().max(200).nullish(),
   city: z.string().trim().min(1).max(80),
   state: z.string().trim().min(1).max(80),
   pincode: pincodeSchema,
@@ -511,7 +534,7 @@ export const adminLoginSchema = z.object({
 });
 export type AdminLogin = z.infer<typeof adminLoginSchema>;
 
-export const adminRoleSchema = z.enum(ADMIN_ROLES);
+export const adminRoleSchema = z.string().trim().min(1).max(40);
 
 // ---------------------------------------------------------------------------
 // Standard API error envelope

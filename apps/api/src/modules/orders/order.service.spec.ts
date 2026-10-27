@@ -177,8 +177,8 @@ describe('OrderService.getForCustomer — detail payload', () => {
     status: 'delivered',
     updatedAt: new Date('2025-01-02T09:00:00.000Z'),
     items: [
-      { id: 'i1', variantId: 'v1', title: 'Tea 250 g', sku: 'TEA-250', quantity: 1, unitPrice: 30000 },
-      { id: 'i2', variantId: 'v-gone', title: 'Honey', sku: 'HONEY', quantity: 1, unitPrice: 20000 },
+      { id: 'i1', variantId: 'v1', title: 'Tea 250 g', sku: 'TEA-250', quantity: 1, unitPrice: 30000, costPrice: 18000 },
+      { id: 'i2', variantId: 'v-gone', title: 'Honey', sku: 'HONEY', quantity: 1, unitPrice: 20000, costPrice: null },
     ],
     payments: [],
     invoice: null,
@@ -269,6 +269,30 @@ describe('OrderService.getForCustomer — detail payload', () => {
         items: [{ orderItemId: 'i1', quantity: 1 }],
       }),
     ]);
+  });
+
+  it('never shows the shop\u2019s cost price in an order (customer view)', async () => {
+    const res = await build(ownAddress).getForCustomer('c1', 'o1');
+    for (const item of res.items) expect(item).not.toHaveProperty('costPrice');
+    expect(res.items[0]).toMatchObject({ unitPrice: 30000 });
+  });
+
+  it('never shows the cost price to order managers either (admin detail and list)', async () => {
+    const prisma = {
+      order: {
+        findUnique: async () => order,
+        findMany: async () => [order],
+        count: async () => 1,
+      },
+      address: { findUnique: async () => null },
+      customer: { findUnique: async () => null },
+      variant: { findMany: async () => [] },
+    } as unknown as PrismaService;
+    const svc = new OrderService(prisma, {} as InventoryService, {} as PaymentService, {} as CartService, {} as FulfilmentService, noQueue);
+    const detail = await svc.adminGetOrder('o1');
+    for (const item of detail.items) expect(item).not.toHaveProperty('costPrice');
+    const list = await svc.adminList({});
+    for (const item of list.items[0]!.items) expect(item).not.toHaveProperty('costPrice');
   });
 
   it('returns a null address when it belongs to someone else', async () => {

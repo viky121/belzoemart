@@ -32,6 +32,12 @@ describe('ProductCard', () => {
     expect(screen.getByText('20% OFF')).toBeTruthy();
   });
 
+  it('gives the MRP and the unit an explicit font weight so Android does not clip their last characters', async () => {
+    await renderWithProviders(<ProductCard product={product} onPress={jest.fn()} />);
+    expect(screen.getByTestId('price-mrp')).toHaveStyle({ fontWeight: '400' });
+    expect(screen.getByText('1 kg')).toHaveStyle({ fontWeight: '400' });
+  });
+
   it('has an accessible label with title, unit and price summary', async () => {
     await renderWithProviders(<ProductCard product={product} onPress={jest.fn()} />);
     expect(

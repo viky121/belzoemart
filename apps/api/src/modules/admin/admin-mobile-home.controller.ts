@@ -9,7 +9,7 @@ import {
 } from '@belzo/shared';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import type { JwtPrincipal } from '../../common/auth/jwt.types';
-import { Roles } from '../../common/auth/roles.decorator';
+import { RequirePermission } from '../../common/auth/permissions.decorator';
 import { createZodDto } from '../identity/zod-dto';
 import { SettingsService } from './settings.service';
 
@@ -23,17 +23,16 @@ class MobileHomeDto extends createZodDto(mobileHomeSchema) {}
  */
 @ApiTags('admin-mobile-home')
 @ApiBearerAuth()
+@RequirePermission('mobile.edit')
 @Controller('admin/mobile-home')
 export class AdminMobileHomeController {
   constructor(private readonly settings: SettingsService) {}
 
-  @Roles('marketing')
   @Get()
   async get(): Promise<MobileHome> {
     return sanitizeMobileHome(await this.settings.get<unknown>(MOBILE_HOME_KEY));
   }
 
-  @Roles('marketing')
   @Put()
   async put(@CurrentUser() user: JwtPrincipal, @Body() dto: MobileHomeDto): Promise<MobileHome> {
     // The DTO is validated (strict) by the global zod pipe; store the sanitized form.

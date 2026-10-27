@@ -5,7 +5,7 @@ export const qk = {
   settings: ['settings', 'public'] as const,
   banners: ['banners', 'home_hero'] as const,
   categories: ['categories'] as const,
-  brands: ['brands'] as const,
+  brands: (categoryId?: string) => ['brands', categoryId ?? 'all'] as const,
   products: (p: ProductParams) => ['products', p] as const,
   productsByIds: (ids: string[]) => ['products', 'ids', ids.join(',')] as const,
   product: (idOrSlug: string) => ['product', idOrSlug] as const,
@@ -13,10 +13,10 @@ export const qk = {
   reviews: (productId: string) => ['reviews', productId] as const,
   search: (p: SearchParams) => ['search', p] as const,
   autocomplete: (q: string) => ['autocomplete', q] as const,
-  serviceability: (pin: string) => ['serviceability', pin] as const,
   /** identity = session.status === 'authenticated' ? 'customer' : 'guest' (useCartIdentity). */
   cart: (identity: 'customer' | 'guest') => ['cart', identity] as const,
   wishlist: ['wishlist'] as const,
+  activeOffers: ['offers', 'active'] as const,
   me: ['me'] as const,
   addresses: ['addresses'] as const,
   preview: (addressId: string, coupon: string | null | undefined, method: string) =>

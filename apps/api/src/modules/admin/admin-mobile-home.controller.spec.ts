@@ -37,6 +37,7 @@ describe('AdminMobileHomeController', () => {
           columns: 3,
           position: 'after_categories',
           enabled: true,
+          showOn: 'app',
           banners: [{ id: 'b1', imageUrl: '/x.png', linkUrl: '#', title: '', enabled: true }],
         },
       ],

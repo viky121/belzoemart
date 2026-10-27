@@ -1,6 +1,6 @@
 import type { CategoryNodeDto, MobileCategoryTile } from '@belzo/shared';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { iconForCategory } from '@/lib/category-icon';
 import { theme } from '@/theme';
@@ -13,26 +13,56 @@ export interface CategoryShortcutsProps {
   onPressCategory: (node: CategoryNodeDto) => void;
 }
 
-const CIRCLE = 66;
+const CIRCLE = 62;
+/**
+ * The name under a circle may grow with the phone's font size, but only a little: a tile is not
+ * wide enough for a long word like "Stationery" at a large size, and it would be cut in the middle.
+ */
+const LABEL_MAX_FONT_SCALE = 1.15;
+/**
+ * How many tiles fit across the card. The half tile is deliberate: the next category peeks in from the right,
+ * so people can see the row slides.
+ */
+export const VISIBLE_TILES = 4.5;
+/**
+ * Narrowest a tile may get on a small screen. The ring around a circle is CIRCLE + 8 wide, so this
+ * leaves a clear gap between two neighbouring circles instead of them touching.
+ */
+export const MIN_TILE = 78;
+
+/** Width of one tile for a screen of this width (card margins and padding taken off). */
+export function tileWidthFor(screenWidth: number, horizontalChrome: number): number {
+  return Math.max(MIN_TILE, Math.floor((screenWidth - horizontalChrome) / VISIBLE_TILES));
+}
 /** White ring between the tinted circle and the card, so each tile reads as a small "coin". */
 const RING = 3;
 
 /**
- * Home category tiles: every visible top-level category in a 4-per-row grid of
- * circles on a white card. A new category added in admin simply wraps onto the next row.
+ * Home category tiles: every visible top-level category as a circle in ONE row that slides sideways. A new
+ * category added in admin joins the end of the row (or its place in the admin order); it never starts a new
+ * row below.
  */
 export function CategoryShortcuts({ tiles, onPressCategory }: CategoryShortcutsProps) {
   const brand = useBrand();
+  const { width } = useWindowDimensions();
   if (tiles.length === 0) return null;
+  const tileWidth = tileWidthFor(width, theme.spacing.md * 2 + theme.spacing.xs * 2);
   return (
     <View style={styles.card}>
-      <View style={styles.grid}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.row}
+        testID="category-slider"
+        accessibilityLabel="Categories. Swipe sideways for more."
+      >
         {tiles.map((t, i) => {
           const tint = brand.tints[i % brand.tints.length];
           return (
             <Pressable
               key={t.id}
-              style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.tile, { width: tileWidth }, pressed && styles.pressed]}
+              testID={`category-tile-${t.id}`}
               onPress={() => onPressCategory(t.node)}
               accessibilityRole="button"
               accessibilityLabel={t.name}
@@ -52,13 +82,17 @@ export function CategoryShortcuts({ tiles, onPressCategory }: CategoryShortcutsP
                   )}
                 </View>
               </View>
-              <Text style={styles.label} numberOfLines={2}>
+              <Text
+                style={styles.label}
+                numberOfLines={2}
+                maxFontSizeMultiplier={LABEL_MAX_FONT_SCALE}
+              >
                 {t.name}
               </Text>
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -79,9 +113,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  row: { flexDirection: 'row' },
   tile: {
-    width: '25%',
     alignItems: 'center',
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: 2,

@@ -1,11 +1,10 @@
 import {
-  pincodeSchema,
   sanitizeMobileHome,
   type HomeSection,
   type MobileHome,
   type ProductCardDto,
 } from '@belzo/shared';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import { qk, STALE } from '@/api/query-keys';
@@ -15,9 +14,7 @@ import {
   fetchHomeBanners,
   fetchProductsByIds,
   fetchSectionProducts,
-  fetchServiceability,
   fetchSettings,
-  type ServiceabilityResult,
 } from './api';
 
 export function useSettings() {
@@ -62,40 +59,4 @@ export function useRecentlyViewedProducts(ids: string[]) {
     enabled: ids.length > 0,
     staleTime: STALE.product,
   });
-}
-
-/** Checks a PIN before adopting it as the delivery PIN (design §11 Home PIN chip). */
-export function useServiceabilityCheck() {
-  return useMutation<ServiceabilityResult, unknown, string>({
-    mutationFn: (pincode) => fetchServiceability(pincode),
-  });
-}
-
-/** True when we deliver to the PIN: it's on the serviceable list, or no list is configured. */
-export function isDeliverable(r: ServiceabilityResult): boolean {
-  return !r.configured || r.serviceable;
-}
-
-export type PinStatus = 'invalid' | 'checking' | 'deliverable' | 'blocked' | 'error';
-
-/**
- * Serviceability of a PIN as a single status. Only `deliverable` may be saved as
- * the delivery PIN; `error` (network) is not treated as deliverable.
- */
-export function usePinStatus(pin: string | null) {
-  const valid = pin !== null && pincodeSchema.safeParse(pin).success;
-  const query = useQuery<ServiceabilityResult>({
-    queryKey: qk.serviceability(pin ?? ''),
-    queryFn: () => fetchServiceability(pin as string),
-    enabled: valid,
-    staleTime: STALE.settings,
-    retry: 1,
-  });
-  let status: PinStatus = 'invalid';
-  if (valid) {
-    if (query.isSuccess) status = isDeliverable(query.data) ? 'deliverable' : 'blocked';
-    else if (query.isError) status = 'error';
-    else status = 'checking';
-  }
-  return { status, configured: query.data?.configured ?? true, refetch: query.refetch };
 }

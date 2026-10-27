@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestj
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { CMS_SLUG_RE } from '@belzo/shared';
-import { Roles } from '../../common/auth/roles.decorator';
+import { RequirePermission } from '../../common/auth/permissions.decorator';
 import { createZodDto } from '../identity/zod-dto';
 import { ReviewService } from './review.service';
 import { CmsService } from './cms.service';
@@ -60,13 +60,13 @@ export class AdminEngagementController {
     private readonly cms: CmsService,
   ) {}
 
-  @Roles('support')
+  @RequirePermission('reviews.moderate')
   @Get('reviews/pending')
   pending() {
     return this.reviews.pendingForModeration();
   }
 
-  @Roles('support')
+  @RequirePermission('reviews.moderate')
   @Get('reviews')
   list(@Query('status') status?: string) {
     const valid =
@@ -74,39 +74,39 @@ export class AdminEngagementController {
     return this.reviews.listForAdmin(valid);
   }
 
-  @Roles('support')
+  @RequirePermission('reviews.moderate')
   @Patch('reviews/:id/moderate')
   moderate(@Param('id') id: string, @Body() dto: ModerateDto) {
     return this.reviews.moderate(id, dto.action);
   }
 
   /** All pages (including disabled) with their text, for the Pages editor. */
-  @Roles('marketing')
+  @RequirePermission('content.edit')
   @Get('cms/pages')
   listPages() {
     return this.cms.listAll();
   }
 
-  @Roles('marketing')
+  @RequirePermission('content.edit')
   @Post('cms/pages')
   upsertPage(@Body() dto: PageDto) {
     return this.cms.upsertPage(dto);
   }
 
   /** Enable (visible on the website and app) or disable a page. */
-  @Roles('marketing')
+  @RequirePermission('content.edit')
   @Patch('cms/pages/:slug/active')
   setPageActive(@Param('slug') slug: string, @Body() dto: PageActiveDto) {
     return this.cms.setActive(slug, dto.isActive);
   }
 
-  @Roles('marketing')
+  @RequirePermission('content.edit')
   @Post('banners')
   upsertBanner(@Body() dto: BannerDto) {
     return this.cms.upsertBanner(dto);
   }
 
-  @Roles('marketing')
+  @RequirePermission('content.edit')
   @Delete('banners/:id')
   deleteBanner(@Param('id') id: string) {
     return this.cms.deleteBanner(id);

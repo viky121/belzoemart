@@ -4,7 +4,7 @@ import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import type { JwtPrincipal } from '../../common/auth/jwt.types';
-import { Roles } from '../../common/auth/roles.decorator';
+import { RequirePermission } from '../../common/auth/permissions.decorator';
 import { createZodDto } from '../identity/zod-dto';
 import { SmsSettingsService } from './sms-settings.service';
 
@@ -28,18 +28,17 @@ class TestSmsDto extends createZodDto(testSmsSchema) {}
 /** Admin: Fast2SMS (OTP SMS) setup. Super admin only; the API key is write-only. */
 @ApiTags('sms-gateway')
 @ApiBearerAuth()
+@RequirePermission('gateway.edit')
 @Controller('admin/sms-gateway')
 export class AdminSmsGatewayController {
   constructor(private readonly sms: SmsSettingsService) {}
 
-  @Roles('super_admin')
   @Get('status')
   status() {
     return this.sms.status();
   }
 
   /** Save settings. The key is encrypted at rest, verified with Fast2SMS first, and never returned. */
-  @Roles('super_admin')
   @Put('credentials')
   async save(@CurrentUser() user: JwtPrincipal, @Body() dto: SmsSettingsDto) {
     await this.sms.save(user.sub, dto);
@@ -47,7 +46,6 @@ export class AdminSmsGatewayController {
   }
 
   /** Forget the settings saved in the admin panel and use the server environment's. */
-  @Roles('super_admin')
   @Delete('credentials')
   async reset(@CurrentUser() user: JwtPrincipal) {
     await this.sms.reset(user.sub);
@@ -55,7 +53,6 @@ export class AdminSmsGatewayController {
   }
 
   /** Check the key in use (free wallet lookup, sends no SMS). */
-  @Roles('super_admin')
   @Post('test')
   @HttpCode(200)
   test() {
@@ -63,7 +60,6 @@ export class AdminSmsGatewayController {
   }
 
   /** Send one real test SMS (costs one SMS). Limited to 3 per minute. */
-  @Roles('super_admin')
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @Post('test-sms')
   @HttpCode(200)

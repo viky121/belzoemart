@@ -34,6 +34,12 @@ export const MOBILE_OFFER_SIZE_HINT: Record<MobileOfferColumns, string> = {
   3: '400 × 400 px',
 };
 
+/**
+ * Width / height of a home-screen hero banner (recommended upload 1000×400 px). The app sizes the
+ * banner from this, so a banner uploaded at the recommended size is shown whole, never cropped.
+ */
+export const MOBILE_HERO_ASPECT = 2.5;
+
 export const MOBILE_LIMITS = {
   heroBanners: 10,
   categories: 100,

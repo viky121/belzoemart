@@ -16,6 +16,16 @@ import { CartService } from '../cart/cart.service';
 import { FulfilmentService } from './fulfilment.service';
 import { notifyOrderStatus } from './order-events';
 
+/**
+ * The shop's cost of an item (set when the order was placed) is for the P/L report only. It must never
+ * leave this service in an order response, for customers or for order managers.
+ */
+function withoutCost<T extends { costPrice?: unknown }>(item: T): Omit<T, 'costPrice'> {
+  const copy = { ...item };
+  delete copy.costPrice;
+  return copy;
+}
+
 /** Variant attributes JSON → plain string map ({} when not an object). */
 function toAttributes(json: unknown): Record<string, string> {
   if (!json || typeof json !== 'object' || Array.isArray(json)) return {};
@@ -110,7 +120,7 @@ export class OrderService {
       items: order.items.map((i) => {
         const m = meta.get(i.variantId);
         return {
-          ...i,
+          ...withoutCost(i),
           imageUrl: m?.imageUrl ?? null,
           slug: m?.slug ?? null,
           // A removed variant is skipped by ReturnService's non-returnable check.
@@ -187,7 +197,7 @@ export class OrderService {
       items: order.items.map((i) => {
         const m = meta.get(i.variantId);
         return {
-          ...i,
+          ...withoutCost(i),
           imageUrl: m?.imageUrl ?? null,
           slug: m?.slug ?? null,
           isReturnable: m?.isReturnable ?? true,
@@ -256,7 +266,7 @@ export class OrderService {
       }),
       this.prisma.order.count({ where }),
     ]);
-    return { items: rows, total, page, pageSize };
+    return { items: rows.map((r) => ({ ...r, items: r.items.map(withoutCost) })), total, page, pageSize };
   }
 
   /** Validated state transition (BR-1). */

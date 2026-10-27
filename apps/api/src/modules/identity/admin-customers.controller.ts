@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
-import { Roles } from '../../common/auth/roles.decorator';
+import { RequirePermission } from '../../common/auth/permissions.decorator';
 import { createZodDto } from './zod-dto';
 import { AdminCustomerService } from './admin-customer.service';
 
@@ -14,7 +14,7 @@ class CustomerStatusDto extends createZodDto(statusSchema) {}
  */
 @ApiTags('admin-customers')
 @ApiBearerAuth()
-@Roles('order_manager', 'marketing', 'support')
+@RequirePermission('customers.view')
 @Controller('admin/customers')
 export class AdminCustomersController {
   constructor(private readonly customers: AdminCustomerService) {}
@@ -37,6 +37,7 @@ export class AdminCustomersController {
     return this.customers.detail(id);
   }
 
+  @RequirePermission('customers.block')
   @Patch(':id/status')
   setStatus(@Param('id') id: string, @Body() dto: CustomerStatusDto) {
     return this.customers.setStatus(id, dto.status);

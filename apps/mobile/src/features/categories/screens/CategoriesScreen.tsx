@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, lineHeight: 26, fontWeight: '800', color: theme.colors.inkStrong },
   pad: { padding: theme.spacing.lg },
   list: { backgroundColor: theme.colors.bg },
-  listBody: { paddingTop: theme.spacing.md, paddingBottom: 96, gap: 10 },
+  listBody: { paddingTop: theme.spacing.md, paddingBottom: 150, gap: 10 },
   // Each category is its own soft card on the grey page.
   row: {
     flexDirection: 'row',

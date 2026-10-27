@@ -62,3 +62,8 @@ export function uploadReviewImage(file: File, accessToken?: string): Promise<{ u
 export function uploadReturnImage(file: File, accessToken?: string): Promise<{ url: string; key: string }> {
   return uploadCustomerImage(file, accessToken, '/orders/returns/media/upload');
 }
+
+/** Upload a profile photo (stored under profile/). The caller then saves the returned URL with PATCH /me. */
+export function uploadProfileImage(file: File, accessToken?: string): Promise<{ url: string; key: string }> {
+  return uploadCustomerImage(file, accessToken, '/me/photo/upload');
+}

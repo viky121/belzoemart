@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useInsets } from '@/lib/use-bottom-inset';
 
 import type { RootScreenProps } from '@/navigation/types';
 import { theme } from '@/theme';
@@ -10,7 +10,7 @@ import { markOnboardingDone } from '../onboarding-flag';
 
 /** First-run screen: the Belzo eMart brand splash with a "Get Started" call to action. */
 export function OnboardingScreen({ navigation }: RootScreenProps<'Onboarding'>) {
-  const insets = useSafeAreaInsets();
+  const insets = useInsets();
   const finish = async () => {
     await markOnboardingDone();
     navigation.replace('Main');

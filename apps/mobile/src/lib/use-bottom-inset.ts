@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /** Smallest gap kept above the Android system navigation bar when the OS reports no inset. */
-const ANDROID_MIN_BOTTOM = 24;
+const ANDROID_MIN_BOTTOM = 32;
 const DEFAULT_MIN_BOTTOM = 8;
 
 /**
@@ -13,4 +13,11 @@ const DEFAULT_MIN_BOTTOM = 8;
 export function useBottomInset(): number {
   const { bottom } = useSafeAreaInsets();
   return Math.max(bottom, Platform.OS === 'android' ? ANDROID_MIN_BOTTOM : DEFAULT_MIN_BOTTOM);
+}
+
+/** The safe-area insets with the bottom one made safe for Android (see useBottomInset). */
+export function useInsets() {
+  const insets = useSafeAreaInsets();
+  const bottom = useBottomInset();
+  return { ...insets, bottom };
 }

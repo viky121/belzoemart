@@ -119,6 +119,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+/**
+ * The login token if there is one. Unlike useAuth it never throws without a provider, so small
+ * fire-and-forget extras (like saving a search) can use it anywhere.
+ */
+export function useAccessTokenIfAny(): { accessToken: string | null; ready: boolean } {
+  const ctx = useContext(AuthContext);
+  return { accessToken: ctx?.accessToken ?? null, ready: ctx ? ctx.ready : true };
+}
+
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');

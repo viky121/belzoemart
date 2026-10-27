@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { catalogueApi, type Paginated, type BrandDto } from '@/lib/catalogue-api';
-import { ProductCard } from '@/components/product-card';
+import { InfiniteProducts } from '@/components/infinite-products';
 import { FilterSidebar } from '@/components/filter-sidebar';
 import { iconFor, gradientFor, isUsableImageUrl } from '@/lib/category-theme';
 import { categoryNav } from '@/lib/category-trail';
@@ -41,11 +41,10 @@ export default async function CategoryPage({
   params: { slug: string };
   searchParams: SearchParams;
 }) {
-  const [categories, brands] = await Promise.all([
-    catalogueApi.categories().catch(() => [] as CategoryNodeDto[]),
-    catalogueApi.brands().catch(() => [] as BrandDto[]),
-  ]);
+  const categories = await catalogueApi.categories().catch(() => [] as CategoryNodeDto[]);
   const category = findCategory(categories, params.slug);
+  // Only the brands that sell in this category (and the ones below it), not every brand of the shop.
+  const brands = await catalogueApi.brands({ categoryId: category?.id }).catch(() => [] as BrandDto[]);
   const nav = categoryNav(categories, params.slug);
   const sort = searchParams.sort ?? 'popularity';
 
@@ -68,6 +67,13 @@ export default async function CategoryPage({
   };
 
   const title = category?.name ?? 'Products';
+  // The picture the home page shows for this category. A sub-category with no picture of its own
+  // shows the one from the closest category above it (the one the visitor came in through).
+  const nearestImage = (trail: CategoryNodeDto[]) =>
+    [...trail].reverse().map((c) => c.imageUrl).find((u): u is string => isUsableImageUrl(u)) ?? null;
+  const bandImage = nearestImage(nav.crumbs);
+  // Same rule for the chips: one without a picture shows the one from the category it sits under.
+  const chipFallback = nearestImage(nav.chipsAreSiblings ? nav.crumbs.slice(0, -1) : nav.crumbs);
 
   return (
     <div className="plp" data-testid="category-page">
@@ -114,9 +120,16 @@ export default async function CategoryPage({
         </nav>
 
         <div className="plp-band">
-          <span className="plp-band__icon" style={{ background: gradientFor(params.slug) }}>
-            {iconFor(params.slug)}
-          </span>
+          {bandImage ? (
+            <span className="plp-band__icon plp-band__icon--img" data-testid="category-band-image">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={bandImage} alt="" className="plp-band__img" />
+            </span>
+          ) : (
+            <span className="plp-band__icon" style={{ background: gradientFor(params.slug) }}>
+              {iconFor(params.slug)}
+            </span>
+          )}
           <div className="plp-band__text">
             <h1>{title}</h1>
             <p>Fresh essentials for your everyday needs</p>
@@ -138,9 +151,9 @@ export default async function CategoryPage({
                 aria-current={ch.slug === params.slug ? 'page' : undefined}
               >
                 <span className="plp-subcat__ic">
-                  {isUsableImageUrl(ch.imageUrl) ? (
+                  {isUsableImageUrl(ch.imageUrl) || chipFallback ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={ch.imageUrl!} alt="" />
+                    <img src={isUsableImageUrl(ch.imageUrl) ? ch.imageUrl : chipFallback!} alt="" />
                   ) : (
                     iconFor(ch.slug)
                   )}
@@ -153,7 +166,7 @@ export default async function CategoryPage({
 
         <div className="plp-heading">
           <span className="plp-count">
-            Showing {data.items.length} of {data.total} products
+            {data.total} {data.total === 1 ? 'product' : 'products'}
           </span>
         </div>
 
@@ -181,11 +194,13 @@ export default async function CategoryPage({
             )}
           </div>
         ) : (
-          <div className="product-grid" data-testid="product-grid">
-            {data.items.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
+          <InfiniteProducts
+            key={qs.toString()}
+            initial={data}
+            endpoint="products"
+            query={qs.toString()}
+            testId="product-grid"
+          />
         )}
       </main>
     </div>

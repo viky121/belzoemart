@@ -35,10 +35,15 @@ export function isApiError(e: unknown): e is ApiError {
   return e instanceof ApiError;
 }
 
+/** What React Native and browsers say when a request could not be made. */
+const NETWORK_FAILURE = /network request failed|failed to fetch|load failed|network error|internet|offline|timed out/i;
+
 /** Normalises anything thrown into an ApiError. */
 export function toApiError(e: unknown): ApiError {
   if (e instanceof ApiError) return e;
-  if (e instanceof TypeError) return new ApiError({ kind: 'network', message: e.message });
+  // Only a failed request is "offline". A TypeError from our own code (a missing function, an undefined value)
+  // must not be shown to the customer as a network problem; it falls through to the generic message below.
+  if (e instanceof TypeError && NETWORK_FAILURE.test(e.message)) return new ApiError({ kind: 'network', message: e.message });
   if (e instanceof Error) return new ApiError({ kind: 'parse', message: e.message });
   return new ApiError({ kind: 'parse', message: String(e) });
 }

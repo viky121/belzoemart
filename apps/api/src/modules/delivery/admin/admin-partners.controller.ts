@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../../common/auth/current-user.decorator';
 import type { JwtPrincipal } from '../../../common/auth/jwt.types';
-import { Roles } from '../../../common/auth/roles.decorator';
+import { RequirePermission } from '../../../common/auth/permissions.decorator';
 import {
   AdminPartnersQueryDto,
   CreatePartnerDto,
@@ -16,7 +16,7 @@ import { ZoneService } from '../partners/zone.service';
 
 /** Delivery partner accounts for staff (DL-1.1). `order_manager` and `super_admin` (D3). */
 @ApiTags('admin-delivery')
-@Roles('order_manager')
+@RequirePermission('delivery.partners')
 @Controller('admin/delivery/partners')
 export class AdminPartnersController {
   constructor(

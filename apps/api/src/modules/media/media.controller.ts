@@ -12,7 +12,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { randomUUID } from 'node:crypto';
-import { Roles } from '../../common/auth/roles.decorator';
+import { RequirePermission } from '../../common/auth/permissions.decorator';
 import {
   STORAGE_PROVIDER,
   type MediaItem,
@@ -40,7 +40,7 @@ const LIST_CAP = 500; // max media items returned to the admin library
  */
 @ApiTags('admin-media')
 @ApiBearerAuth()
-@Roles('catalogue_manager', 'marketing')
+@RequirePermission('media.manage', 'products.edit', 'taxonomy.edit', 'content.edit', 'mobile.edit')
 @Controller('admin/media')
 export class MediaController {
   constructor(

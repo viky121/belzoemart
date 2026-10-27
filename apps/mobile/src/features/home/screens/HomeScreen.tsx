@@ -25,7 +25,6 @@ import { useProducts } from '@/features/products/hooks';
 import { useCardCart } from '@/features/cart/use-card-cart';
 import { useCardWishlist } from '@/features/wishlist/use-card-wishlist';
 import type { RootStackParamList } from '@/navigation/types';
-import { usePincodeStore } from '@/store/pincode';
 import { useRecentlyViewedStore } from '@/store/recently-viewed';
 import { useCartIdentity, useSessionStore } from '@/store/session';
 import { theme } from '@/theme';
@@ -40,13 +39,12 @@ import { HeroBanner } from '../components/HeroBanner';
 import { HomeHeader } from '../components/HomeHeader';
 import { HomeRail } from '../components/HomeRail';
 import { OfferRows } from '../components/OfferRows';
-import { PincodeSheet } from '../components/PincodeSheet';
 import { useHomeBanners, useMobileHome, useRecentlyViewedProducts, useSettings } from '../hooks';
 import { useOpenHref } from '../use-open-href';
 
 type Nav = NavigationProp<RootStackParamList>;
 
-/** Home tab (Belzo eMart design): header, search, banner, category grid, Deals of the Day. */
+/** Home tab (Belzo eMart design): header, search, banner, category slider, Deals of the Day. */
 export function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const queryClient = useQueryClient();
@@ -60,7 +58,6 @@ export function HomeScreen() {
   const heart = useCardWishlist();
   const cardCart = useCardCart();
 
-  const pincode = usePincodeStore((s) => s.pincode);
   const isCustomer = useSessionStore((s) => s.status === 'authenticated');
   const unread = useUnreadCount();
   const recentIds = useRecentlyViewedStore((s) => s.ids);
@@ -73,7 +70,6 @@ export function HomeScreen() {
   const deals = useProducts({ sort: 'discount' });
   const dealItems = (deals.data?.pages[0]?.items ?? []).slice(0, 6);
 
-  const [pinSheet, setPinSheet] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -150,11 +146,9 @@ export function HomeScreen() {
       <HomeHeader
         unread={isCustomer ? unread : undefined}
         cartCount={cartCount}
-        pincode={pincode}
         onBell={() => (isCustomer ? navigation.navigate('Notifications') : navigation.navigate('Login'))}
         onCart={() => navigation.navigate('Cart')}
         onSearch={() => navigation.navigate('Search')}
-        onPin={() => setPinSheet(true)}
         onMenu={() => setMenuOpen(true)}
         focused={focused}
       />
@@ -218,11 +212,9 @@ export function HomeScreen() {
         ) : null}
       </ScrollView>
 
-      <PincodeSheet visible={pinSheet} onClose={() => setPinSheet(false)} />
       <MenuDrawer
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
-        onChangeLocation={() => setPinSheet(true)}
       />
     </SafeAreaView>
   );
@@ -233,7 +225,7 @@ const styles = StyleSheet.create({
   // Light grey page so the white category card and product cards lift off the background.
   scroll: { flex: 1, backgroundColor: theme.colors.bg },
   // Bottom room so the last section clears the floating "View cart" bar.
-  body: { paddingTop: theme.spacing.sm, paddingBottom: 96 },
+  body: { paddingTop: theme.spacing.sm, paddingBottom: 150 },
   section: { marginTop: theme.spacing.lg },
   grid: {
     flexDirection: 'row',

@@ -53,7 +53,8 @@ export function ProfileEditScreen({ navigation }: RootScreenProps<'ProfileEdit'>
     const patch: ProfilePatch = {};
     const name = fields.name.trim();
     const email = fields.email.trim();
-    const phone = fields.phone.trim();
+    // Spaces and dashes are fine to type (98765 43210); the server wants plain digits.
+    const phone = fields.phone.replace(/[\s-]/g, '');
     const gender = fields.gender.trim();
     if (name && name !== profile?.name) patch.name = name;
     if (email && email !== (profile?.email ?? '')) patch.email = email;

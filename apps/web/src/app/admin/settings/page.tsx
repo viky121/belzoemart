@@ -20,6 +20,7 @@ const INVOICE_FIELDS: { key: string; label: string; type: 'text' | 'textarea'; p
   { key: 'store.pincode', label: 'PIN code', type: 'text' },
   { key: 'store.phone', label: 'Phone', type: 'text' },
   { key: 'store.email', label: 'Email', type: 'text' },
+  { key: 'store.fssai', label: 'FSSAI licence no. (printed on the invoice for food items)', type: 'text', placeholder: '14-digit FSSAI number' },
   { key: 'store.website', label: 'Website', type: 'text', placeholder: 'https://' },
   { key: 'store.logoUrl', label: 'Logo URL (https)', type: 'text', placeholder: 'https://' },
   { key: 'store.invoiceTerms', label: 'Invoice terms / return note', type: 'textarea' },

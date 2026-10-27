@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { isEmail, PasswordRules, toMobile10 } from './auth-parts';
+import { AlreadyRegistered, isEmail, PasswordRules, toMobile10 } from './auth-parts';
 
 describe('toMobile10 / isEmail', () => {
   it('accepts Indian mobiles with or without +91 and spaces', () => {
@@ -29,5 +29,21 @@ describe('PasswordRules', () => {
     expect(met('Belzo@2026')).toEqual(['length', 'upper', 'lower', 'symbol']);
     expect(met('belzo2026')).toEqual(['length', 'lower']);
     expect(met('BELZO@2026')).toEqual(['length', 'upper', 'symbol']);
+  });
+});
+
+describe('AlreadyRegistered', () => {
+  it('tells a mobile number owner to sign in, with a sign-in link and a password reset link', () => {
+    const html = renderToStaticMarkup(<AlreadyRegistered kind="phone" loginHref="/login?next=%2Fcart" />);
+    expect(html).toContain('data-testid="already-registered-phone"');
+    expect(html).toContain('This mobile number is already registered');
+    expect(html).toContain('href="/login?next=%2Fcart"');
+    expect(html).toContain('href="/forgot-password"');
+  });
+
+  it('says the same for an email', () => {
+    const html = renderToStaticMarkup(<AlreadyRegistered kind="email" loginHref="/login" />);
+    expect(html).toContain('data-testid="already-registered-email"');
+    expect(html).toContain('This email is already registered');
   });
 });

@@ -11,6 +11,7 @@ import { Button, EmptyState, ErrorState, Screen } from '@/ui';
 import { ListSkeleton } from '@/ui/Skeleton';
 
 import { CartLineRow, lineBlockReason } from '../components/CartLineRow';
+import { CartOffers } from '../components/CartOffers';
 import { CouponBox } from '../components/CouponBox';
 import { useCart } from '../hooks';
 
@@ -66,7 +67,7 @@ export function CartScreen() {
   }
 
   return (
-    <Screen edges={[...EDGES]}>
+    <Screen edges={[...EDGES]} bottom="none">
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollBody}
@@ -82,6 +83,7 @@ export function CartScreen() {
           </View>
         ) : null}
 
+        {active.length > 0 ? <CartOffers offers={data?.offers} /> : null}
         {active.length > 0 ? (
           <View style={styles.group}>
             <View style={styles.groupHead}>

@@ -73,6 +73,11 @@ export function CartLineRow({ line, onPress, divider = true }: CartLineRowProps)
           />
         </View>
         {line.unit ? <Text style={styles.unit}>{line.unit}</Text> : null}
+        {line.offerId && !saved ? (
+          <Text style={styles.offer} testID={`cart-offer-tag-${line.variantId}`}>
+            🎁 Offer price{line.regularUnitPrice ? ` (was ${formatInr(line.regularUnitPrice)})` : ''}
+          </Text>
+        ) : null}
         {blockReason ? <Text style={styles.block}>{blockReason}</Text> : null}
 
         <View style={styles.bottomRow}>
@@ -93,8 +98,8 @@ export function CartLineRow({ line, onPress, divider = true }: CartLineRowProps)
           ) : !line.unavailable ? (
             <CompactStepper
               value={line.quantity}
-              min={1}
-              max={99}
+              min={line.minQty ?? 1}
+              max={line.maxQty ?? 99}
               busy={update.isPending}
               onChange={(next) => update.mutate({ variantId: line.variantId, quantity: next })}
               label={line.title}
@@ -141,6 +146,7 @@ const styles = StyleSheet.create({
   },
   unit: { ...theme.typography.caption, color: theme.colors.muted },
   block: { ...theme.typography.caption, color: theme.colors.danger, fontWeight: '600' },
+  offer: { ...theme.typography.caption, color: '#15803d', fontWeight: '700' },
   bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',

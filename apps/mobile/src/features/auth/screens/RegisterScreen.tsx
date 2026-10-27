@@ -15,14 +15,15 @@ import { AuthLogo } from '@/ui/brand/AuthLogo';
 import { OtpVerifyRow } from '../components/OtpVerifyRow';
 import { PasswordField } from '../components/PasswordField';
 import { PasswordRules } from '../components/PasswordRules';
-import { useRegister } from '../hooks';
+import { useAlreadyRegistered, useRegister } from '../hooks';
 import { normalizeEmail, normalizeMobile } from '../identifiers';
 
 const formSchema = z
   .object({
     name: z.string().trim().min(2, 'Enter your full name').max(120),
     phone: z.string().refine((v) => normalizeMobile(v) !== null, 'Enter a valid 10-digit mobile number'),
-    email: z.string().refine((v) => normalizeEmail(v) !== null, 'Enter a valid email address'),
+    // Optional: blank is fine, but a typed email has to be a real address.
+    email: z.string().refine((v) => v.trim() === '' || normalizeEmail(v) !== null, 'Enter a valid email address, or leave it empty'),
     password: strongPasswordSchema,
     confirmPassword: z.string(),
   })
@@ -37,9 +38,22 @@ interface Verified {
   proof: string;
 }
 
+/** Shown instead of "Send OTP" when the mobile number / email already has an account. */
+function AlreadyRegistered({ what, onSignIn }: { what: string; onSignIn: () => void }) {
+  return (
+    <View style={styles.taken} accessibilityRole="alert" testID={`register-taken-${what === 'email' ? 'email' : 'phone'}`}>
+      <Text style={styles.takenText}>This {what} is already registered. Please sign in instead.</Text>
+      <Pressable onPress={onSignIn} accessibilityRole="link" accessibilityLabel="Sign in">
+        <Text style={styles.link}>Sign in</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 /**
  * Create account: full name, mobile and email (each verified by an OTP) and a strong password
- * entered twice. "Create account" stays disabled until both OTPs are verified.
+ * entered twice. The email is optional; a typed one must be verified by an OTP too. "Create account"
+ * stays disabled until the mobile (and a typed email) is verified.
  */
 export function RegisterScreen({ navigation, route }: RootScreenProps<'Register'>) {
   const redirect = route.params?.redirect;
@@ -53,24 +67,30 @@ export function RegisterScreen({ navigation, route }: RootScreenProps<'Register'
   const [emailOk, setEmailOk] = useState<Verified | null>(null);
 
   const phoneTarget = normalizeMobile(useWatch({ control, name: 'phone' }));
-  const emailTarget = normalizeEmail(useWatch({ control, name: 'email' }));
+  const emailText = useWatch({ control, name: 'email' });
+  const emailTarget = normalizeEmail(emailText);
+  const emailBlank = emailText.trim() === '';
   const password = useWatch({ control, name: 'password' });
   // A proof only counts for the exact number / email it was issued for.
   const phoneProof = phoneOk && phoneOk.target === phoneTarget ? phoneOk.proof : null;
   const emailProof = emailOk && emailOk.target === emailTarget ? emailOk.proof : null;
-  const ready = Boolean(phoneProof && emailProof) && passwordProblems(password).length === 0;
+  // Email may stay empty; a typed one needs its own verification.
+  // Already has an account? Say so before any OTP is sent.
+  const phoneTaken = useAlreadyRegistered('phone', phoneTarget);
+  const emailTaken = useAlreadyRegistered('email', emailTarget);
+  const emailReady = emailBlank || Boolean(emailTarget && emailProof && !emailTaken);
+  const ready = Boolean(phoneProof) && !phoneTaken && emailReady && passwordProblems(password).length === 0;
 
   function submit(values: FormValues) {
-    if (!phoneTarget || !emailTarget || !phoneProof || !emailProof) return;
+    if (!phoneTarget || !phoneProof || phoneTaken || !emailReady) return;
     register.mutate(
       {
         name: values.name.trim(),
         phone: phoneTarget,
-        email: emailTarget,
+        ...(emailTarget && emailProof ? { email: emailTarget, emailProof } : {}),
         password: values.password,
         confirmPassword: values.confirmPassword,
         phoneProof,
-        emailProof,
       },
       { onSuccess: () => navigation.dispatch(afterAuth(redirect)) },
     );
@@ -84,7 +104,7 @@ export function RegisterScreen({ navigation, route }: RootScreenProps<'Register'
       <Text style={styles.heading} accessibilityRole="header">
         Create your account
       </Text>
-      <Text style={styles.sub}>Verify your mobile number and email, then set a password.</Text>
+      <Text style={styles.sub}>Verify your mobile number, then set a password. Email is optional.</Text>
 
       <TextField
         control={control}
@@ -105,7 +125,9 @@ export function RegisterScreen({ navigation, route }: RootScreenProps<'Register'
         placeholder="10-digit mobile number"
         error={formState.errors.phone?.message}
       />
-      {phoneTarget ? (
+      {phoneTarget && phoneTaken ? (
+        <AlreadyRegistered what="mobile number" onSignIn={() => navigation.navigate('Login', { redirect })} />
+      ) : phoneTarget ? (
         <OtpVerifyRow
           key={phoneTarget}
           kind="phone"
@@ -120,14 +142,16 @@ export function RegisterScreen({ navigation, route }: RootScreenProps<'Register'
       <TextField
         control={control}
         name="email"
-        label="Email"
+        label="Email (optional)"
         keyboardType="email-address"
         autoCapitalize="none"
         autoComplete="email"
         placeholder="you@example.com"
         error={formState.errors.email?.message}
       />
-      {emailTarget ? (
+      {emailTarget && emailTaken ? (
+        <AlreadyRegistered what="email" onSignIn={() => navigation.navigate('Login', { redirect })} />
+      ) : emailTarget ? (
         <OtpVerifyRow
           key={emailTarget}
           kind="email"
@@ -175,7 +199,10 @@ export function RegisterScreen({ navigation, route }: RootScreenProps<'Register'
         style={styles.submit}
       />
       {!ready ? (
-        <Text style={styles.hint}>Verify your mobile and email and set a strong password to continue.</Text>
+        <Text style={styles.hint}>
+          Verify your mobile number and set a strong password to continue.
+          {!emailBlank && !emailReady && !emailTaken ? ' Verify the email too, or clear it.' : ''}
+        </Text>
       ) : null}
 
       <Pressable style={styles.linkRow} onPress={() => navigation.navigate('Login', { redirect })} accessibilityRole="link">
@@ -208,6 +235,8 @@ const styles = StyleSheet.create({
   linkRow: { flexDirection: 'row', marginTop: theme.spacing.xl, alignItems: 'center', justifyContent: 'center' },
   muted: { ...theme.typography.body, color: theme.colors.muted },
   link: { ...theme.typography.body, color: theme.colors.primaryStrong, fontWeight: '700' },
+  taken: { marginTop: theme.spacing.xs, marginBottom: theme.spacing.sm, gap: 2 },
+  takenText: { ...theme.typography.caption, color: theme.colors.danger },
   legal: { ...theme.typography.caption, color: theme.colors.muted, marginTop: theme.spacing.lg },
   bottomPad: { height: theme.spacing.xl },
 });

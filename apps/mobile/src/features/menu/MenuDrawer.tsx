@@ -20,7 +20,6 @@ import { apiRequest } from '@/api/client';
 import { useLogout } from '@/features/auth/hooks';
 import { useProfile } from '@/features/profile/hooks';
 import type { RootStackParamList } from '@/navigation/types';
-import { usePincodeStore } from '@/store/pincode';
 import { useSessionStore } from '@/store/session';
 import { theme } from '@/theme';
 import { useBrand } from '@/theme/use-brand';
@@ -42,8 +41,6 @@ const SLIDE_MS = 220;
 export interface MenuDrawerProps {
   visible: boolean;
   onClose: () => void;
-  /** Opens the delivery PIN sheet (owned by the screen that hosts the menu). */
-  onChangeLocation: () => void;
 }
 
 type Panel = 'store' | 'care' | 'about' | null;
@@ -62,7 +59,7 @@ interface Item {
  * About, with Logout and the app version at the bottom. Categories are not in this menu; they have
  * their own tab. Destinations that need a sign-in show the usual "Sign in to continue" page.
  */
-export function MenuDrawer({ visible, onClose, onChangeLocation }: MenuDrawerProps) {
+export function MenuDrawer({ visible, onClose }: MenuDrawerProps) {
   const navigation = useNavigation<Nav>();
   const toast = useToast();
   const logout = useLogout();
@@ -100,7 +97,6 @@ export function MenuDrawer({ visible, onClose, onChangeLocation }: MenuDrawerPro
       { key: 'profile', icon: 'account-outline', label: 'My Profile', onPress: leaveThen(() => navigation.navigate('ProfileEdit')) },
       { key: 'orders', icon: 'package-variant-closed', label: 'My Orders', onPress: leaveThen(() => navigation.navigate('Orders')) },
       { key: 'wishlist', icon: 'heart-outline', label: 'Wishlist', onPress: leaveThen(() => navigation.navigate('Wishlist')) },
-      { key: 'location', icon: 'map-marker-outline', label: 'Change Location', onPress: leaveThen(onChangeLocation) },
     ],
     support: [
       ...(hasStore(menu)
@@ -144,7 +140,6 @@ export function MenuDrawer({ visible, onClose, onChangeLocation }: MenuDrawerPro
           onRegister={leaveThen(() => navigation.navigate('Register'))}
           onAddresses={leaveThen(() => navigation.navigate('Addresses'))}
           onProfile={leaveThen(() => navigation.navigate('ProfileEdit'))}
-          onChangeLocation={leaveThen(onChangeLocation)}
         />
       </Modal>
 
@@ -174,7 +169,6 @@ function DrawerPanel({
   onRegister,
   onAddresses,
   onProfile,
-  onChangeLocation,
 }: {
   onClose: () => void;
   groups: Item[][];
@@ -183,14 +177,12 @@ function DrawerPanel({
   onRegister: () => void;
   onAddresses: () => void;
   onProfile: () => void;
-  onChangeLocation: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const brand = useBrand();
   const status = useSessionStore((s) => s.status);
   const sessionCustomer = useSessionStore((s) => s.customer);
-  const pincode = usePincodeStore((s) => s.pincode);
   const { data: profile } = useProfile();
   const customer = profile ?? sessionCustomer;
   const isGuest = status !== 'authenticated';
@@ -229,18 +221,6 @@ function DrawerPanel({
             </View>
             <IconButton icon="close" label="Close menu" color={theme.colors.white} onPress={onClose} />
           </View>
-          <Pressable
-            onPress={onChangeLocation}
-            accessibilityRole="button"
-            accessibilityLabel={pincode ? `Delivering to ${pincode}. Change location` : 'Set delivery location'}
-            style={styles.locPill}
-          >
-            <MaterialCommunityIcons name="map-marker-outline" size={16} color={theme.colors.white} />
-            <Text style={styles.locText} numberOfLines={1}>
-              {pincode ? `Deliver to ${pincode}` : 'Set delivery location'}
-            </Text>
-            <MaterialCommunityIcons name="chevron-down" size={16} color={theme.colors.white} />
-          </Pressable>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
@@ -370,18 +350,6 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.pill,
     backgroundColor: theme.colors.white,
   },
-  locPill: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    maxWidth: '100%',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: theme.radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  locText: { fontSize: 13, lineHeight: 18, fontWeight: '700', color: theme.colors.white, flexShrink: 1 },
   body: { paddingBottom: theme.spacing.xl },
   account: { padding: theme.spacing.lg, gap: theme.spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border },
   cta: { minHeight: 48, borderRadius: theme.radius.pill, alignItems: 'center', justifyContent: 'center', paddingHorizontal: theme.spacing.md },

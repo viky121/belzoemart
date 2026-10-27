@@ -70,6 +70,49 @@ export function PasswordRules({ password }: { password: string }) {
   );
 }
 
+export type RegisteredState = 'idle' | 'checking' | 'registered' | 'free';
+
+/**
+ * Asks the server (after a short pause in typing) whether this mobile number / email already has an
+ * account, so the form can say "please sign in" before any OTP is sent. If the check cannot be made the
+ * answer is "free": the server still refuses at OTP time and at sign-up.
+ */
+export function useRegisteredCheck(kind: 'phone' | 'email', target: string | null): RegisteredState {
+  const [state, setState] = useState<RegisteredState>('idle');
+  useEffect(() => {
+    if (!target) {
+      setState('idle');
+      return;
+    }
+    let live = true;
+    setState('checking');
+    const timer = setTimeout(() => {
+      apiFetch<{ registered: boolean }>('/auth/identifier/check', {
+        method: 'POST',
+        body: kind === 'phone' ? { phone: target } : { email: target },
+      })
+        .then((r) => live && setState(r.registered ? 'registered' : 'free'))
+        .catch(() => live && setState('free'));
+    }, 400);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [kind, target]);
+  return state;
+}
+
+/** Shown instead of "Send OTP" when the mobile number / email already has an account. */
+export function AlreadyRegistered({ kind, loginHref }: { kind: 'phone' | 'email'; loginHref: string }) {
+  return (
+    <p role="alert" className="vf__error vf__error--block" data-testid={`already-registered-${kind}`}>
+      This {kind === 'phone' ? 'mobile number' : 'email'} is already registered. Please{' '}
+      <a href={loginHref}>sign in</a>
+      {' '}instead. Forgot your password? <a href="/forgot-password">Reset it</a>.
+    </p>
+  );
+}
+
 /**
  * "Send OTP → enter code → Verified" for one mobile number or email.
  * On success it hands the signed proof to the parent (needed to create the account / reset the password).

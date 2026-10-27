@@ -1,11 +1,21 @@
-import { Controller, Get, Inject, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Inject, Param, Post, Query, Req } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { productQuerySchema, type ProductQuery } from '@belzo/shared';
+import { Throttle } from '@nestjs/throttler';
+import type { Request } from 'express';
+import { z } from 'zod';
+import { productQuerySchema, searchLogSchema, type ProductQuery } from '@belzo/shared';
 import { Public } from '../../common/auth/public.decorator';
 import { CategoryService } from './category.service';
 import { ProductService } from './product.service';
 import { BrandService } from './brand.service';
 import { SEARCH_PROVIDER, type SearchProvider } from './search/search.provider';
+import { SearchLogService } from './search/search-log.service';
+
+/** `GET /brands` filters: brands of one category (with its sub-categories) or of a search. */
+const brandQuerySchema = z.object({
+  categoryId: z.string().uuid().optional(),
+  q: z.string().trim().max(120).optional(),
+});
 
 /**
  * Public storefront catalogue endpoints (FR-2, FR-3). All read-only and public.
@@ -18,6 +28,7 @@ export class CatalogueController {
     private readonly products: ProductService,
     private readonly brands: BrandService,
     @Inject(SEARCH_PROVIDER) private readonly search: SearchProvider,
+    private readonly searchLog: SearchLogService,
   ) {}
 
   @Public()
@@ -28,8 +39,8 @@ export class CatalogueController {
 
   @Public()
   @Get('brands')
-  brandList() {
-    return this.brands.list();
+  brandList(@Query() query: Record<string, string>) {
+    return this.brands.list(brandQuerySchema.parse(query));
   }
 
   @Public()
@@ -56,5 +67,25 @@ export class CatalogueController {
   @Get('search/autocomplete')
   autocomplete(@Query('q') q: string) {
     return this.search.autocomplete(q ?? '');
+  }
+
+  /**
+   * The website and the app call this AFTER a real search (Enter, a tapped suggestion, the results
+   * page) so the admin Search terms report counts what customers look for. Public (guests search too),
+   * limited per address, answers nothing, and a failure to save never reaches the customer.
+   */
+  @Public()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @HttpCode(204)
+  @Post('search/log')
+  async logSearch(@Req() req: Request, @Body() body: unknown): Promise<void> {
+    const parsed = searchLogSchema.safeParse(body);
+    if (!parsed.success) return;
+    await this.searchLog.record({
+      q: parsed.data.q,
+      source: parsed.data.source,
+      authorization: req.headers.authorization,
+      ip: req.ip,
+    });
   }
 }

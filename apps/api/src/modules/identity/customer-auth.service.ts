@@ -88,6 +88,16 @@ export class CustomerAuthService {
     return this.otp.request(target, purpose);
   }
 
+  /**
+   * Whether this mobile number / email already belongs to a finished account (password + mobile), the
+   * same rule `requestOtp('register')` and `registerAccount` use. The sign-up form asks this as soon as a
+   * number or email is typed, so the customer is told to sign in before any OTP is sent.
+   */
+  async isRegistered(target: { phone?: string; email?: string }): Promise<boolean> {
+    const existing = await this.findByIdentifier(target);
+    return Boolean(existing?.passwordHash && existing.phone);
+  }
+
   private findByIdentifier(target: { phone?: string; email?: string }) {
     if (target.phone) {
       return this.prisma.customer.findUnique({ where: { phone: OtpService.normalizePhone(target.phone) } });
@@ -129,13 +139,14 @@ export class CustomerAuthService {
    */
   async registerAccount(input: RegisterAccount): Promise<{ tokens: AuthTokens; customer: CustomerSummary }> {
     const phone = OtpService.normalizePhone(input.phone);
-    const email = input.email.trim().toLowerCase();
+    // The email is optional; when it is given it must have been verified by OTP.
+    const email = input.email ? input.email.trim().toLowerCase() : null;
     requireProof(input.phoneProof, 'phone', phone);
-    requireProof(input.emailProof, 'email', email);
+    if (email) requireProof(input.emailProof ?? '', 'email', email);
 
     const [byPhone, byEmail] = await Promise.all([
       this.prisma.customer.findUnique({ where: { phone } }),
-      this.prisma.customer.findUnique({ where: { email } }),
+      email ? this.prisma.customer.findUnique({ where: { email } }) : Promise.resolve(null),
     ]);
     if (byPhone && byEmail && byPhone.id !== byEmail.id) {
       throw new ConflictException('This mobile number and email already belong to different accounts.');
@@ -153,19 +164,26 @@ export class CustomerAuthService {
     let customer;
     if (existing) {
       this.ensureActive(existing.status);
-      customer = await this.prisma.customer.update({ where: { id: existing.id }, data: { name, email, phone, passwordHash } });
+      // Never wipe an email the account already has when the form left it empty.
+      customer = await this.prisma.customer.update({
+        where: { id: existing.id },
+        data: { name, phone, passwordHash, ...(email ? { email } : {}) },
+      });
     } else {
       try {
-        customer = await this.prisma.customer.create({ data: { name, email, phone, passwordHash } });
+        customer = await this.prisma.customer.create({ data: { name, phone, passwordHash, ...(email ? { email } : {}) } });
       } catch {
         // A parallel sign-up won the race for the same number or email.
         throw new ConflictException('This mobile number or email is already registered. Please sign in.');
       }
     }
-    // Welcome email. Best effort: a queue hiccup must never fail a sign-up that already succeeded.
-    await this.queue
-      ?.enqueue(QUEUES.NOTIFICATIONS, 'customer.welcome', { customerId: customer.id }, { jobId: `welcome-${customer.id}` })
-      .catch(() => undefined);
+    // Welcome email (only when there is an email). Best effort: a queue hiccup must never fail a sign-up
+    // that already succeeded.
+    if (customer.email) {
+      await this.queue
+        ?.enqueue(QUEUES.NOTIFICATIONS, 'customer.welcome', { customerId: customer.id }, { jobId: `welcome-${customer.id}` })
+        .catch(() => undefined);
+    }
     return { tokens: await this.issueFor(customer.id), customer: this.toSummary(customer) };
   }
 

@@ -33,7 +33,7 @@ export class AddressService {
       if (isDefault) {
         await tx.address.updateMany({ where: { customerId }, data: { isDefault: false } });
       }
-      return tx.address.create({ data: { ...input, customerId, isDefault } });
+      return tx.address.create({ data: { ...input, line2: input.line2 ?? null, customerId, isDefault } });
     });
   }
 
@@ -45,13 +45,21 @@ export class AddressService {
       }
       return tx.address.update({
         where: { id: addressId },
-        data: { ...input, ...(makeDefault ? { isDefault: true } : {}) },
+        // line2 is written every time, so emptying "Address line 2" really clears it.
+        data: { ...input, line2: input.line2 ?? null, ...(makeDefault ? { isDefault: true } : {}) },
       });
     });
   }
 
   async remove(customerId: string, addressId: string) {
-    await this.ensureOwned(customerId, addressId);
-    await this.prisma.address.delete({ where: { id: addressId } });
+    const address = await this.ensureOwned(customerId, addressId);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.address.delete({ where: { id: addressId } });
+      // Deleting the default address hands the default to the newest one left, so there is always one.
+      if (address.isDefault) {
+        const next = await tx.address.findFirst({ where: { customerId }, orderBy: { createdAt: 'desc' } });
+        if (next) await tx.address.update({ where: { id: next.id }, data: { isDefault: true } });
+      }
+    });
   }
 }

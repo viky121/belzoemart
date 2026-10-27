@@ -88,6 +88,19 @@
 - [x] U8.1 Code Generation APPROVED 2026-10-23 (U8.1 complete)
 - [x] U8.2 Functional Design plan answered (FQ1-FQ3 all A)
 - [x] U8.2 Functional Design APPROVED 2026-10-23
-- [x] U8.2 NFR Design: `aidlc-docs/construction/u8-2-collection-cash-proof/nfr-design/` (2 files); AWAITING USER APPROVAL. Next: U8.2 Code Generation (plan + approval).
+- [x] U8.2 NFR Design: `aidlc-docs/construction/u8-2-collection-cash-proof/nfr-design/` (2 files); APPROVED 2026-10-24
+- [ ] U8.2 Code Generation Part 1: plan `aidlc-docs/construction/plans/u8-2-collection-cash-proof-code-generation-plan.md` (18 steps); AWAITING USER APPROVAL
+- [x] Admin Reports: questions answered (Q1=C skip Purchasing, Q2 to Q5 = A); built and verified, summary `aidlc-docs/construction/admin-reports/code/summary.md`; not deployed
 - [ ] (remaining stages) (EXECUTE); Functional Design + NFR Design per unit (EXECUTE); NFR Requirements + Infrastructure Design (SKIP)
 - [ ] Construction (per phase) and Build and Test
+- [x] Admin Roles and Access: answers Q1-Q7 = A; built, tested and DEPLOYED 2026-10-24 (API + web); see `aidlc-docs/construction/admin-roles/code/summary.md`
+- [x] Spend and Get Special Price Offers: answers Q1-Q7 (A, B, A, A, A, A, A); built, tested and DEPLOYED 2026-10-24 (shared, API, admin, web, mobile APK 0.1.10+); see `aidlc-docs/construction/spend-offers/code/summary.md`
+- [x] Mobile/web fixes 2026-10-24 (deployed, APK 0.1.13): bottom buttons no longer hidden by the Android nav bar (common `Screen`), product page solid top bar, home categories as one sliding row, profile photo upload fixed (relative upload path was refused by the profile schema), address edit/default fixes, web account page with profile photo and address manager, web checkout shows COD only when enabled, production `payment.codEnabled` switched on.
+- [x] Invoice as 80 mm shop receipt (2026-10-25): built and verified, summary `aidlc-docs/construction/invoice-receipt/code/summary.md`; NOT deployed. Needs migration `order_item_mrp` and setting `store.fssai` at deploy.
+- [ ] Search Terms report (2026-10-25): questions Q1-Q7 in `aidlc-docs/inception/requirements/search-terms-questions.md`; AWAITING USER ANSWERS. Next: requirements note, then build (search log table + migration, API logging, report, web admin tab, web and mobile hooks).
+- [x] Search Terms report: answers Q1-Q7 = A; built and verified 2026-10-26, summary `aidlc-docs/construction/search-terms/code/summary.md`; NOT deployed. Needs migration `20261025170000_search_logs` and a new mobile APK.
+- [x] PIN code check moved to checkout only (2026-10-26): popup, header PIN, product page check, app menu location and address-form badge removed (web + app). Built and verified; NOT deployed (needs web deploy and a new APK).
+- [x] Category/search pages load every product while scrolling, brand filter as a small grid (2026-10-26): web only; built and verified.
+- [x] PIN only at checkout + all products on scroll + brand grid: DEPLOYED 2026-10-26 (web, commit d56acec); APK 0.1.17 building.
+- [x] Brand filter limited to the category's own brands (web, app, API): built and verified 2026-10-26; NOT deployed (needs API + web deploy and a new APK).
+- [x] Checkout PIN check at the address form (web + app): a new address with a PIN we do not deliver to is refused on the form; the "not deliverable" message sits with the address. Built and verified 2026-10-26; NOT deployed (web and a new APK; no API change).

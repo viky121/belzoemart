@@ -506,3 +506,264 @@ answer: both"
 **AI Response**: "Recorded NQ1 = A (proof files deleted 1 year after delivery) and NQ2 = A (money alerts on dashboard, no e-mail). Added BR-C56 and DeliveryProof.purgedAt to the functional design; storage port needs delete(key). Generated nfr-design-patterns.md (SP10-SP16, RP7-RP12) and logical-components.md with Security, Resiliency and PBT compliance; no blocking findings. Presented for approval."
 **Context**: CONSTRUCTION - U8.2 NFR Design complete, awaiting approval
 ---
+
+---
+## Admin Reports - Request and Question File
+**Timestamp**: 2026-10-24T09:00:00Z
+**User Input**: "bhai ye delop kardo admin side me report section me, iska report chiye admin side me," (with a screenshot of the spec "ADMIN 11 - REPORTS: Basic sales report, Purchasing report, Order report, User report, Product report, P/L report, Recommended: category, brand, best-seller and payment reports", and a screenshot of the current admin Reports page)
+**AI Response**: "Read the existing reporting code (reporting.service.ts, admin.controller.ts, reports/page.tsx, schema.prisma). Found: no purchasing/supplier model, no cost snapshot on OrderItem, no refund record. Created aidlc-docs/inception/requirements/admin-reports-questions.md with Q1-Q6 (purchasing source, P/L cost basis, P/L depth, access roles, page layout, shortcut). Waiting for answers before building."
+**Context**: INCEPTION - Requirements Analysis (Admin Reports), awaiting answers
+---
+
+---
+## Delivery Module (U8.2) - NFR Design Approved, Code Generation Plan Issued
+**Timestamp**: 2026-10-24T10:00:00Z
+**User Input**: "Continue to Next Stage"
+**AI Response**: "U8.2 NFR Design approved. Created aidlc-docs/construction/plans/u8-2-collection-cash-proof-code-generation-plan.md (18 steps: shared, migration 2, storage delete, Razorpay QR client, webhook router, gates refactor, collection, QR and UPI credit, ledger and settlement, proof, COD settlement, controllers, worker, DB check, docs, verification). Approval prompt: asked the user to approve the plan before any code is generated."
+**Context**: CONSTRUCTION - U8.2 Code Generation Part 1 (Planning), awaiting approval
+---
+## Admin Reports - Answers Received
+**Timestamp**: 2026-10-24T10:05:00Z
+**User Input**: "(answers written in admin-reports-questions.md) Q1: C, Q2: A, Q3: A, Q4: A, Q5: A, Q6: empty"
+**AI Response**: "Recorded: Purchasing report skipped for now (Q1=C); P/L uses a cost snapshot on order items from now on, older orders estimated (Q2=A); gross profit only (Q3=A); Purchasing/P-L cost views limited to super_admin, other reports as today (Q4=A); one tabbed Reports page with date filter, totals, tables, charts and CSV per report (Q5=A)."
+**Context**: INCEPTION - Requirements Analysis (Admin Reports), answers recorded
+---
+
+---
+## Admin Reports - Built and Verified
+**Timestamp**: 2026-10-24T12:00:00Z
+**User Input**: "Continue to Next Stage" (the Reports answers had been written into admin-reports-questions.md)
+**AI Response**: "Built the Admin Reports section per the recorded answers: shared report maths, order-item cost snapshot (migration 20261024090000), ReportsService/Controller (9 reports, CSV), tabbed admin page with a shared date filter, cost price hidden from every order response. Verified with shared, API (incl. real-database run), web and mobile suites. Summary: aidlc-docs/construction/admin-reports/code/summary.md. Nothing deployed."
+**Context**: CONSTRUCTION - Admin Reports code generation complete (small adaptive workflow), awaiting user review
+---
+
+---
+## Admin Roles and Access - Request and Question File
+**Timestamp**: 2026-10-24T14:00:00Z
+**User Input**: "okay ab admin side me user types and its access dene ka module bna do, jaha user types add kar sake like makanger, accountant, admin, and other, aur usko kya kya access dena hai hai, uska option aa jaye"
+**AI Response**: "Read the current RBAC (fixed 5 role names in code, unused DB role/permission tables, no staff UI, no 'me' endpoint, 15 minute tokens, full inventory of admin routes). Created aidlc-docs/inception/requirements/admin-roles-questions.md with Q1-Q8 (detail level, existing roles, who may manage staff, roles per person, staff screen, when changes apply, what staff see) and a proposed permission list. Waiting for answers before building."
+**Context**: INCEPTION - Requirements Analysis (Admin Roles and Access), awaiting answers
+---
+
+---
+## Admin Roles and Access - Answers Received
+**Timestamp**: 2026-10-24T14:30:00Z
+**User Input**: "a SAB"
+**AI Response**: "Recorded Q1-Q7 = A (per-area permission levels; keep the 5 old roles as editable types and add Admin, Manager, Accountant; only Super Admin manages staff and roles; one type per person; full staff screen; changes apply on the next click; menu and pages follow the permissions). Starting the build."
+**Context**: INCEPTION -> CONSTRUCTION (Admin Roles and Access), answers recorded
+---
+
+---
+## Admin Roles and Access - Build Complete
+**Timestamp**: 2026-10-24T18:30:00Z
+**User Input**: "(none - continuing the build after \"a SAB\")"
+**AI Response**: "Built the permission catalogue, server-side permission guard (fail closed), roles and staff APIs, bootstrap of ready-made types, and the Staff and types admin screen with a permission-aware menu. API 986 tests, shared 482, web 288 pass; tsc, eslint and next build clean; real HTTP run on a scratch DB passed. Not deployed, waiting for the user to say deploy."
+**Context**: CONSTRUCTION - Admin Roles and Access, code generation complete (summary in construction/admin-roles/code/summary.md)
+
+---
+
+---
+## Spend and Get Special Price Offers - New Request
+**Timestamp**: 2026-10-24T19:00:00Z
+**User Input**: "agar buyer 2000 ki shopping karta hai to 1 kg sugar 29 ₹ me aayegi iss trah ke offer ka check kar lena and and sugar me bhi 1 kg hi buy kar sakte hai\n\nasia kuch system banna hai and iska config admin me v bna do vailble price and product offfer ke lea"
+**AI Response**: "Checked cart, checkout and coupon code (no such offer exists; variant min/max order qty and bulk slabs exist). Issued questions Q1-Q8 in aidlc-docs/inception/requirements/spend-offers-questions.md and am waiting for answers."
+**Context**: INCEPTION - Requirements Analysis (Spend and Get offers), questions issued
+
+---
+
+---
+## Spend and Get Special Price Offers - Answers Received
+**Timestamp**: 2026-10-24T19:30:00Z
+**User Input**: "DONE" (answers filled in aidlc-docs/inception/requirements/spend-offers-questions.md: Q1=A, Q2=B, Q3=A, Q4=A, Q5=A, Q6=A, Q7=A, Q8 empty)
+**AI Response**: "Recorded. Q1 spend counts other items before coupon; Q2 B: while an offer is on, the pack is limited to the offer units per order; Q3 one pack (variant); Q4 once per order; Q5 lower of offer and bulk price, no coupon on the offer item; Q6 many offers at once; Q7 website and mobile app. Requirements written to aidlc-docs/inception/requirements/spend-offers-requirements.md. Starting the build; no deploy until the user says deploy."
+**Context**: INCEPTION -> CONSTRUCTION (Spend and Get offers), answers recorded
+
+---
+
+---
+## Spend and Get Special Price Offers - Build Complete
+**Timestamp**: 2026-10-24T20:00:00Z
+**User Input**: "(none - continuing the build after the answers)"
+**AI Response**: "Built shared offer rules, Prisma model and migration, API (offers module, cart pricing and limits, checkout coupon exclusion, order snapshot, invoice and reports), admin Offers screen, website and mobile cart/product display. API 1033, shared 503, web 322, mobile 256 tests pass; tsc, eslint and next build clean; migration matches schema; real HTTP run on a scratch DB passed. Not deployed, waiting for the user to say deploy. Summary in construction/spend-offers/code/summary.md."
+**Context**: CONSTRUCTION - Spend and Get offers, code generation and build-and-test complete
+
+---
+
+---
+## Deploy - Staff and types, Spend and Get offers, mobile category slider
+**Timestamp**: 2026-10-24T20:50:00Z
+**User Input**: "nahi , abhi deploy karo"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-24-1501-predeploy.sql), deployed commit 5ef732f (api, web, worker). Migrations applied: 20261024150000_role_is_system, 20261025100000_spend_offers. First start created the ready-made staff types; admin@belzo.local is still super_admin. Live checks: health ok, /offers/active 200, admin routes 401 without a token, cart returns offers, /admin/offers and /admin/access load."
+**Context**: Deploy approved by the user
+
+---
+
+---
+## Deploy - mobile bottom insets, profile photo and address fixes, web account page and COD
+**Timestamp**: 2026-10-24T22:30:00Z
+**User Input**: "deploy"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-24-1711-predeploy.sql), deployed commit d3372e3 (api, web, worker). No migrations. Live checks: health ok, pages 200, admin routes 401 without a token, no error-level API log lines."
+**Context**: Deploy approved by the user
+
+---
+
+---
+## Deploy - profile photo JSON upload, COD checkout navigation fix, cart pill and bottom spacing
+**Timestamp**: 2026-10-24T18:55:00Z
+**User Input**: "deploy"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-24-1837-predeploy.sql), deployed commit e634c28 (api, web, worker). No migrations. Live checks: health ok, POST /me/photo exists (401 without login), pages 200, admin routes 401, no error-level log lines. Mobile APK 0.1.14 built (commit 461d670): https://expo.dev/artifacts/eas/R_unm0zkIyACLvRuWXa2s274JWi1_uSXua6kXB6L2yo.apk"
+**Context**: Deploy approved by the user
+
+---
+
+---
+## Deploy - mobile website filter panel, brand link on the mobile product page
+**Timestamp**: 2026-10-25T09:30:00Z
+**User Input**: "deploy"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-25-0853-predeploy.sql), deployed commit 1b8a018 (api, web, worker). No migrations. Live checks: health ok, pages 200, search page serves the Filters button and panel controls and the CSS has the mobile panel rules, admin routes 401, no error-level log lines. APK 0.1.15 built: https://expo.dev/artifacts/eas/ex382mEvRv7hchonwrzhybR7Uwmx97--VP6wUu77diY.apk"
+**Context**: Deploy approved by the user
+
+---
+---
+## Invoice as an 80 mm shop receipt
+**Timestamp**: 2026-10-25T17:00:00Z
+**User Input**: "bhai Invoice format, ais achiye screensot added hai, Belzo ka and details uska doccx file me hai aisa bna do"
+**AI Response**: "Read the attached sheet (only the store section was filled) and the Reliance receipt screenshot. Replaced the A4 invoice with an 80 mm receipt (HTML and PDF from one row model), added MRP snapshot on order items (migration order_item_mrp), FSSAI setting, QR code to the order page, GST breakup by rate, savings message. API tsc, eslint and the full jest pass; migration checked on a scratch database. Not deployed."
+**Context**: Quick build, decisions listed in aidlc-docs/construction/invoice-receipt/code/summary.md
+---
+---
+## Deploy - invoice as 80 mm shop receipt
+**Timestamp**: 2026-10-25T18:00:00Z
+**User Input**: "deploy"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-25-2252-predeploy.sql), deployed commit d3e539a (api, web, worker). Migration 20261025130000_order_item_mrp applied. Inserted setting store.fssai = 21426510000951. Live checks: health ok, pages 200, admin route 401, no error-level API log lines, the production image renders the receipt HTML (QR, FSSAI) and a valid PDF."
+**Context**: Deploy approved by the user
+---
+---
+## Search Terms report: request and questions
+**Timestamp**: 2026-10-25T18:30:00Z
+**User Input**: "bhai website and mobile app me jo search bar hai, waha pe jo koi kuch v search karta hai uska report wale module me \"Search Terms\" name se section or row bnao, waha pe sare keyword listed honge date wise and report i me dikhan hai ki kaun sa product sabse jada sech hua hai"
+**AI Response**: "Checked the search endpoints, the web and mobile search bars and the admin Reports module. Wrote 7 questions in aidlc-docs/inception/requirements/search-terms-questions.md (what counts as a search, most searched product, what is saved, date wise list, no-result searches, retention, permission). Waiting for answers."
+**Context**: Requirements Analysis, standard depth. Awaiting user answers.
+---
+---
+## Search Terms report: answers and build
+**Timestamp**: 2026-10-26T14:30:00Z
+**User Input**: "A sab"
+**AI Response**: "Took all recommended answers (Q1 to Q7 = A). Wrote search-terms-requirements.md, built the search log (table search_logs + migration 20261025170000_search_logs, POST /search/log, 12 month clean-up), the Search terms report (cards, top keywords chart, top keywords, most searched products, not found, day by day with paging and CSV), the web admin tab, website and app saving of real searches. shared, API, web and mobile tsc, eslint and jest pass; the report SQL was run against a real PostgreSQL. Not deployed."
+**Context**: Construction, summary in aidlc-docs/construction/search-terms/code/summary.md
+---
+---
+## Deploy - Search terms report
+**Timestamp**: 2026-10-26T15:30:00Z
+**User Input**: "deploy kardo"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-26-2025-predeploy.sql), deployed commit f3d1cc1 (api, web, worker). Migration 20261025170000_search_logs applied. Live checks: health ok, pages 200, search page 200, report route 401 without login, POST /search/log answers 204 and a test row was saved in search_logs (then deleted), no error-level API log lines. The site was slow to answer for a few minutes while the server was building. Mobile APK 0.1.16 build queued on EAS (3b1331d5-8a32-475c-813a-a83ad9070acb, commit a9086bb)."
+**Context**: Deploy approved by the user
+---
+---
+## Mobile APK 0.1.16 (Search terms)
+**Timestamp**: 2026-10-26T16:10:00Z
+**User Input**: "deploy kardo"
+**AI Response**: "APK 0.1.16 finished (commit a9086bb): https://expo.dev/artifacts/eas/2bwwV88VexquBzmRpitleeY5mqaPAIGD0GVc_Mr98iA.apk"
+**Context**: Part of the Search terms deploy
+---
+---
+## PIN code check only at checkout (web and app)
+**Timestamp**: 2026-10-26T17:00:00Z
+**User Input**: "Ye initially PIN code mangta hai ise check out per kardo, both web and andriod. isko sirf checkout tume v check kare baki sabhi jagh se hta do"
+**AI Response**: "Removed the delivery PIN popup (web PincodeGate, app PincodeGate), the 'Deliver to' PIN button in the web header and the app home header, the 'Change Location' PIN pill and menu item in the app drawer, the PIN check box on the product page (web and app), the PIN badge on the app address form, and the auto-saved PIN after login. The only PIN check left is checkout: the selected address is checked by the server (preview and place order), the checkout page shows 'not serviceable' and blocks the order button. Web and app tsc, eslint and jest pass. Not deployed."
+**Context**: Small change, no questions needed. Web and app both change; the app needs a new APK.
+---
+---
+## All products on scroll, smaller brand filter (web)
+**Timestamp**: 2026-10-26T18:00:00Z
+**User Input**: "bhai ek aue change hai,, catgeory me 44 product hai but ispe sirf 20 show ho raha hai, jitne v product hai sab dinhane chiye, on scoll, and ye jo left side me filter hai, website me laptop me, ye brand wala list bahut bda hai isko chta karo, and ek grid me kar ke dikha do"
+**AI Response**: "The category and search pages showed only the first page of 20. They now draw the first page on the server and load the next pages while the customer scrolls (with a Load more button as fallback), until every product is shown; the count line now says '44 products'. The Brand filter is now a 2-column grid of small chips: first 8 brands, the chosen brand always visible, and a 'Show all N brands' button (scrolls inside 260px when expanded). Web tsc, eslint and jest pass (361 tests)."
+**Context**: Small change, no questions needed. Web only.
+---
+---
+## Deploy - PIN only at checkout, all products on scroll, brand grid
+**Timestamp**: 2026-10-26T16:55:00Z
+**User Input**: "deploy"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-26-2204-predeploy.sql), deployed commit d56acec (web only; API unchanged, no migrations). Live checks: health ok, home and search 200, no PIN popup in the home page, category page serves the brand grid and the Load more control. Mobile APK 0.1.17 (commit fa52673) queued on EAS: 6526ddc9-51ac-4825-a723-1a0e123b8c90."
+**Context**: Deploy approved by the user
+---
+## Brand filter shows only the brands of the category
+**Timestamp**: 2026-10-26T17:20:00Z
+**User Input**: "Website filter me, brand name sabhi category me show ho rahe hai category realted nahi show ho raha"
+**AI Response**: "GET /brands now takes categoryId (the category and the ones below it) or q (a search) and returns only the active brands that have a published product on sale there. The category page and the search page ask for that list; the app product list asks for the brands of the category it shows. API, web and app tsc, eslint and tests pass; the brand query was also run against a real PostgreSQL. Not deployed: needs an API and web deploy (and a new APK for the app)."
+**Context**: Small fix, no questions needed.
+---
+---
+## Checkout: PIN code of a new address is validated on the form
+**Timestamp**: 2026-10-26T19:00:00Z
+**User Input**: "bhai checkout page pe delivery wala jo pincode hai, usse alag pincode dal raha hu to vaildate nahi kar raha, error nahi show kar raha aage proceed hone de raha hai, maine ye test kea jab maine dusra address add karke proceed karna chaa. check and fix it fist"
+**AI Response**: "Checked: the server already refuses an order to a PIN that is not on the delivery list (production list: 472001) and the checkout total showed the warning only at the bottom, after the address was saved, so the customer felt nothing stopped them. Fixed on web and in the app: while adding an address in checkout the PIN is checked as soon as 6 digits are typed, a PIN we do not deliver to shows a red message under the field and Save is blocked (also checked again at Save); the 'not deliverable' message for the chosen address now sits with the address (the app moved it under the address card); old totals are cleared when another address is chosen so 'Place order' cannot stay enabled on stale totals. Outside checkout the address form asks nothing. Web and app tsc, eslint, jest pass. Not deployed."
+**Context**: Bug fix. No API change.
+---
+---
+## Deploy - brand filter per category, checkout PIN check on the address form
+**Timestamp**: 2026-10-26T17:50:00Z
+**User Input**: "deploy"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-26-2250-predeploy.sql), deployed commit 44abb6c (api, web; no migrations). Live checks: health ok, home, search and checkout pages 200, admin route 401 without login, GET /brands returns 160 brands, 13 for one category and 80 for another, a bad category id answers 400, no error-level API log lines. Mobile APK 0.1.18 (commit 1685213) queued on EAS: 25704300-2ed8-4825-af3f-ecb507623526; APK 0.1.17 (6526ddc9-51ac-4825-a723-1a0e123b8c90) still building."
+**Context**: Deploy approved by the user
+---
+---
+## Filter column: Price filter cut off on a computer
+**Timestamp**: 2026-10-27T08:00:00Z
+**User Input**: "price wala filter hide ho raha hai upar scroll karne pe v nahi dikha raha, isko sahi karo, and deopy ya build nahi karoge pahel puchoge every time before deploy or build"
+**AI Response**: "The filter column sticks to the top of the screen but was taller than the screen (long Categories list plus Brand), so the Price block below it was cut off and could not be scrolled to. On a computer (901px and wider) the column now has a maximum height of the screen and scrolls inside itself. The phone panel is unchanged. Standing rule noted: ask before every deploy and before every build (APK)."
+**Context**: Web CSS only. Nothing deployed or built.
+---
+---
+## Deploy - filter column scroll fix (web only)
+**Timestamp**: 2026-10-27T09:00:00Z
+**User Input**: "okay deploy and build chla do"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-26-2319-predeploy.sql), deployed commit 41bfc13 (web only, API unchanged). Live checks: health ok, home, search and category pages 200, the new filter CSS is served, no error lines in the web log. No new APK: the app code is unchanged since 0.1.18 (commit 1685213). APK 0.1.17 finished: https://expo.dev/artifacts/eas/AGZ-KgJP5d8ZJwZ0i7ufqdUuA4XxujXlcDRPfDVgVxQ.apk ; APK 0.1.18 (25704300-2ed8-4825-af3f-ecb507623526) is still queued on EAS."
+**Context**: Deploy and build approved by the user
+---
+---
+## Mobile app: MRP and unit text cut off
+**Timestamp**: 2026-10-27T16:30:00Z
+**User Input**: "MRP is hiding hide ho rahi hai, pura text show nahi ho raha, in mobile app, fix it, abhi build mat karna aur v fix hai" (with a screenshot where every struck-through MRP lost its last character, for example 80 showed as 8, and the unit chip showed "1" for "1 pc")
+**AI Response**: "Cause: on Android, React Native measures plain text (no font weight set) with a shared paint that can still hold the icon font used earlier on the screen, so the text is measured too narrow and its last character is cut (worse on OPPO, Xiaomi and Samsung system fonts). The price and title have a weight and were fine; the MRP and unit did not. Fix: the regular text styles (caption, body, bodyLg) in the theme now set fontWeight 400 explicitly, which covers about 210 styles with one change. New test in ProductCard.test.tsx. Not verified on a phone (no device here)."
+**Context**: Small bug fix. Needs a new APK.
+---
+## Website: category bar on one line with a slider (phones)
+**Timestamp**: 2026-10-27T16:31:00Z
+**User Input**: "Category phone me ese dikh rahi hai sir inko ek line me slider ke sath kar dijiye. website mobile view me fix karo, build and deploy nahi karna abhi"
+**AI Response**: "The category links under the header wrapped onto three lines on a phone. They now stay on one line inside a swipeable strip (scrollbar hidden, snap to each link, the open category is scrolled into view). 'All Categories' stays outside the strip so its dropdown is not clipped. Checked in a browser at 390 and 360 px (7 links on one line, last link reachable, dropdown opens fully) and on desktop (unchanged, one line)."
+**Context**: Web only (catbar-nav.tsx, globals.css).
+---
+## Website: category page shows the same picture as the home page
+**Timestamp**: 2026-10-27T16:32:00Z
+**User Input**: "Jo home page pe category icon hai usko category wise inner page pe same icon show karwana hai, fix it"
+**AI Response**: "The header band of the category page used an emoji and gradient made from the slug; it ignored the picture the admin set for the category. It now shows the category picture. A sub-category without its own picture shows the picture of the closest category above it, and the sub-category chips follow the same rule. With no picture anywhere the old emoji tile stays. On the live data only top-level categories have pictures, so sub-category pages show their parent's picture until the admin uploads their own. 7 new tests; checked in a browser on desktop and phone."
+**Context**: Web only (category/[slug]/page.tsx, globals.css).
+---
+## Mobile app home: banner cropped, category names cut, circles touching
+**Timestamp**: 2026-10-27T16:34:00Z
+**User Input**: "Banner cut ho raha 1000 px and 400 px me upload Kiya, as mentied, and Category name hide ho raha and catgeory icon v chipak raha hai check and fix it" (screenshots of the admin banner upload that asks for 1000 x 400 px, and of the app home where the banner loses its sides, 'Personal Care' and 'Stationery' are cut in the middle and the circles touch each other)
+**AI Response**: "Causes found in the code: (1) the hero banner had a fixed height of 170 against a width of about 328 to 360 (about 2:1) while the recommended upload is 2.5:1, so the picture was cropped on both sides; (2) the category name grew with the phone font size but the tile has a fixed width, so a long word was broken in the middle; (3) the ring around a circle (74) was wider than the tile on a 360 phone (72), so neighbours touched. Fix: new shared constant MOBILE_HERO_ASPECT = 2.5 (like the offer rows) and the banner height follows it, so a 1000 x 400 picture shows whole; circle 66 to 62, minimum tile 68 to 78 (8 clear gap between rings); the name may grow at most 1.15 times with the phone font. New HeroBanner tests, two new category tests. Mobile tsc, eslint and 333 tests pass. Not verified on a phone."
+**Context**: Mobile app (needs a new APK) plus one shared constant.
+---
+---
+## Deploy - category bar slider, category page picture (web only), APK 0.1.19 queued
+**Timestamp**: 2026-10-27T17:05:00Z
+**User Input**: "okay, commit, deploy and build karo" (then, before the commit, the extra request about the app home banner and category names, which was done first)
+**AI Response**: "Committed in separate commits (MRP and unit text; home banner and category names; web category bar and category picture; version 0.1.19; audit). Not pushed. Took a DB dump (belzo-backup-2026-10-27-2223-predeploy.sql), deployed from the working tree at commit 73b6021 (web only; API unchanged, no migrations). Live checks: health ok, home, search and category pages 200, admin route 401 without login, the new CSS (one-line category bar, category picture) is served, the category page carries the picture markup, no errors in the web log. Mobile APK 0.1.19 (commit 4bc69e8 plus 73b6021) submitted to EAS: 69752ba5-165c-4121-9c55-ee8aa26a2e56; it was still waiting in the EAS queue after about 18 minutes when this entry was written, so there is no download link yet. APK 0.1.18 (finished) does not contain the MRP, banner and category-name fixes."
+**Context**: Deploy and build approved by the user
+---
+---
+## Incident - website down, containers stopped (restarted)
+**Timestamp**: 2026-10-27T17:45:00Z
+**User Input**: "https://belzoemart.com/ website is not running"
+**AI Response**: "All six containers were stopped (the server itself was up, 32 days). Timeline from the server logs: about 17:11 the containers could not resolve names (the worker logged 71 'getaddrinfo EAI_AGAIN redis' and 15 timeouts; dockerd logged 'more than 1024 concurrent queries' and DNS timeouts to 127.0.0.53); at 17:14:50 the kernel hit out-of-memory and killed dockerd itself (1.35 GB of the 1.9 GB RAM); docker restarted at 17:15:05 and the containers stayed stopped. Postgres shut down cleanly (17:14:54). Restarted with 'docker compose up -d' (no rebuild, no data change). Checked after: home, search, category 200, health ok, admin route 401, 955 products and 10 categories intact, no error lines in api and web logs. The web deploy of 17:00 had finished and was checked at 17:06, the outage began about 5 minutes after; no proof that the deploy caused it, but the box has very little memory room. Not changed on the server: docker live-restore, container memory limits, instance size."
+**Context**: Incident recovery, no code change.
+---
+---
+## Repeat of the MRP / menu slider / category picture / app category names request
+**Timestamp**: 2026-10-27T18:30:00Z
+**User Input**: "ye mobile app me MRP price full show nahi ho raha, Menu silde me karna hai website mobile view me kaharab ho raha hai, Jo home page pe catgorgy icon hai same inner page of catogey, catgory pe v show ho, check diffrent mobile version, andriod verison screen ke accouding, category icon chipka huahai and catgeogy name cut rah ahai isko fix karo" (four screenshots attached)
+**AI Response**: "All four points were already fixed and deployed earlier today (see the entries 'MRP and unit text', 'category bar on one line', 'category page shows the same picture', 'category names cut, circles touching'). Checked now: the six local commits were not pushed yet and are now pushed (09ac910); the website is up; APK 0.1.19 (commit 73b6021, with the MRP, banner and category-name fixes) has finished building: https://expo.dev/artifacts/eas/7hxd2Y00EPF5hvR4la4caDZD2sbjvzOAnA4RAiPK2Mw.apk . No new code change, no deploy, no build."
+**Context**: Status check only.
+---

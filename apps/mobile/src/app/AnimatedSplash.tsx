@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Animated, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useInsets } from '@/lib/use-bottom-inset';
 
 import { BelzoLogo } from '@/ui/brand/BelzoLogo';
 import { BrandSplash, SPLASH_LOGO } from '@/ui/brand/BrandSplash';
 
 /** Branded launch animation: the logo springs in over the brand splash, then the screen fades out. */
 export function AnimatedSplash({ onDone }: { onDone: () => void }) {
-  const insets = useSafeAreaInsets();
+  const insets = useInsets();
   const [scale] = useState(() => new Animated.Value(0.6));
   const [opacity] = useState(() => new Animated.Value(0));
   const [fade] = useState(() => new Animated.Value(1));

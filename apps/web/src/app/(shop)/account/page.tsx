@@ -8,6 +8,8 @@ import { useAuth } from '@/lib/auth-context';
 import { loginHref } from '@/lib/auth-redirect';
 import { formatInr } from '@/lib/catalogue-api';
 import { AccountSidebar } from '@/components/account-sidebar';
+import { AddressManager } from '@/components/address-manager';
+import { ProfilePhotoEditor } from '@/components/profile-photo-editor';
 
 interface Profile {
   id: string;
@@ -15,18 +17,7 @@ interface Profile {
   email: string | null;
   phone: string | null;
   locale: string;
-}
-interface Address {
-  id: string;
-  label: string;
-  fullName: string;
-  line1: string;
-  line2?: string;
-  city: string;
-  state: string;
-  pincode: string;
-  phone?: string;
-  isDefault: boolean;
+  photoUrl?: string | null;
 }
 interface OrderSummary {
   id: string;
@@ -41,7 +32,6 @@ export default function AccountPage() {
   const router = useRouter();
   const { accessToken, authFetch } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [addresses, setAddresses] = useState<Address[]>([]);
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [wishCount, setWishCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -53,14 +43,12 @@ export default function AccountPage() {
     }
     void (async () => {
       try {
-        const [p, a, o, w] = await Promise.all([
+        const [p, o, w] = await Promise.all([
           authFetch<Profile>('/me'),
-          authFetch<Address[]>('/me/addresses'),
           authFetch<OrderSummary[]>('/orders').catch(() => [] as OrderSummary[]),
           authFetch<unknown[]>('/wishlist').catch(() => [] as unknown[]),
         ]);
         setProfile(p);
-        setAddresses(a);
         setOrders(o);
         setWishCount(w.length);
       } catch {
@@ -92,7 +80,6 @@ export default function AccountPage() {
     );
   }
 
-  const defaultAddr = addresses.find((a) => a.isDefault) ?? addresses[0];
   const recent = orders.slice(0, 3);
 
   return (
@@ -101,6 +88,14 @@ export default function AccountPage() {
 
       <div className="acctx__main">
         <div className="acct-hero">
+          <ProfilePhotoEditor
+            photoUrl={profile?.photoUrl}
+            name={profile?.name ?? ''}
+            onChanged={(url) => {
+              setProfile((p) => (p ? { ...p, photoUrl: url } : p));
+              window.dispatchEvent(new CustomEvent('belzo:profile-updated', { detail: { photoUrl: url } }));
+            }}
+          />
           <div>
             <h1>Hello, {profile?.name ?? 'there'}</h1>
             <p>Here&apos;s your account overview</p>
@@ -127,25 +122,7 @@ export default function AccountPage() {
           </div>
         </div>
 
-        <div className="acct-card" id="addresses" data-testid="account-addresses">
-          <div className="acct-card__head">
-            <h2>📍 Delivery Address</h2>
-            <Link href="/checkout" className="acct-edit">✎ Manage</Link>
-          </div>
-          {defaultAddr ? (
-            <p className="acct-addr">
-              <strong>{defaultAddr.fullName}</strong>
-              <br />
-              {defaultAddr.line1}
-              {defaultAddr.line2 ? `, ${defaultAddr.line2}` : ''}, {defaultAddr.city},{' '}
-              {defaultAddr.state} - {defaultAddr.pincode}
-              {defaultAddr.phone ? <><br />📞 {defaultAddr.phone}</> : null}
-            </p>
-          ) : (
-            <p className="acct-addr">No saved addresses yet.</p>
-          )}
-        </div>
-
+        <AddressManager />
         <div className="acct-promo">
           <div>
             <strong>Shop More, Save More!</strong>

@@ -1,72 +1,58 @@
 'use client';
-
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { roleLabel } from '@belzo/shared';
 import { adminLogout } from '@/lib/admin-api';
-
-interface NavItem {
-  href: string;
-  label: string;
-  icon: string;
-  testid: string;
-}
-interface NavGroup {
-  title?: string;
-  items: NavItem[];
-}
-
-const GROUPS: NavGroup[] = [
-  { items: [{ href: '/admin', label: 'Dashboard', icon: '▦', testid: 'admin-nav-dashboard' }] },
-  {
-    title: 'Catalog',
-    items: [
-      { href: '/admin/catalogue', label: 'Products', icon: '📦', testid: 'admin-nav-catalogue' },
-      { href: '/admin/categories', label: 'Categories', icon: '🗂️', testid: 'admin-nav-categories' },
-      { href: '/admin/brands', label: 'Brands', icon: '🔖', testid: 'admin-nav-brands' },
-    ],
-  },
-  {
-    title: 'Sales',
-    items: [
-      { href: '/admin/orders', label: 'Orders', icon: '🧾', testid: 'admin-nav-orders' },
-      { href: '/admin/returns', label: 'Returns', icon: '↩️', testid: 'admin-nav-returns' },
-      { href: '/admin/payments', label: 'Payments', icon: '💳', testid: 'admin-nav-payments' },
-      { href: '/admin/customers', label: 'Customers', icon: '👥', testid: 'admin-nav-customers' },
-      { href: '/admin/reviews', label: 'Reviews', icon: '⭐', testid: 'admin-nav-reviews' },
-    ],
-  },
-  {
-    title: 'Growth',
-    items: [
-      { href: '/admin/marketing', label: 'Marketing', icon: '📣', testid: 'admin-nav-marketing' },
-      { href: '/admin/mobile', label: 'Mobile app', icon: '📱', testid: 'admin-nav-mobile' },
-      { href: '/admin/pages', label: 'Pages', icon: '📄', testid: 'admin-nav-pages' },
-      { href: '/admin/coupons', label: 'Coupons', icon: '🏷️', testid: 'admin-nav-coupons' },
-      { href: '/admin/reports', label: 'Reports', icon: '📈', testid: 'admin-nav-reports' },
-    ],
-  },
-  {
-    title: 'Configure',
-    items: [
-      { href: '/admin/serviceability', label: 'Serviceability', icon: '📍', testid: 'admin-nav-serviceability' },
-      { href: '/admin/settings', label: 'Settings', icon: '⚙️', testid: 'admin-nav-settings' },
-    ],
-  },
-];
+import { NAV_GROUPS, mayOpenPath, visibleGroups } from './admin-nav';
+import { AdminSessionProvider, useAdminSession } from './admin-session';
+import { NoAccess, Welcome } from './no-access';
 
 /** Admin chrome: grouped icon sidebar + top bar. Hidden on the login screen. */
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  // Separate keys: signing in starts a fresh session, never the signed-out state left over from before.
+  if (pathname === '/admin/login') return <AdminSessionProvider key="login">{children}</AdminSessionProvider>;
+  return (
+    <AdminSessionProvider key="app">
+      <Chrome pathname={pathname}>{children}</Chrome>
+    </AdminSessionProvider>
+  );
+}
+
+function Chrome({ pathname, children }: { pathname: string; children: React.ReactNode }) {
   const router = useRouter();
+  const { me, state, can, refresh, clear } = useAdminSession();
 
-  if (pathname === '/admin/login') return <>{children}</>;
+  // Ask the server who we are on every page change, so a change of access shows at the next click.
+  useEffect(() => {
+    void refresh();
+  }, [pathname, refresh]);
 
-  const isActive = (href: string) =>
-    href === '/admin' ? pathname === '/admin' : pathname.startsWith(href);
+  useEffect(() => {
+    if (state === 'signed-out') router.push('/admin/login');
+  }, [state, router]);
 
+  const groups = visibleGroups(NAV_GROUPS, can);
+  const isActive = (href: string) => (href === '/admin' ? pathname === '/admin' : pathname.startsWith(href));
   async function logout() {
     await adminLogout();
+    clear();
     router.push('/admin/login');
+  }
+
+  const name = me?.name ?? '';
+  const typeLabel = me ? (me.isSuperAdmin ? 'Super Admin' : me.roles[0] ? roleLabel(me.roles[0]) : 'No staff type') : '';
+
+  let body: React.ReactNode;
+  if (state !== 'ready' || !me) {
+    body = <p role="status" className="acc-loading">Loading…</p>;
+  } else if (pathname === '/admin' && !can('dashboard.view')) {
+    body = <Welcome name={me.name} can={can} />;
+  } else if (!mayOpenPath(pathname, can)) {
+    body = <NoAccess can={can} />;
+  } else {
+    body = children;
   }
 
   return (
@@ -77,7 +63,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <span>Belzo <em>Admin</em></span>
         </div>
         <nav className="admin-nav">
-          {GROUPS.map((g, i) => (
+          {groups.map((g, i) => (
             <div className="admin-nav__group" key={i}>
               {g.title && <div className="admin-nav__title">{g.title}</div>}
               {g.items.map((it) => (
@@ -95,7 +81,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
       </aside>
-
       <div className="admin-main-wrap">
         <header className="admin-topbar">
           <div className="admin-topbar__search">
@@ -104,17 +89,19 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="admin-topbar__right">
             <button className="admin-topbar__icon" aria-label="Notifications">🔔</button>
-            <div className="admin-topbar__profile">
-              <span className="admin-topbar__avatar">A</span>
-              <span className="admin-topbar__name">Admin</span>
+            <div className="admin-topbar__profile" data-testid="admin-profile">
+              <span className="admin-topbar__avatar">{(name.trim()[0] ?? 'A').toUpperCase()}</span>
+              <span className="admin-topbar__name">
+                {name || 'Admin'}
+                {typeLabel && <small className="acc-typebadge"> · {typeLabel}</small>}
+              </span>
             </div>
             <button className="admin-topbar__logout" onClick={logout} data-testid="admin-logout">
               Logout
             </button>
           </div>
         </header>
-
-        <main className="admin-content">{children}</main>
+        <main className="admin-content">{body}</main>
       </div>
     </div>
   );

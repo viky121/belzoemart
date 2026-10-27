@@ -226,17 +226,14 @@ describe('festival glyphs', () => {
 describe('HomeHeader', () => {
   const props = {
     cartCount: 0,
-    pincode: '472001',
     onBell: jest.fn(),
     onCart: jest.fn(),
     onSearch: jest.fn(),
-    onPin: jest.fn(),
   };
 
   it('shows no greeting without a festival', async () => {
     await renderWithProviders(<HomeHeader {...props} />, { navigation: false });
     expect(screen.queryByTestId('festival-greeting')).toBeNull();
-    expect(screen.getByText('Deliver to 472001')).toBeTruthy();
   });
 
   it('shows the festival greeting and keeps search working', async () => {

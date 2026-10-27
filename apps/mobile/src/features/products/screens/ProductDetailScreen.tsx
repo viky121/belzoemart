@@ -1,12 +1,20 @@
-import { formatInr, resolveSlabPrice, type ProductCardDto } from '@belzo/shared';
+import {
+  effectiveOrderLimits,
+  formatInr,
+  limitsWithOffer,
+  offerForVariant,
+  productOfferBanner,
+  resolveSlabPrice,
+  type ProductCardDto,
+} from '@belzo/shared';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useInsets } from '@/lib/use-bottom-inset';
 
 import { isApiError } from '@/api/errors';
 import { env } from '@/config/env';
-import { useAddToCart } from '@/features/cart/hooks';
+import { useActiveOffers, useAddToCart } from '@/features/cart/hooks';
 import { useToggleWishlist, useWishlist } from '@/features/wishlist/hooks';
 import { requireAuth } from '@/navigation/RequireAuth';
 import type { RootScreenProps } from '@/navigation/types';
@@ -27,7 +35,6 @@ import {
 import { ProductRail } from '@/ui/ProductRail';
 import { DetailSkeleton } from '@/ui/Skeleton';
 
-import { DeliveryCheck } from '../components/DeliveryCheck';
 import { Gallery } from '../components/Gallery';
 import { ReviewsList } from '../components/ReviewsList';
 import { SlabTable } from '../components/SlabTable';
@@ -50,7 +57,7 @@ function CardTitle({ title }: { title: string }) {
 /** Product detail (design §11): gallery, variants, slab price, delivery, reviews, related, Add/Buy. */
 export function ProductDetailScreen({ navigation, route }: RootScreenProps<'ProductDetail'>) {
   const { idOrSlug } = route.params;
-  const insets = useSafeAreaInsets();
+  const insets = useInsets();
   const brand = useBrand();
 
   const product = useProduct(idOrSlug);
@@ -59,6 +66,7 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
   const add = useAddToCart();
   const isCustomer = useSessionStore((s) => s.status === 'authenticated');
   const wishlist = useWishlist();
+  const activeOffers = useActiveOffers();
   const toggleWishlist = useToggleWishlist();
   const pushRecent = useRecentlyViewedStore((s) => s.push);
 
@@ -108,6 +116,9 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
 
   const variants = p.variants;
   const variant = variants.find((v) => v.id === selectedId) ?? variants.find((v) => v.inStock) ?? variants[0];
+  // While a special-price offer is on, the pack is limited to its units per order (the server enforces it too).
+  const offer = offerForVariant(activeOffers.data ?? [], variant?.id);
+  const limits = limitsWithOffer(effectiveOrderLimits({ minOrderQty: variant?.minQty, maxOrderQty: variant?.maxQty }), offer);
   const price = variant ? resolveSlabPrice(variant.sellingPrice, variant.priceSlabs, qty) : p.sellingPrice;
   const mrp = variant?.mrp ?? p.mrp;
   const saving = mrp != null && mrp > price ? mrp - price : 0;
@@ -145,9 +156,53 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
   }
 
   const attrs = Object.entries(p.attributes ?? {});
+  // A solid bar under the status bar: the page scrolls beneath it, never behind the clock and battery icons.
+  const topBar = (
+    <View style={[styles.topBar, { paddingTop: insets.top }]} testID="pdp-topbar">
+      <View style={styles.topBarRow}>
+        <Pressable
+          onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Main'))}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          style={styles.barBtn}
+          hitSlop={6}
+        >
+          <MaterialCommunityIcons name="arrow-left" size={24} color={theme.colors.inkStrong} />
+        </Pressable>
+        <Text style={styles.barTitle} numberOfLines={1} accessibilityRole="header">
+          {p.title}
+        </Text>
+        <Pressable
+          onPress={onHeart}
+          accessibilityRole="button"
+          accessibilityLabel={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+          style={styles.barBtn}
+          hitSlop={6}
+        >
+          <MaterialCommunityIcons
+            name={isWishlisted ? 'heart' : 'heart-outline'}
+            size={23}
+            color={isWishlisted ? theme.colors.danger : theme.colors.inkStrong}
+          />
+        </Pressable>
+        <Pressable
+          onPress={() =>
+            void Share.share({ message: `${p.title} — ${env.apiBaseUrl}/product/${p.slug}` })
+          }
+          accessibilityRole="button"
+          accessibilityLabel="Share product"
+          style={styles.barBtn}
+          hitSlop={6}
+        >
+          <MaterialCommunityIcons name="share-variant-outline" size={22} color={theme.colors.inkStrong} />
+        </Pressable>
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.root}>
+      {topBar}
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <Gallery
           images={images}
@@ -156,7 +211,24 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
         />
 
         <Card>
-          {p.brand ? <Text style={[styles.brand, { color: brand.primary }]}>{p.brand}</Text> : null}
+          {p.brand ? (
+            // Tapping the brand lists every product of that brand (falls back to a search by name).
+            <Pressable
+              onPress={() =>
+                p.brandId
+                  ? navigation.navigate('ProductList', { brandId: p.brandId, title: p.brand ?? undefined })
+                  : navigation.navigate('Search', { q: p.brand ?? undefined })
+              }
+              accessibilityRole="link"
+              accessibilityLabel={`See all ${p.brand} products`}
+              hitSlop={8}
+              style={styles.brandLink}
+              testID="pdp-brand"
+            >
+              <Text style={[styles.brand, { color: brand.primary }]}>{p.brand}</Text>
+              <MaterialCommunityIcons name="chevron-right" size={16} color={brand.primary} />
+            </Pressable>
+          ) : null}
           <Text style={styles.title}>{p.title}</Text>
           <Rating value={p.ratingAvg} count={p.ratingCount} />
 
@@ -195,13 +267,19 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
           </Card>
         ) : null}
 
+        {offer ? (
+          <Card>
+            <View style={styles.offerBox} testID="pdp-offer">
+              <Text style={styles.offerHead}>🎁 {productOfferBanner(offer).headline}</Text>
+              <Text style={styles.offerNote}>{productOfferBanner(offer).note}</Text>
+            </View>
+          </Card>
+        ) : null}
         <Card>
           <View style={styles.qtyRow}>
             <Text style={styles.qtyLabel}>Quantity</Text>
-            <QuantitySelector value={qty} onChange={setQty} min={1} max={99} disabled={!inStock} label={p.title} />
+            <QuantitySelector value={Math.min(qty, limits.max)} onChange={setQty} min={1} max={limits.max} disabled={!inStock} label={p.title} />
           </View>
-          <View style={styles.divider} />
-          <DeliveryCheck />
         </Card>
 
         {p.description ? (
@@ -257,32 +335,6 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
           <Text style={styles.addedLink}>VIEW CART ›</Text>
         </Pressable>
       ) : null}
-      {backBtn}
-      <View style={[styles.floatRight, { top: insets.top + 8 }]}>
-        <Pressable
-          onPress={onHeart}
-          accessibilityRole="button"
-          accessibilityLabel={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-          style={styles.floatBtnStatic}
-        >
-          <MaterialCommunityIcons
-            name={isWishlisted ? 'heart' : 'heart-outline'}
-            size={22}
-            color={isWishlisted ? theme.colors.danger : theme.colors.inkStrong}
-          />
-        </Pressable>
-        <Pressable
-          onPress={() =>
-            void Share.share({ message: `${p.title} — ${env.apiBaseUrl}/product/${p.slug}` })
-          }
-          accessibilityRole="button"
-          accessibilityLabel="Share product"
-          style={styles.floatBtnStatic}
-        >
-          <MaterialCommunityIcons name="share-variant-outline" size={21} color={theme.colors.inkStrong} />
-        </Pressable>
-      </View>
-
       <View style={[styles.footer, { paddingBottom: insets.bottom + theme.spacing.sm }]}>
         <Button
           title={added ? 'Add more' : 'Add to Cart'}
@@ -311,6 +363,7 @@ const styles = StyleSheet.create({
   body: { paddingBottom: theme.spacing.xl },
   title: { fontSize: 20, lineHeight: 26, fontWeight: '800', color: theme.colors.inkStrong },
   brand: { fontSize: 12, lineHeight: 16, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
+  brandLink: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', minHeight: 28 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: theme.colors.border, marginVertical: theme.spacing.md },
   saving: { ...theme.typography.body, fontWeight: '700', marginTop: theme.spacing.xs },
   stockChip: {
@@ -345,6 +398,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: theme.spacing.sm,
   },
+  topBar: {
+    backgroundColor: theme.colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.border,
+    zIndex: 5,
+  },
+  topBarRow: { height: 52, flexDirection: 'row', alignItems: 'center', paddingHorizontal: theme.spacing.xs },
+  barBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  barTitle: { flex: 1, ...theme.typography.bodyLg, color: theme.colors.inkStrong, fontWeight: '700', paddingHorizontal: theme.spacing.xs },
   floatBtnStatic: {
     width: 40,
     height: 40,
@@ -359,6 +421,9 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   qtyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  offerBox: { gap: 2, padding: theme.spacing.sm, borderRadius: theme.radius.lg, borderWidth: 1, borderStyle: 'dashed', borderColor: '#f59e0b', backgroundColor: '#fffbeb' },
+  offerHead: { ...theme.typography.body, color: '#92400e', fontWeight: '800' },
+  offerNote: { ...theme.typography.caption, color: '#b45309' },
   qtyLabel: { ...theme.typography.bodyLg, color: theme.colors.inkStrong, fontWeight: '700' },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.sm },
   cardTitleBar: { width: 4, height: 16, borderRadius: 2 },

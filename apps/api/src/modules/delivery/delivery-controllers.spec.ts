@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { ROLES_KEY } from '../../common/auth/roles.decorator';
+import { PERMISSIONS_KEY } from '../../common/auth/permissions.decorator';
 import { IS_PUBLIC_KEY } from '../../common/auth/public.decorator';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { AdminDeliverySettingsController } from './admin/admin-delivery-settings.controller';
@@ -38,7 +38,7 @@ function routes(ctl: Ctl): { name: string; handler: Handler; method: number; pat
 }
 
 const guardsOf = (ctl: Ctl, handler: Handler): unknown[] => [...(meta<unknown[]>('__guards__', ctl) ?? []), ...(meta<unknown[]>('__guards__', handler) ?? [])];
-const rolesOf = (ctl: Ctl, handler: Handler): string[] => meta<string[]>(ROLES_KEY, handler) ?? meta<string[]>(ROLES_KEY, ctl) ?? [];
+const rolesOf = (ctl: Ctl, handler: Handler): string[] => meta<string[]>(PERMISSIONS_KEY, handler) ?? meta<string[]>(PERMISSIONS_KEY, ctl) ?? [];
 const isPublic = (ctl: Ctl, handler: Handler): boolean => meta<boolean>(IS_PUBLIC_KEY, handler) ?? meta<boolean>(IS_PUBLIC_KEY, ctl) ?? false;
 
 const ADMIN: Ctl[] = [AdminPartnersController, AdminZonesController, AdminDeliveryController, AdminDeliverySettingsController] as unknown as Ctl[];
@@ -56,12 +56,16 @@ describe('access control of the delivery controllers (SECURITY-08)', () => {
     }
   });
 
-  it('operations are open to order_manager (super_admin passes every role check); settings only to super_admin (D3)', () => {
-    for (const ctl of [AdminPartnersController, AdminZonesController, AdminDeliveryController] as unknown as Ctl[]) {
-      for (const r of routes(ctl)) expect(rolesOf(ctl, r.handler)).toEqual(['order_manager']);
-    }
-    for (const r of routes(AdminDeliverySettingsController as unknown as Ctl)) {
-      expect(rolesOf(AdminDeliverySettingsController as unknown as Ctl, r.handler)).toEqual(['super_admin']);
+  it('partners and zones need delivery.partners, jobs need delivery.jobs, settings need delivery.settings (D3)', () => {
+    const expected: [unknown, string][] = [
+      [AdminPartnersController, 'delivery.partners'],
+      [AdminZonesController, 'delivery.partners'],
+      [AdminDeliveryController, 'delivery.jobs'],
+      [AdminDeliverySettingsController, 'delivery.settings'],
+    ];
+    for (const [klass, key] of expected) {
+      const ctl = klass as Ctl;
+      for (const r of routes(ctl)) expect({ route: `${ctl.name}.${r.name}`, rule: rolesOf(ctl, r.handler) }).toEqual({ route: `${ctl.name}.${r.name}`, rule: [key] });
     }
   });
 

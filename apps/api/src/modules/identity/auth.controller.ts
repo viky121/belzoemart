@@ -38,6 +38,18 @@ export class AuthController {
     return this.auth.requestOtp({ phone: dto.phone, email: dto.email }, dto.purpose);
   }
 
+  /**
+   * Is this mobile number / email already registered? Lets the sign-up form say "please sign in" before an
+   * OTP is sent. Same answer as `otp/request` with purpose "register" gives, so it reveals nothing new;
+   * rate limited all the same.
+   */
+  @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Post('identifier/check')
+  async checkIdentifier(@Body() dto: OtpRequestDto) {
+    return { registered: await this.auth.isRegistered({ phone: dto.phone, email: dto.email }) };
+  }
+
   /** Check a code WITHOUT signing in; returns a signed proof for sign-up / password reset. */
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })

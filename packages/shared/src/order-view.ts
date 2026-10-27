@@ -40,6 +40,9 @@ export interface OrderDetailItem {
   quantity: number;
   unitPrice: number;
   taxRatePct: number;
+  /** Set when the item was sold at a special offer price. */
+  offerId?: string | null;
+  offerName?: string | null;
   imageUrl: string | null;
   slug: string | null;
   isReturnable: boolean;

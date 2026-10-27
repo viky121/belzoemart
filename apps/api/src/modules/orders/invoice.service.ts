@@ -6,12 +6,12 @@ import { STORAGE_PROVIDER, type StorageProvider } from '../../integrations/stora
 import { SettingsService } from '../admin/settings.service';
 import {
   buildInvoiceDocument,
-  renderInvoiceHtml,
   type InvoiceDocument,
   type InvoiceOrder,
   type InvoiceSeller,
 } from './invoice-document';
 import { renderInvoicePdf } from './invoice-pdf';
+import { renderInvoiceHtml } from './invoice-receipt';
 
 export const INVOICE_KEY = (orderId: string) => `invoices/${orderId}.html`;
 /** Invoices are overwritten in place on regenerate, so they must not be cached as immutable. */
@@ -147,16 +147,18 @@ export class InvoiceService {
       variantIds.length
         ? this.prisma.variant.findMany({
             where: { id: { in: variantIds } },
-            select: { id: true, product: { select: { hsnCode: true } } },
+            select: { id: true, mrp: true, product: { select: { hsnCode: true } } },
           })
-        : Promise.resolve([] as { id: string; product: { hsnCode: string } | null }[]),
+        : Promise.resolve([] as { id: string; mrp: number; product: { hsnCode: string } | null }[]),
       this.loadSeller(),
     ]);
     const hsnByVariant = new Map<string, string>(
       variants.map((v) => [v.id, v.product?.hsnCode ?? ''] as [string, string]),
     );
 
-    return buildInvoiceDocument({ number, invoiceDate, order, hsnByVariant, address, customer, seller });
+    const mrpByVariant = new Map<string, number>(variants.map((v) => [v.id, v.mrp] as [string, number]));
+    const publicBaseUrl = (process.env.PUBLIC_BASE_URL ?? '').trim() || seller.website;
+    return buildInvoiceDocument({ number, invoiceDate, order, hsnByVariant, mrpByVariant, publicBaseUrl, address, customer, seller });
   }
 
   /**
@@ -192,7 +194,7 @@ export class InvoiceService {
 
   /** Store identity for the invoice header, from admin settings with env/default fallbacks. */
   private async loadSeller(): Promise<InvoiceSeller> {
-    const [name, legalName, gstinSetting, address, city, pincode, stateSetting, phone, email, website, logoUrl, terms] =
+    const [name, legalName, gstinSetting, address, city, pincode, stateSetting, phone, email, website, logoUrl, terms, fssai] =
       await Promise.all(
         [
           'store.name',
@@ -207,6 +209,7 @@ export class InvoiceService {
           'store.website',
           'store.logoUrl',
           'store.invoiceTerms',
+          'store.fssai',
         ].map((k) => this.resolveString(k)),
       );
     const storeName = name ?? 'Belzo eMart';
@@ -228,6 +231,7 @@ export class InvoiceService {
       website: website ?? null,
       logoUrl: await this.resolveLogo(logoUrl),
       terms: terms ?? null,
+      fssai: fssai ?? null,
     };
   }
 

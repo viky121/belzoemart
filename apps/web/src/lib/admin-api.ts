@@ -63,6 +63,38 @@ export async function adminFetch<T>(path: string, options: ApiRequestOptions = {
   }
 }
 
+/**
+ * Downloads a file the API builds (e.g. a report as CSV). A plain link cannot carry the admin login (the
+ * token lives in memory), so the file is fetched with it and handed to the browser as a download.
+ */
+export async function adminDownload(path: string, filename: string): Promise<void> {
+  const url = `${apiBaseUrl()}/api/v1${path.startsWith('/') ? path : `/${path}`}`;
+  const send = (token: string | null) =>
+    fetch(url, { credentials: 'include', headers: token ? { authorization: `Bearer ${token}` } : {}, cache: 'no-store' });
+  let token = adminAccessToken ?? (await refreshAdminToken());
+  let res = await send(token);
+  if (res.status === 401) {
+    token = await refreshAdminToken();
+    if (token) res = await send(token);
+  }
+  if (!res.ok) {
+    const message = await res
+      .json()
+      .then((d: { message?: string }) => d.message)
+      .catch(() => undefined);
+    throw new Error(message || (res.status === 403 ? 'You do not have access to this report.' : 'Could not download the file.'));
+  }
+  const blob = await res.blob();
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(href);
+}
+
 export function hasAdminToken(): boolean {
   return adminAccessToken !== null;
 }

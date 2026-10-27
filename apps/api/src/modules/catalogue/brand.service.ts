@@ -1,14 +1,36 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { slugify } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { CategoryService } from './category.service';
 
 /** Brand master (FR-8.7). */
 @Injectable()
 export class BrandService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly categories: CategoryService,
+  ) {}
 
-  list() {
-    return this.prisma.brand.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } });
+  /**
+   * Active brands. With `categoryId` only the brands that have a product on sale in that category or any
+   * category below it; with `q` only the brands that have a product matching the search words. This is what
+   * the storefront filter shows, so a category lists its own brands and not every brand of the shop.
+   */
+  async list(opts: { categoryId?: string; q?: string } = {}) {
+    const onSale: Record<string, unknown> = { status: 'published', variants: { some: { isActive: true } } };
+    if (opts.categoryId) onSale.categoryId = { in: await this.categories.descendantIds(opts.categoryId) };
+    const q = opts.q?.trim();
+    if (q) {
+      onSale.OR = [
+        { title: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+    const filtered = Boolean(opts.categoryId || q);
+    return this.prisma.brand.findMany({
+      where: { isActive: true, ...(filtered ? { products: { some: onSale } } : {}) },
+      orderBy: { name: 'asc' },
+    });
   }
 
   /** All brands (any status) with product counts, for the admin manager. */

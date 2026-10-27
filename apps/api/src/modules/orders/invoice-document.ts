@@ -1,18 +1,15 @@
 import {
   allocateProportional,
   amountInWordsInr,
-  formatMoney,
   gstStateCode,
   isGstInclusiveSnapshot,
-  paise,
 } from '@belzo/shared';
 
 /**
  * Pure GST tax-invoice builder + HTML template (no Nest, no I/O).
  *
  * `buildInvoiceDocument()` turns the stored order snapshot into plain invoice
- * data; `renderInvoiceHtml()` turns that into a self-contained, print-friendly
- * A4 HTML document. The order's stored money fields (integer paise) are the
+ * data; the receipt layout (invoice-receipt.ts) turns that into the 80 mm bill. The order's stored money fields (integer paise) are the
  * source of truth: per-line discount, taxable value and CGST/SGST/IGST are
  * allocations of the stored totals that sum EXACTLY to them, and the grand
  * total printed is the stored grand total (any gap shows as an explicit
@@ -41,25 +38,11 @@ export function escapeHtml(s: unknown): string {
   return String(s).replace(/[&<>"']/g, (c) => HTML_ESCAPES[c] ?? c);
 }
 
-/** Escaped text, or '-' when the value is missing/blank. */
-function text(v: unknown): string {
-  if (v === null || v === undefined) return '-';
-  const s = String(v).trim();
-  return s.length === 0 ? '-' : escapeHtml(s);
-}
-
 /** Trimmed non-empty string, else null. */
 function clean(v: unknown): string | null {
   if (typeof v !== 'string') return null;
   const s = v.trim();
   return s.length > 0 ? s : null;
-}
-
-const money = (p: number) => escapeHtml(formatMoney(paise(p)));
-
-/** Percent without trailing zeros: 18 -> "18", 2.5 -> "2.5". */
-function fmtRate(n: number): string {
-  return String(Number(n.toFixed(2)));
 }
 
 const DATE_FMT = new Intl.DateTimeFormat('en-IN', {
@@ -89,6 +72,8 @@ export interface InvoiceSeller {
   email: string | null;
   website: string | null;
   logoUrl: string | null;
+  /** FSSAI licence number (food sellers). */
+  fssai: string | null;
   terms: string | null;
 }
 
@@ -111,12 +96,19 @@ export interface InvoiceOrderItem {
   unitPrice: number;
   quantity: number;
   taxRatePct: number;
+  /** Set when the item was sold through a special-price offer: a coupon never discounted it. */
+  offerId?: string | null;
+  offerName?: string | null;
+  /** Printed MRP of one unit when the order was placed (paise). */
+  mrp?: number | null;
 }
 
 export interface InvoicePayment {
   provider: string;
   status: string;
   method?: string | null;
+  /** The gateway's payment id (shown as the payment reference). */
+  providerPaymentId?: string | null;
   createdAt: Date;
 }
 
@@ -154,6 +146,8 @@ export interface InvoiceCustomerInput {
 }
 
 export interface InvoiceLine {
+  /** Printed MRP of one unit, never below the selling price. */
+  mrp: number;
   sr: number;
   title: string;
   sku: string;
@@ -184,6 +178,28 @@ export interface InvoiceHsnRow {
 }
 
 export interface InvoiceDocument {
+  /** "25/10/2026 09:15 AM" (India time). */
+  invoiceDateTime: string;
+  orderDateTime: string;
+  /** Different products on the bill. */
+  itemCount: number;
+  /** Gross sales value: every unit at its printed MRP. */
+  mrpTotal: number;
+  /** MRP minus the selling price, over all units. */
+  productDiscount: number;
+  /** What the customer saved in all: product discount plus coupon discount. */
+  savings: number;
+  /** Cash on Delivery order. */
+  isCod: boolean;
+  /** The payment went through (status Paid). */
+  paymentSettled: boolean;
+  /** Gateway payment id, when there is one. */
+  paymentRef: string | null;
+  amountPaid: number;
+  /** Still to pay (Cash on Delivery, or an unfinished online payment). */
+  balanceDue: number;
+  /** Where the invoice QR code points: the order page. */
+  verifyUrl: string | null;
   number: string;
   invoiceDate: string;
   orderNo: string;
@@ -235,6 +251,10 @@ export interface InvoiceDocument {
 }
 
 export interface BuildInvoiceInput {
+  /** variantId -> today's MRP, used only for items whose order did not save an MRP. */
+  mrpByVariant?: Map<string, number>;
+  /** Public website address, for the QR code link (https://belzoemart.com). */
+  publicBaseUrl?: string | null;
   number: string;
   invoiceDate: Date;
   order: InvoiceOrder;
@@ -284,25 +304,46 @@ function splitLineTaxes(
   return delta === 0 ? { cgst, sgst, igst: zeros } : null;
 }
 
-function paymentInfo(payments: InvoicePayment[] | undefined): { method: string; status: string } {
-  if (!payments || payments.length === 0) return { method: '-', status: '-' };
+function paymentInfo(payments: InvoicePayment[] | undefined): {
+  method: string;
+  status: string;
+  isCod: boolean;
+  settled: boolean;
+  ref: string | null;
+} {
+  if (!payments || payments.length === 0) return { method: '-', status: '-', isCod: false, settled: false, ref: null };
   const byLatest = [...payments].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   const p = byLatest.find((x) => x.status === 'captured') ?? byLatest[0]!;
   const isCod = p.provider === 'cod';
   let method: string;
   if (isCod) method = 'Cash on Delivery';
-  else if (p.provider === 'razorpay') method = `Online (Razorpay${clean(p.method) ? ` · ${clean(p.method)}` : ''})`;
+  else if (p.provider === 'razorpay') method = `Online (Razorpay${clean(p.method) ? ` \u00b7 ${clean(p.method)}` : ''})`;
   else if (p.provider === 'mock') method = 'Online (test)';
   else method = p.provider;
   const STATUS: Record<string, string> = {
     captured: 'Paid',
-    created: isCod ? 'Pending – pay on delivery' : 'Pending',
-    pending: isCod ? 'Pending – pay on delivery' : 'Pending',
+    created: isCod ? 'Pending \u2013 pay on delivery' : 'Pending',
+    pending: isCod ? 'Pending \u2013 pay on delivery' : 'Pending',
     failed: 'Failed',
     refunded: 'Refunded',
     partially_refunded: 'Partially refunded',
   };
-  return { method, status: STATUS[p.status] ?? p.status };
+  return {
+    method,
+    status: STATUS[p.status] ?? p.status,
+    isCod,
+    settled: p.status === 'captured',
+    ref: clean(p.providerPaymentId),
+  };
+}
+
+/** "25/10/2026 09:15 AM" in India time. */
+function fmtDateTime(d: Date): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata',
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((x) => x.type === t)?.value ?? '';
+  return `${get('day')}/${get('month')}/${get('year')} ${get('hour')}:${get('minute')} ${get('dayPeriod').toUpperCase()}`;
 }
 
 /** Build the invoice data from the stored order snapshot. Never throws on missing address/customer. */
@@ -325,10 +366,13 @@ export function buildInvoiceDocument(input: BuildInvoiceInput): InvoiceDocument 
   // Discount: pro-rata by gross, capped at each line's gross; sums to order.discount.
   const gross = items.map((i) => i.unitPrice * i.quantity);
   const grossSum = sum(gross);
+  // Special-offer items carry no share of a coupon discount.
+  const discountable = gross.map((g, idx) => (items[idx]!.offerId ? 0 : g));
+  const discountableSum = sum(discountable);
   const discounts =
     items.length === 0
       ? []
-      : allocateProportional(order.discount, gross, order.discount <= grossSum ? gross : undefined);
+      : allocateProportional(order.discount, discountable, order.discount <= discountableSum ? discountable : undefined);
   const net = gross.map((g, idx) => Math.max(0, g - discounts[idx]!));
 
   // Order taxable value derived from the snapshot so it is right for both
@@ -382,10 +426,11 @@ export function buildInvoiceDocument(input: BuildInvoiceInput): InvoiceDocument 
     const rate = i.taxRatePct;
     return {
       sr: idx + 1,
-      title: i.title,
+      title: i.offerId ? `${i.title} (offer price)` : i.title,
       sku: i.sku,
       hsn: clean(input.hsnByVariant.get(i.variantId)) ?? '-',
       quantity: i.quantity,
+      mrp: Math.max(i.mrp ?? input.mrpByVariant?.get(i.variantId) ?? 0, i.unitPrice),
       unitPrice: i.unitPrice,
       gross: gross[idx]!,
       discount: discounts[idx]!,
@@ -460,10 +505,26 @@ export function buildInvoiceDocument(input: BuildInvoiceInput): InvoiceDocument 
   };
 
   const pay = paymentInfo(order.payments);
+  const mrpTotal = sum(lines.map((l) => l.mrp * l.quantity));
+  const productDiscount = Math.max(0, mrpTotal - grossSum);
+  const amountPaid = pay.settled ? order.grandTotal : 0;
+  const base = clean(input.publicBaseUrl)?.replace(/\/+$/, '') ?? null;
 
   return {
     number: input.number,
     invoiceDate: DATE_FMT.format(input.invoiceDate),
+    invoiceDateTime: fmtDateTime(input.invoiceDate),
+    orderDateTime: fmtDateTime(order.createdAt),
+    itemCount: items.length,
+    mrpTotal,
+    productDiscount,
+    savings: productDiscount + order.discount,
+    isCod: pay.isCod,
+    paymentSettled: pay.settled,
+    paymentRef: pay.ref,
+    amountPaid,
+    balanceDue: Math.max(0, order.grandTotal - amountPaid),
+    verifyUrl: base ? `${base}/orders/${order.id}` : null,
     orderNo: order.id.slice(0, 8).toUpperCase(),
     orderId: order.id,
     orderDate: DATE_FMT.format(order.createdAt),
@@ -499,278 +560,6 @@ export function buildInvoiceDocument(input: BuildInvoiceInput): InvoiceDocument 
   };
 }
 
-// ---------------------------------------------------------------------------
-// Template
-// ---------------------------------------------------------------------------
-
-const DEFAULT_TERMS =
+/** Shown on the invoice when the store has not set its own terms. */
+export const DEFAULT_TERMS =
   "Goods once sold are subject to the store's return policy. Returns are accepted only for eligible items within the return window shown on the product page.";
-
-const DECLARATION =
-  'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.';
-
-/** Escaped multi-line text (newlines -> <br>). */
-function multiline(v: string | null): string {
-  if (!v) return '-';
-  return v
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map(escapeHtml)
-    .join('<br>');
-}
-
-function stateLine(state: string | null, code: string | null): string {
-  return `${text(state)}${code ? ` (Code ${escapeHtml(code)})` : ''}`;
-}
-
-function partyBlock(title: string, p: InvoiceParty, withEmail: boolean): string {
-  const cityPin = [p.city, p.pincode].filter(Boolean).join(' - ');
-  const addr = [p.line1, p.line2, cityPin || null].filter((x): x is string => Boolean(x));
-  return `<div class="party">
-<h3>${escapeHtml(title)}</h3>
-<div class="party-name">${text(p.name)}</div>
-<div>${addr.length ? addr.map(escapeHtml).join('<br>') : '-'}</div>
-<div><span class="lbl">State:</span> ${stateLine(p.state, p.stateCode)}</div>
-<div><span class="lbl">PIN:</span> ${text(p.pincode)}</div>
-<div><span class="lbl">Phone:</span> ${text(p.phone)}</div>
-${withEmail ? `<div><span class="lbl">Email:</span> ${text(p.email)}</div>` : ''}
-</div>`;
-}
-
-const CSS = `
-@page { size: A4; margin: 12mm; }
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
-body { font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif; font-size: 11px; color: #111; background: #f3f4f6; line-height: 1.4; }
-.sheet { width: 210mm; min-height: 297mm; margin: 12px auto; padding: 12mm; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
-.toolbar { text-align: right; width: 210mm; margin: 12px auto 0; }
-.toolbar button { font: inherit; font-size: 13px; padding: 8px 16px; border: 1px solid #1f2937; background: #1f2937; color: #fff; border-radius: 4px; cursor: pointer; }
-.title { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #111; padding-bottom: 6px; margin-bottom: 8px; }
-.title h1 { font-size: 18px; letter-spacing: .08em; margin: 0; }
-.title .copy { font-size: 10px; font-weight: 600; border: 1px solid #111; padding: 2px 6px; }
-.seller { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
-.seller-name { font-size: 15px; font-weight: 700; }
-.seller img { max-height: 56px; max-width: 160px; object-fit: contain; }
-.lbl { color: #4b5563; }
-table { width: 100%; border-collapse: collapse; }
-th, td { border: 1px solid #9ca3af; padding: 4px 5px; vertical-align: top; }
-th { background: #f3f4f6; font-weight: 600; text-align: center; }
-thead { display: table-header-group; }
-tr { page-break-inside: avoid; break-inside: avoid; }
-.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.ctr { text-align: center; }
-.meta td { width: 25%; }
-.meta td.k { color: #4b5563; width: 16%; white-space: nowrap; }
-.small { font-size: 9px; color: #4b5563; word-break: break-all; }
-.parties { display: flex; border: 1px solid #9ca3af; border-top: 0; margin-bottom: 8px; }
-.party { flex: 1; padding: 6px 8px; }
-.party + .party { border-left: 1px solid #9ca3af; }
-.party h3 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #374151; }
-.party-name { font-weight: 700; }
-.items { margin-bottom: 8px; }
-.items td.desc { text-align: left; }
-.items tfoot td { font-weight: 700; background: #f9fafb; }
-.summary { display: flex; gap: 12px; margin-bottom: 8px; align-items: flex-start; }
-.summary .words { flex: 1; border: 1px solid #9ca3af; padding: 6px 8px; }
-.totals { width: 46%; }
-.totals td:first-child { text-align: left; }
-.totals tr.grand td { font-size: 13px; font-weight: 700; background: #f3f4f6; }
-h2 { font-size: 12px; margin: 8px 0 4px; }
-.hsn { margin-bottom: 8px; }
-.hsn tfoot td { font-weight: 700; background: #f9fafb; }
-.foot { display: flex; gap: 12px; border: 1px solid #9ca3af; padding: 8px; }
-.foot .decl { flex: 1; }
-.foot .sign { width: 40%; text-align: right; display: flex; flex-direction: column; justify-content: space-between; min-height: 70px; }
-.note { margin-top: 8px; font-size: 10px; color: #374151; }
-@media print {
-  body { background: #fff; }
-  .no-print { display: none !important; }
-  .sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
-  th, .items tfoot td, .hsn tfoot td, .totals tr.grand td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-}
-`;
-
-/** Render the invoice as a self-contained A4 HTML document (inline CSS only). */
-export function renderInvoiceHtml(doc: InvoiceDocument): string {
-  const s = doc.seller;
-  const { showIntra, showInter } = doc;
-
-  const sellerCityPin = [s.city, s.pincode].filter(Boolean).join(' - ');
-  const sellerAddress = [s.address ? multiline(s.address) : null, sellerCityPin ? escapeHtml(sellerCityPin) : null]
-    .filter(Boolean)
-    .join('<br>');
-  // Accept http(s) URLs or an embedded base64 image data URI (used so the logo
-  // still shows when the invoice is served over HTTPS or saved/printed).
-  const logoSrc = s.logoUrl?.trim() ?? '';
-  const logo =
-    /^https?:\/\//i.test(logoSrc) ||
-    /^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,[a-z0-9+/=]+$/i.test(logoSrc)
-      ? `<img src="${escapeHtml(logoSrc)}" alt="${escapeHtml(s.name)} logo">`
-      : '';
-  const tradeName = s.name && s.name !== s.legalName ? `<div>Trade name: ${escapeHtml(s.name)}</div>` : '';
-
-  // Items table
-  const taxHead =
-    (showIntra ? '<th>CGST %</th><th>CGST ₹</th><th>SGST %</th><th>SGST ₹</th>' : '') +
-    (showInter ? '<th>IGST %</th><th>IGST ₹</th>' : '');
-  const rows = doc.lines
-    .map((l) => {
-      const tax =
-        (showIntra
-          ? `<td class="num">${fmtRate(l.cgstRate)}%</td><td class="num">${money(l.cgst)}</td><td class="num">${fmtRate(l.sgstRate)}%</td><td class="num">${money(l.sgst)}</td>`
-          : '') +
-        (showInter ? `<td class="num">${fmtRate(l.igstRate)}%</td><td class="num">${money(l.igst)}</td>` : '');
-      return `<tr>
-<td class="ctr">${l.sr}</td>
-<td class="desc">${text(l.title)}<div class="small">SKU: ${text(l.sku)}</div></td>
-<td class="ctr">${text(l.hsn)}</td>
-<td class="num">${l.quantity}</td>
-<td class="num">${money(l.unitPrice)}</td>
-<td class="num">${money(l.gross)}</td>
-<td class="num">${money(l.discount)}</td>
-<td class="num">${money(l.taxable)}</td>
-<td class="num">${fmtRate(l.taxRatePct)}%</td>
-${tax}
-<td class="num">${money(l.total)}</td>
-</tr>`;
-    })
-    .join('\n');
-  const ls = doc.lineSums;
-  const taxFoot =
-    (showIntra ? `<td></td><td class="num">${money(ls.cgst)}</td><td></td><td class="num">${money(ls.sgst)}</td>` : '') +
-    (showInter ? `<td></td><td class="num">${money(ls.igst)}</td>` : '');
-
-  // Totals
-  const t = doc.totals;
-  const totalRows: string[] = [
-    `<tr><td>Item total</td><td class="num">${money(t.itemTotal)}</td></tr>`,
-  ];
-  if (t.discount > 0 || t.couponCode) {
-    totalRows.push(
-      `<tr><td>Less: Discount${t.couponCode ? ` (Coupon: ${escapeHtml(t.couponCode)})` : ''}</td><td class="num">-${money(t.discount)}</td></tr>`,
-    );
-  }
-  if (t.pricesIncludeGst) {
-    totalRows.push(
-      `<tr><td>Net item value (incl. GST)</td><td class="num">${money(t.netTotal)}</td></tr>`,
-    );
-  }
-  totalRows.push(`<tr><td>Total taxable value</td><td class="num">${money(t.taxableTotal)}</td></tr>`);
-  if (showIntra) {
-    totalRows.push(`<tr><td>CGST</td><td class="num">${money(t.cgst)}</td></tr>`);
-    totalRows.push(`<tr><td>SGST</td><td class="num">${money(t.sgst)}</td></tr>`);
-  }
-  if (showInter) totalRows.push(`<tr><td>IGST</td><td class="num">${money(t.igst)}</td></tr>`);
-  totalRows.push(`<tr><td>Shipping charges</td><td class="num">${money(t.shipping)}</td></tr>`);
-  if (t.codFee > 0) totalRows.push(`<tr><td>COD fee</td><td class="num">${money(t.codFee)}</td></tr>`);
-  if (t.roundOff !== 0) {
-    totalRows.push(
-      `<tr><td>Round-off</td><td class="num">${t.roundOff < 0 ? '-' : '+'}${money(Math.abs(t.roundOff))}</td></tr>`,
-    );
-  }
-  totalRows.push(`<tr class="grand"><td>GRAND TOTAL</td><td class="num">${money(t.grandTotal)}</td></tr>`);
-
-  // HSN summary
-  const hsnHead =
-    (showIntra ? '<th>CGST ₹</th><th>SGST ₹</th>' : '') + (showInter ? '<th>IGST ₹</th>' : '');
-  const hsnRows = doc.hsn
-    .map(
-      (h) =>
-        `<tr><td class="ctr">${text(h.hsn)}</td><td class="num">${fmtRate(h.taxRatePct)}%</td><td class="num">${money(h.taxable)}</td>` +
-        (showIntra ? `<td class="num">${money(h.cgst)}</td><td class="num">${money(h.sgst)}</td>` : '') +
-        (showInter ? `<td class="num">${money(h.igst)}</td>` : '') +
-        `<td class="num">${money(h.totalTax)}</td></tr>`,
-    )
-    .join('\n');
-  const ht = doc.hsnTotals;
-  const hsnFoot =
-    `<td colspan="2">Total</td><td class="num">${money(ht.taxable)}</td>` +
-    (showIntra ? `<td class="num">${money(ht.cgst)}</td><td class="num">${money(ht.sgst)}</td>` : '') +
-    (showInter ? `<td class="num">${money(ht.igst)}</td>` : '') +
-    `<td class="num">${money(ht.totalTax)}</td>`;
-
-  const support = [s.email, s.phone].filter(Boolean).map(escapeHtml).join(' | ');
-
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tax Invoice ${escapeHtml(doc.number)}</title>
-<style>${CSS}</style>
-</head>
-<body>
-<div class="toolbar no-print"><button type="button" class="no-print" onclick="window.print()">Print / Save as PDF</button></div>
-<main class="sheet">
-<div class="title"><h1>TAX INVOICE</h1><span class="copy">ORIGINAL FOR RECIPIENT</span></div>
-
-<section class="seller">
-<div>
-<div class="seller-name">${text(s.legalName)}</div>
-${tradeName}
-<div>${sellerAddress || '-'}</div>
-<div><span class="lbl">State:</span> ${stateLine(s.state, s.stateCode)}</div>
-<div><span class="lbl">GSTIN:</span> ${s.gstin ? escapeHtml(s.gstin) : 'Not registered'}</div>
-${s.pan ? `<div><span class="lbl">PAN:</span> ${escapeHtml(s.pan)}</div>` : ''}
-<div><span class="lbl">Phone:</span> ${text(s.phone)} &nbsp; <span class="lbl">Email:</span> ${text(s.email)}</div>
-<div><span class="lbl">Website:</span> ${text(s.website)}</div>
-</div>
-<div>${logo}</div>
-</section>
-
-<table class="meta">
-<tr><td class="k">Invoice No</td><td><strong>${text(doc.number)}</strong></td><td class="k">Invoice Date</td><td>${text(doc.invoiceDate)}</td></tr>
-<tr><td class="k">Order No</td><td><strong>#${text(doc.orderNo)}</strong><div class="small">${text(doc.orderId)}</div></td><td class="k">Order Date</td><td>${text(doc.orderDate)}</td></tr>
-<tr><td class="k">Payment method</td><td>${text(doc.paymentMethod)}</td><td class="k">Payment status</td><td>${text(doc.paymentStatus)}</td></tr>
-<tr><td class="k">Place of Supply</td><td>${text(doc.placeOfSupply)}</td><td class="k">Reverse charge</td><td>${doc.reverseCharge}</td></tr>
-</table>
-
-<section class="parties">
-${partyBlock('Bill To', doc.billTo, true)}
-${partyBlock('Ship To', doc.shipTo, false)}
-</section>
-
-<table class="items">
-<thead><tr><th>Sr</th><th>Description</th><th>HSN</th><th>Qty</th><th>Unit price</th><th>Gross amount</th><th>Discount</th><th>Taxable value</th><th>GST %</th>${taxHead}<th>Total</th></tr></thead>
-<tbody>
-${rows}
-</tbody>
-<tfoot><tr><td colspan="3">Total</td><td class="num">${ls.quantity}</td><td></td><td class="num">${money(ls.gross)}</td><td class="num">${money(ls.discount)}</td><td class="num">${money(ls.taxable)}</td><td></td>${taxFoot}<td class="num">${money(ls.total)}</td></tr></tfoot>
-</table>
-
-<section class="summary">
-<div class="words"><span class="lbl">Amount in words:</span><br><strong>${escapeHtml(t.amountInWords)}</strong>${t.pricesIncludeGst ? '<div class="note">Item prices are inclusive of GST; taxable value and GST shown are extracted from the price.</div>' : ''}</div>
-<table class="totals">
-${totalRows.join('\n')}
-</table>
-</section>
-
-<h2>HSN/SAC summary</h2>
-<table class="hsn">
-<thead><tr><th>HSN/SAC</th><th>GST rate</th><th>Taxable value</th>${hsnHead}<th>Total tax</th></tr></thead>
-<tbody>
-${hsnRows}
-</tbody>
-<tfoot><tr>${hsnFoot}</tr></tfoot>
-</table>
-
-<section class="foot">
-<div class="decl">
-<strong>Declaration</strong>
-<div>${DECLARATION}</div>
-<div class="note">This is a computer-generated invoice and does not require a physical signature.</div>
-</div>
-<div class="sign">
-<div>For <strong>${text(s.legalName)}</strong></div>
-<div>Authorised Signatory</div>
-</div>
-</section>
-
-<div class="note"><strong>Terms:</strong> ${multiline(s.terms ?? DEFAULT_TERMS)}</div>
-${support ? `<div class="note">For support contact ${support}</div>` : ''}
-</main>
-</body>
-</html>
-`;
-}

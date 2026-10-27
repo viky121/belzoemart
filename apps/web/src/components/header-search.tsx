@@ -5,10 +5,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { ProductCardDto } from '@belzo/shared';
 import { catalogueApi, formatInr } from '@/lib/catalogue-api';
+import { useAccessTokenIfAny } from '@/lib/auth-context';
+import { trackSearch } from '@/lib/search-track';
 
 /** Header search with live product suggestions dropdown. */
 export function HeaderSearch() {
   const router = useRouter();
+  const { accessToken } = useAccessTokenIfAny();
   const [q, setQ] = useState('');
   const [results, setResults] = useState<ProductCardDto[]>([]);
   const [open, setOpen] = useState(false);
@@ -54,6 +57,8 @@ export function HeaderSearch() {
   }
 
   function go(slug: string) {
+    // The customer typed words and picked a product from the list: that is a real search.
+    trackSearch(q, accessToken);
     setOpen(false);
     setQ('');
     router.push(`/product/${slug}`);

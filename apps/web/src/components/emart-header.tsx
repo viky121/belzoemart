@@ -5,7 +5,6 @@ import { EmartAllCategories } from '@/components/emart-all-categories';
 import { CartLink } from '@/components/cart-link';
 import { CatbarNav } from '@/components/catbar-nav';
 import { HeaderAccount } from '@/components/header-account';
-import { DeliveryPin } from '@/components/delivery-pin';
 
 /** eMart theme storefront header: white top bar + category nav row. */
 export function EmartHeader({ categories }: { categories: CategoryNodeDto[] }) {
@@ -23,7 +22,6 @@ export function EmartHeader({ categories }: { categories: CategoryNodeDto[] }) {
           </div>
 
           <nav className="em-actions">
-            <DeliveryPin />
             <HeaderAccount />
             <Link href="/wishlist" data-testid="nav-wishlist">
               <span className="em-actions__ic">♥</span>

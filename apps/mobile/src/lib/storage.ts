@@ -39,7 +39,6 @@ export async function removeKey(key: string): Promise<void> {
 export const zustandStorage = createJSONStorage(() => AsyncStorage);
 
 export const STORAGE_KEYS = {
-  pincode: 'belzo.pincode',
   recentlyViewed: 'belzo.recentlyViewed',
   recentSearches: 'belzo.recentSearches',
   onboarding: 'belzo.onboarding.v1',

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { cartApi, type CartView } from '@/lib/cart-api';
 import { useAuth } from '@/lib/auth-context';
 import { QtyStepper } from '@/components/qty-stepper';
+import { CartOffers } from '@/components/cart-offers';
 import { formatInr } from '@/lib/catalogue-api';
 import { placeholderImage, isUsableImageUrl } from '@/lib/category-theme';
 import { safeSession } from '@/lib/safe-storage';
@@ -45,6 +46,17 @@ export default function CartPage() {
     }
   }
 
+  async function addOffer(variantId: string) {
+    setBusy(true);
+    setNotice(null);
+    try {
+      setCart(await cartApi.add(variantId, 1, accessToken ?? undefined));
+    } catch (e) {
+      setNotice(e instanceof Error && e.message ? e.message : 'Could not add the offer item.');
+    } finally {
+      setBusy(false);
+    }
+  }
   async function remove(variantId: string) {
     setBusy(true);
     try {
@@ -71,7 +83,7 @@ export default function CartPage() {
 
   function tierHint(item: (typeof active)[number]): { applied?: string; next?: string } | null {
     const slabs = [...(item.priceSlabs ?? [])].sort((a, b) => a.minQty - b.minQty);
-    if (slabs.length === 0) return null;
+    if (slabs.length === 0 || item.offerId) return null;
     const applied =
       item.unitPrice < item.basePrice
         ? `Bulk price applied — buying ${item.tierQty} of this product`
@@ -108,6 +120,7 @@ export default function CartPage() {
                 {notice}
               </p>
             )}
+            <CartOffers offers={cart?.offers} busy={busy} onAdd={(id) => void addOffer(id)} />
             <ul className="cartx__items" data-testid="cart-items">
               {active.map((item) => {
                 const real = isUsableImageUrl(item.imageUrl);
@@ -133,6 +146,11 @@ export default function CartPage() {
                       </span>
                       <div className="cline__pricem">
                         <span className="cline__price">{formatInr(item.unitPrice)}</span>
+                        {item.offerId && (
+                          <span className="cline__offer" data-testid={`cart-offer-tag-${item.sku}`}>
+                            🎁 Offer price{item.regularUnitPrice ? ` (was ${formatInr(item.regularUnitPrice)})` : ''}
+                          </span>
+                        )}
                         {item.discountPct > 0 && (
                           <>
                             <span className="cline__mrp">{formatInr(item.mrp)}</span>

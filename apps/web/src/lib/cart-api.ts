@@ -1,5 +1,6 @@
 'use client';
 
+import type { CartOffer } from '@belzo/shared';
 import { apiFetch, type ApiRequestOptions } from './api-client';
 import { safeUuid } from './uuid';
 import { safeLocal } from './safe-storage';
@@ -37,6 +38,11 @@ export interface CartLine {
   unit: string | null;
   imageUrl: string | null;
   unitPrice: number;
+  /** The price before any special offer (the bulk price when one applies). */
+  regularUnitPrice?: number;
+  /** Set when the special-offer price is being charged on this line. */
+  offerId?: string | null;
+  offerName?: string | null;
   basePrice: number;
   mrp: number;
   discountPct: number;
@@ -55,6 +61,8 @@ export interface CartLine {
 export interface CartView {
   cartId: string;
   items: CartLine[];
+  /** Special-price offers with the customer's progress towards each. */
+  offers?: CartOffer[];
 }
 
 function cartOptions(accessToken?: string, extra: ApiRequestOptions = {}): ApiRequestOptions {

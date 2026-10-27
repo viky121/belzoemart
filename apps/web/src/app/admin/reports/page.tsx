@@ -1,88 +1,83 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { apiBaseUrl } from '@/lib/api-base';
-import { adminFetch } from '@/lib/admin-api';
-import { formatInr } from '@/lib/catalogue-api';
+import { useMemo, useState } from 'react';
+import { isValidDateKey, istDay, presetRange, type RangePreset } from '@belzo/shared';
+import { GstStockTab } from './gst-stock-tab';
+import { PRESET_LABELS, REPORT_TABS, activePreset } from './report-format';
+import { ReportView } from './report-view';
 
-interface SalesRow {
-  status: string;
-  orders: number;
-  revenue: number;
-}
-interface GstReport {
-  totalTax: number;
-  byRate: { taxableRate: number; tax: number; orders: number }[];
-}
-
-/** Admin reports: sales + GST tables with CSV download (FR-12). */
+/**
+ * Admin reports (Admin 11): sales, orders, users, products, categories, brands, best sellers, payments,
+ * profit and loss, and the GST and stock downloads. One date filter applies to every tab; every report
+ * can be downloaded as CSV.
+ */
 export default function AdminReportsPage() {
-  const [sales, setSales] = useState<SalesRow[]>([]);
-  const [gst, setGst] = useState<GstReport | null>(null);
+  const today = useMemo(() => istDay(new Date()), []);
+  const [tab, setTab] = useState<string>('sales');
+  const [range, setRange] = useState(() => presetRange('30d'));
 
-  useEffect(() => {
-    void adminFetch<SalesRow[]>('/admin/reports/sales').then(setSales).catch(() => setSales([]));
-    void adminFetch<GstReport>('/admin/reports/gst').then(setGst).catch(() => setGst(null));
-  }, []);
+  const preset = activePreset(range.from, range.to);
+
+  function setDay(key: 'from' | 'to', value: string) {
+    if (!isValidDateKey(value)) return;
+    const next = { ...range, [key]: value };
+    // Keep the two days in order whichever one was changed.
+    if (next.from > next.to) {
+      if (key === 'from') next.to = next.from;
+      else next.from = next.to;
+    }
+    setRange(next);
+  }
 
   return (
     <div data-testid="admin-reports">
       <h1>Reports</h1>
-      <p className="admin-subtitle">Sales, tax and inventory reports with CSV export.</p>
+      <p className="admin-subtitle">Sales, orders, customers, products and profit. Pick the days once; every report follows them.</p>
 
-      <section className="admin-card">
-        <div className="admin-card__head">
-          <h2>Sales by status</h2>
-          <a className="btn" href={`${apiBaseUrl()}/api/v1/admin/reports/sales?format=csv`} data-testid="sales-csv">
-            ⬇ Download CSV
-          </a>
+      <section className="admin-card rep-filter">
+        <div className="rep-presets" role="group" aria-label="Quick date filter">
+          {(Object.keys(PRESET_LABELS) as RangePreset[]).map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={`rep-chip${preset === p ? ' is-on' : ''}`}
+              aria-pressed={preset === p}
+              onClick={() => setRange(presetRange(p))}
+            >
+              {PRESET_LABELS[p]}
+            </button>
+          ))}
         </div>
-        {sales.length === 0 ? (
-          <div className="admin-empty">No sales data yet.</div>
-        ) : (
-          <table className="admin-table" data-testid="sales-report">
-            <thead><tr><th>Status</th><th>Orders</th><th>Revenue</th></tr></thead>
-            <tbody>
-              {sales.map((s) => (
-                <tr key={s.status}>
-                  <td><span className="admin-status">{s.status}</span></td>
-                  <td>{s.orders}</td>
-                  <td>{formatInr(s.revenue)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        <div className="rep-custom">
+          <label>
+            <span>From</span>
+            <input type="date" className="auth-input" value={range.from} max={today} onChange={(e) => setDay('from', e.target.value)} />
+          </label>
+          <label>
+            <span>To</span>
+            <input type="date" className="auth-input" value={range.to} max={today} onChange={(e) => setDay('to', e.target.value)} />
+          </label>
+        </div>
       </section>
 
-      <section className="admin-card">
-        <div className="admin-card__head">
-          <h2>GST summary</h2>
-          {gst && <span className="admin-status admin-status--info" data-testid="gst-total">Total tax: {formatInr(gst.totalTax)}</span>}
-        </div>
-        {gst && gst.byRate.length > 0 ? (
-          <table className="admin-table" data-testid="gst-report">
-            <thead><tr><th>GST rate</th><th>Orders</th><th>Tax collected</th></tr></thead>
-            <tbody>
-              {gst.byRate.map((r) => (
-                <tr key={r.taxableRate}><td>{r.taxableRate}%</td><td>{r.orders}</td><td>{formatInr(r.tax)}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="admin-empty">No tax collected yet.</div>
-        )}
-      </section>
+      <div className="rep-tabs" role="tablist" aria-label="Reports">
+        {REPORT_TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            className={`rep-tab${tab === t.id ? ' is-on' : ''}`}
+            onClick={() => setTab(t.id)}
+            data-testid={`report-tab-${t.id}`}
+          >
+            {t.label}
+            {t.superAdminOnly && <span className="rep-tab__lock" title="Super Admin only"> 🔒</span>}
+          </button>
+        ))}
+      </div>
 
-      <section className="admin-card">
-        <div className="admin-card__head">
-          <h2>Inventory</h2>
-          <a className="btn" href={`${apiBaseUrl()}/api/v1/admin/reports/inventory?format=csv`} data-testid="inventory-csv">
-            ⬇ Download low-stock CSV
-          </a>
-        </div>
-        <p className="admin-subtitle" style={{ margin: 0 }}>Export the current low-stock report as CSV.</p>
-      </section>
+      {tab === 'gst' ? <GstStockTab from={range.from} to={range.to} /> : <ReportView key={tab} id={tab} from={range.from} to={range.to} />}
     </div>
   );
 }

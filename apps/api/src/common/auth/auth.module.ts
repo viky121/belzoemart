@@ -2,11 +2,12 @@ import { Global, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { RolesGuard } from './roles.guard';
+import { AdminAccessService } from './admin-access.service';
+import { PermissionsGuard } from './permissions.guard';
 
 /**
  * Registers JWT support and wires the global guards. JwtAuthGuard runs first
- * (deny-by-default authentication), then RolesGuard (function-level authz).
+ * (deny-by-default authentication), then PermissionsGuard (function-level authz).
  */
 @Global()
 @Module({
@@ -19,8 +20,9 @@ import { RolesGuard } from './roles.guard';
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
-    { provide: APP_GUARD, useClass: RolesGuard },
+    AdminAccessService,
+    { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
-  exports: [JwtModule],
+  exports: [JwtModule, AdminAccessService],
 })
 export class AuthModule {}

@@ -6,7 +6,6 @@ import { HeaderSearch } from '@/components/header-search';
 import { EmartHeader } from '@/components/emart-header';
 import { EmartFooter } from '@/components/emart-footer';
 import { Toaster } from '@/components/toaster';
-import { PincodeGate } from '@/components/pincode-gate';
 import { ProfilePrompt } from '@/components/profile-prompt';
 import { getSiteContent } from '@/lib/site-content';
 import { apiFetch } from '@/lib/api-client';
@@ -78,10 +77,6 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
 
       <Toaster />
 
-      {/* Mandatory delivery-PIN gate — mounted once here (shared shop layout) so it
-          covers the whole storefront and the home page for BOTH themes (classic +
-          emart) without per-page duplication. Design shape (A); see pincode-gate.tsx. */}
-      <PincodeGate />
 
       {/* Post-login profile completion (asks for name + the missing contact). */}
       <ProfilePrompt />

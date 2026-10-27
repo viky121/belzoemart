@@ -7,8 +7,9 @@ export function fetchProducts(params: ProductParams): Promise<Paginated<ProductC
   return apiRequest<Paginated<ProductCardDto>>('/products', { query: { ...params } });
 }
 
-export function fetchBrands(): Promise<Brand[]> {
-  return apiRequest<Brand[]>('/brands');
+/** All brands, or only the brands that sell in one category (and the ones below it). */
+export function fetchBrands(categoryId?: string): Promise<Brand[]> {
+  return apiRequest<Brand[]>('/brands', { query: { categoryId } });
 }
 
 export function fetchProduct(idOrSlug: string): Promise<ProductDetailDto> {
