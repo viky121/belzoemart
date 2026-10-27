@@ -1,7 +1,7 @@
 import { fireEvent } from '@testing-library/react-native';
 import type { CategoryNodeDto, MobileCategoryTile } from '@belzo/shared';
 import { renderWithProviders } from '@/test-utils';
-import { CategoryShortcuts, VISIBLE_TILES, tileWidthFor } from '../CategoryShortcuts';
+import { CategoryShortcuts, MIN_TILE, VISIBLE_TILES, tileWidthFor } from '../CategoryShortcuts';
 
 const node = (id: string, name: string): CategoryNodeDto =>
   ({ id, name, slug: id, parentId: null, imageUrl: null, children: [] }) as unknown as CategoryNodeDto;
@@ -51,6 +51,20 @@ describe('tileWidthFor', () => {
     expect(w * VISIBLE_TILES).toBeLessThanOrEqual(360);
   });
   it('never gets too narrow on a small screen', () => {
-    expect(tileWidthFor(200, 40)).toBe(68);
+    expect(tileWidthFor(200, 40)).toBe(MIN_TILE);
+  });
+  it('leaves a clear gap between two neighbouring circles on a 360 wide phone', () => {
+    // The ring around a circle is 70 wide; two rings must not touch.
+    const ring = 62 + 3 * 2 + 2;
+    expect(tileWidthFor(360, 32) - ring).toBeGreaterThanOrEqual(8);
+  });
+});
+
+describe('category names', () => {
+  it('grow only a little with the phone font size, so a long name is not cut in the middle', async () => {
+    const ui = await renderWithProviders(<CategoryShortcuts tiles={[tile('s', 'Stationery')]} onPressCategory={jest.fn()} />);
+    const label = ui.getByText('Stationery');
+    expect(label.props.maxFontSizeMultiplier).toBeLessThanOrEqual(1.2);
+    expect(label.props.numberOfLines).toBe(2);
   });
 });

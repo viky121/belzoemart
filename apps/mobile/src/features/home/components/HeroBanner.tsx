@@ -1,4 +1,4 @@
-import type { HeroContent } from '@belzo/shared';
+import { MOBILE_HERO_ASPECT, type HeroContent } from '@belzo/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
@@ -16,7 +16,10 @@ import { theme } from '@/theme';
 import { RemoteImage } from '@/ui/RemoteImage';
 
 const WIDTH = Dimensions.get('window').width - theme.spacing.lg * 2;
-const HEIGHT = 170;
+/** Banner height follows the recommended 1000 × 400 shape, so the picture is not cropped. */
+export const HEIGHT = Math.round(WIDTH / MOBILE_HERO_ASPECT);
+/** The "Big Savings" card (shown when no banner is set) keeps its own height. */
+const PROMO_MIN_HEIGHT = 170;
 const AUTO_SCROLL_MS = 4000;
 /** How long the slide animation takes at most before we make sure we are back on banner 1. */
 const SLIDE_SETTLE_MS = 700;
@@ -106,6 +109,7 @@ export function HeroBanner({ banners, hero, onOpenHref }: HeroBannerProps) {
       <View style={styles.wrap}>
         <ScrollView
           key={count}
+          testID="hero-carousel"
           ref={scroller}
           onLayout={onCarouselLayout}
           horizontal
@@ -185,7 +189,7 @@ const styles = StyleSheet.create({
   promo: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: HEIGHT,
+    minHeight: PROMO_MIN_HEIGHT,
     padding: theme.spacing.lg,
     backgroundColor: '#fde9cf',
   },

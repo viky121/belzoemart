@@ -13,14 +13,22 @@ export interface CategoryShortcutsProps {
   onPressCategory: (node: CategoryNodeDto) => void;
 }
 
-const CIRCLE = 66;
+const CIRCLE = 62;
+/**
+ * The name under a circle may grow with the phone's font size, but only a little: a tile is not
+ * wide enough for a long word like "Stationery" at a large size, and it would be cut in the middle.
+ */
+const LABEL_MAX_FONT_SCALE = 1.15;
 /**
  * How many tiles fit across the card. The half tile is deliberate: the next category peeks in from the right,
  * so people can see the row slides.
  */
 export const VISIBLE_TILES = 4.5;
-/** Narrowest a tile may get on a very small screen. */
-const MIN_TILE = 68;
+/**
+ * Narrowest a tile may get on a small screen. The ring around a circle is CIRCLE + 8 wide, so this
+ * leaves a clear gap between two neighbouring circles instead of them touching.
+ */
+export const MIN_TILE = 78;
 
 /** Width of one tile for a screen of this width (card margins and padding taken off). */
 export function tileWidthFor(screenWidth: number, horizontalChrome: number): number {
@@ -74,7 +82,11 @@ export function CategoryShortcuts({ tiles, onPressCategory }: CategoryShortcutsP
                   )}
                 </View>
               </View>
-              <Text style={styles.label} numberOfLines={2}>
+              <Text
+                style={styles.label}
+                numberOfLines={2}
+                maxFontSizeMultiplier={LABEL_MAX_FONT_SCALE}
+              >
                 {t.name}
               </Text>
             </Pressable>
