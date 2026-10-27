@@ -721,3 +721,28 @@ answer: both"
 **AI Response**: "Took a DB dump (belzo-backup-2026-10-26-2319-predeploy.sql), deployed commit 41bfc13 (web only, API unchanged). Live checks: health ok, home, search and category pages 200, the new filter CSS is served, no error lines in the web log. No new APK: the app code is unchanged since 0.1.18 (commit 1685213). APK 0.1.17 finished: https://expo.dev/artifacts/eas/AGZ-KgJP5d8ZJwZ0i7ufqdUuA4XxujXlcDRPfDVgVxQ.apk ; APK 0.1.18 (25704300-2ed8-4825-af3f-ecb507623526) is still queued on EAS."
 **Context**: Deploy and build approved by the user
 ---
+---
+## Mobile app: MRP and unit text cut off
+**Timestamp**: 2026-10-27T16:30:00Z
+**User Input**: "MRP is hiding hide ho rahi hai, pura text show nahi ho raha, in mobile app, fix it, abhi build mat karna aur v fix hai" (with a screenshot where every struck-through MRP lost its last character, for example 80 showed as 8, and the unit chip showed "1" for "1 pc")
+**AI Response**: "Cause: on Android, React Native measures plain text (no font weight set) with a shared paint that can still hold the icon font used earlier on the screen, so the text is measured too narrow and its last character is cut (worse on OPPO, Xiaomi and Samsung system fonts). The price and title have a weight and were fine; the MRP and unit did not. Fix: the regular text styles (caption, body, bodyLg) in the theme now set fontWeight 400 explicitly, which covers about 210 styles with one change. New test in ProductCard.test.tsx. Not verified on a phone (no device here)."
+**Context**: Small bug fix. Needs a new APK.
+---
+## Website: category bar on one line with a slider (phones)
+**Timestamp**: 2026-10-27T16:31:00Z
+**User Input**: "Category phone me ese dikh rahi hai sir inko ek line me slider ke sath kar dijiye. website mobile view me fix karo, build and deploy nahi karna abhi"
+**AI Response**: "The category links under the header wrapped onto three lines on a phone. They now stay on one line inside a swipeable strip (scrollbar hidden, snap to each link, the open category is scrolled into view). 'All Categories' stays outside the strip so its dropdown is not clipped. Checked in a browser at 390 and 360 px (7 links on one line, last link reachable, dropdown opens fully) and on desktop (unchanged, one line)."
+**Context**: Web only (catbar-nav.tsx, globals.css).
+---
+## Website: category page shows the same picture as the home page
+**Timestamp**: 2026-10-27T16:32:00Z
+**User Input**: "Jo home page pe category icon hai usko category wise inner page pe same icon show karwana hai, fix it"
+**AI Response**: "The header band of the category page used an emoji and gradient made from the slug; it ignored the picture the admin set for the category. It now shows the category picture. A sub-category without its own picture shows the picture of the closest category above it, and the sub-category chips follow the same rule. With no picture anywhere the old emoji tile stays. On the live data only top-level categories have pictures, so sub-category pages show their parent's picture until the admin uploads their own. 7 new tests; checked in a browser on desktop and phone."
+**Context**: Web only (category/[slug]/page.tsx, globals.css).
+---
+## Mobile app home: banner cropped, category names cut, circles touching
+**Timestamp**: 2026-10-27T16:34:00Z
+**User Input**: "Banner cut ho raha 1000 px and 400 px me upload Kiya, as mentied, and Category name hide ho raha and catgeory icon v chipak raha hai check and fix it" (screenshots of the admin banner upload that asks for 1000 x 400 px, and of the app home where the banner loses its sides, 'Personal Care' and 'Stationery' are cut in the middle and the circles touch each other)
+**AI Response**: "Causes found in the code: (1) the hero banner had a fixed height of 170 against a width of about 328 to 360 (about 2:1) while the recommended upload is 2.5:1, so the picture was cropped on both sides; (2) the category name grew with the phone font size but the tile has a fixed width, so a long word was broken in the middle; (3) the ring around a circle (74) was wider than the tile on a 360 phone (72), so neighbours touched. Fix: new shared constant MOBILE_HERO_ASPECT = 2.5 (like the offer rows) and the banner height follows it, so a 1000 x 400 picture shows whole; circle 66 to 62, minimum tile 68 to 78 (8 clear gap between rings); the name may grow at most 1.15 times with the phone font. New HeroBanner tests, two new category tests. Mobile tsc, eslint and 333 tests pass. Not verified on a phone."
+**Context**: Mobile app (needs a new APK) plus one shared constant.
+---
