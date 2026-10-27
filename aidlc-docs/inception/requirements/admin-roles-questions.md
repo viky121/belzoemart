@@ -52,7 +52,7 @@ A) Per area, with the levels in the table above (for example Products: View / Ed
 B) Simpler: one tick per area (can open it or not)
 C) More detailed: every single button gets its own tick
 X) Other (please describe after [Answer]: tag below)
-[Answer]:
+[Answer]:A
 
 ## Question Q2
 What should happen to the 5 existing roles?
@@ -60,42 +60,42 @@ A) Keep them as ready-made types that work exactly as they do today, and add thr
 B) Remove the old 5 and start with an empty list; I make everything from scratch
 C) Keep the old 5 locked as they are; new types are separate
 X) Other (please describe after [Answer]: tag below)
-[Answer]:
+[Answer]:A
 
 ## Question Q3
 Can a staff type be allowed to manage other staff and roles (create staff, make roles)?
 A) No. Only Super Admin can (recommended: otherwise someone could give themselves more access). "Admin" gets everything except staff and roles, payment gateway keys, SMS gateway keys and the audit log
 B) Yes, it is one more tick that Super Admin can give to a type
 X) Other (please describe after [Answer]: tag below)
-[Answer]:
+[Answer]:A
 
 ## Question Q4
 How many types can one staff member have?
 A) One type per person. Simple to understand (recommended)
 B) Several types per person; they add up
 X) Other (please describe after [Answer]: tag below)
-[Answer]:
+[Answer]:A
 
 ## Question Q5
 Should I also build the screen to manage the staff themselves? (Today there is none.)
 A) Yes: list staff, add a staff member with a password and a type, change their type, switch them off or on, reset their password, turn on two-step login (recommended: roles are no use without it)
 B) No, only the roles screen; I will add staff through the API
 X) Other (please describe after [Answer]: tag below)
-[Answer]:
+[Answer]:A
 
 ## Question Q6
 When you change a type's access, or switch a staff member off, when should it apply?
 A) Straight away, on their next click. The server checks the current access each time (recommended)
 B) At their next login or within 15 minutes
 X) Other (please describe after [Answer]: tag below)
-[Answer]:
+[Answer]:A
 
 ## Question Q7
 What should a staff member see in the admin panel?
 A) The menu shows only what they can use, the top bar shows their real name and type, and a page they may not open says "You do not have access" instead of an error or a login screen (recommended)
 B) Everyone sees the full menu; the server just refuses what they cannot do
 X) Other (please describe after [Answer]: tag below)
-[Answer]:
+[Answer]:A
 
 ## Question Q8
 Shortcut for the whole file.
