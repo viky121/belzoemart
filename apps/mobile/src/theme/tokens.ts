@@ -49,10 +49,15 @@ export const button = {
 
 export const fontWeight = { regular: '400', medium: '500', bold: '700' } as const;
 
+// Regular-weight styles set `fontWeight` on purpose. On Android, React Native measures text that has no
+// explicit font attributes with a shared paint that can still hold the icon font used earlier on the
+// screen (worse on OPPO / Xiaomi / Samsung system fonts). The text is then measured too narrow and its
+// last character or word is cut off (an MRP showing "₹8" for "₹80", a unit chip showing "1" for "1 pc").
+// Text with an explicit weight is measured correctly.
 export const typography = {
-  caption: { fontSize: 12, lineHeight: 16 },
-  body: { fontSize: 14, lineHeight: 20 },
-  bodyLg: { fontSize: 16, lineHeight: 22 },
+  caption: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.regular },
+  body: { fontSize: 14, lineHeight: 20, fontWeight: fontWeight.regular },
+  bodyLg: { fontSize: 16, lineHeight: 22, fontWeight: fontWeight.regular },
   title: { fontSize: 18, lineHeight: 24, fontWeight: fontWeight.bold },
   heading: { fontSize: 20, lineHeight: 26, fontWeight: fontWeight.bold },
   display: { fontSize: 24, lineHeight: 30, fontWeight: fontWeight.bold },
