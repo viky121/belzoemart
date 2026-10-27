@@ -753,3 +753,10 @@ answer: both"
 **AI Response**: "Committed in separate commits (MRP and unit text; home banner and category names; web category bar and category picture; version 0.1.19; audit). Not pushed. Took a DB dump (belzo-backup-2026-10-27-2223-predeploy.sql), deployed from the working tree at commit 73b6021 (web only; API unchanged, no migrations). Live checks: health ok, home, search and category pages 200, admin route 401 without login, the new CSS (one-line category bar, category picture) is served, the category page carries the picture markup, no errors in the web log. Mobile APK 0.1.19 (commit 4bc69e8 plus 73b6021) submitted to EAS: 69752ba5-165c-4121-9c55-ee8aa26a2e56; it was still waiting in the EAS queue after about 18 minutes when this entry was written, so there is no download link yet. APK 0.1.18 (finished) does not contain the MRP, banner and category-name fixes."
 **Context**: Deploy and build approved by the user
 ---
+---
+## Incident - website down, containers stopped (restarted)
+**Timestamp**: 2026-10-27T17:45:00Z
+**User Input**: "https://belzoemart.com/ website is not running"
+**AI Response**: "All six containers were stopped (the server itself was up, 32 days). Timeline from the server logs: about 17:11 the containers could not resolve names (the worker logged 71 'getaddrinfo EAI_AGAIN redis' and 15 timeouts; dockerd logged 'more than 1024 concurrent queries' and DNS timeouts to 127.0.0.53); at 17:14:50 the kernel hit out-of-memory and killed dockerd itself (1.35 GB of the 1.9 GB RAM); docker restarted at 17:15:05 and the containers stayed stopped. Postgres shut down cleanly (17:14:54). Restarted with 'docker compose up -d' (no rebuild, no data change). Checked after: home, search, category 200, health ok, admin route 401, 955 products and 10 categories intact, no error lines in api and web logs. The web deploy of 17:00 had finished and was checked at 17:06, the outage began about 5 minutes after; no proof that the deploy caused it, but the box has very little memory room. Not changed on the server: docker live-restore, container memory limits, instance size."
+**Context**: Incident recovery, no code change.
+---
