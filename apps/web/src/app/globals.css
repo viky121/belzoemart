@@ -3264,7 +3264,30 @@ nav.main a:hover {
   align-items: center;
   gap: 22px;
   min-height: 46px;
-  flex-wrap: wrap;
+}
+
+/* The category links stay on ONE line and swipe sideways when they do not all fit
+   (phones). "All Categories" is kept outside this strip so its dropdown is not clipped. */
+.em-catbar__links {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.em-catbar__links::-webkit-scrollbar {
+  display: none;
+}
+.em-catbar__links a {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  padding: 12px 0;
 }
 
 .em-catbar a,
@@ -3286,6 +3309,7 @@ nav.main a:hover {
 
 .em-allcat-wrap {
   position: relative;
+  flex: 0 0 auto;
 }
 
 .em-allcat {
@@ -6344,6 +6368,18 @@ a.od-item__title:hover { color: var(--fk-blue); }
   flex-shrink: 0;
 }
 
+/* A category with a picture shows that picture (as on the home page) instead of the emoji tile. */
+.plp-band__icon--img {
+  overflow: hidden;
+  background: #f1f5f9;
+}
+.plp-band__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .plp-band__text h1 {
   font-size: 1.35rem;
   font-weight: 800;
@@ -7613,5 +7649,18 @@ a.offer-banner:hover {
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
+  }
+}
+
+/* Phones: the category bar is one line - "All Categories" stays put, the links swipe sideways. */
+@media (max-width: 560px) {
+  .em-catbar__inner {
+    gap: 12px;
+  }
+  .em-catbar__links {
+    gap: 18px;
+  }
+  .em-allcat {
+    padding-right: 12px;
   }
 }
