@@ -767,3 +767,17 @@ answer: both"
 **AI Response**: "All four points were already fixed and deployed earlier today (see the entries 'MRP and unit text', 'category bar on one line', 'category page shows the same picture', 'category names cut, circles touching'). Checked now: the six local commits were not pushed yet and are now pushed (09ac910); the website is up; APK 0.1.19 (commit 73b6021, with the MRP, banner and category-name fixes) has finished building: https://expo.dev/artifacts/eas/7hxd2Y00EPF5hvR4la4caDZD2sbjvzOAnA4RAiPK2Mw.apk . No new code change, no deploy, no build."
 **Context**: Status check only.
 ---
+---
+## Website on a phone like the app: request and questions
+**Timestamp**: 2026-10-27T19:00:00Z
+**User Input**: "bhai website mobile view pe mobile app jaise dikeh, adavance design kardo mobile view ke lea jaise lage ki app chala raha ho, like, top pe logo and search  rahne do, catoegy, offer, cart, and account ka detail bottom pe aa jaye, and jaise hi koi v product cart me add kare to cart me add hote huy and notfy ho, aur sare feature mobile app ki tarah bna do" (two screenshots attached: the website home on a phone, and the app's bottom tab bar)
+**AI Response**: "Checked the web shell (no bottom bar; no Categories or Offers page), the app's tabs, cart pill and menu. Wrote 7 questions in aidlc-docs/inception/requirements/web-app-shell-questions.md (screens, bottom bar, top bar, add-to-cart effect, new pages, extra features, how to deliver). Waiting for answers. No code changed, nothing built or deployed."
+**Context**: Requirements Analysis, standard depth. Awaiting user answers.
+---
+---
+## Website on a phone like the app: answers and step 1
+**Timestamp**: 2026-10-27T20:30:00Z
+**User Input**: "A sab"
+**AI Response**: "Took all recommended answers (Q1 to Q7 = A). Wrote web-app-shell-requirements.md. Built step 1: bottom bar (Home, Categories, Offers, Cart with count, Account), logo-and-search-only top bar on screens up to 900 px, add-to-cart flight into the Cart tab with bump, vibration, 'Added to cart / View cart' message and the floating 'View cart, N items' pill, new /categories and /offers pages, a phone Account list; the Account page now waits for the saved sign-in before sending a visitor to Login. Web tsc, eslint, jest (394) pass; checked in headless Chrome at 390 px. Nothing deployed or built. Step 2 (sticky Add to cart on the product page, short footer, smoother feel) waits for the user."
+**Context**: Construction, summary in aidlc-docs/construction/web-app-shell/code/summary.md
+---

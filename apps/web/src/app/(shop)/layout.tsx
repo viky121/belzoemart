@@ -6,6 +6,7 @@ import { HeaderSearch } from '@/components/header-search';
 import { EmartHeader } from '@/components/emart-header';
 import { EmartFooter } from '@/components/emart-footer';
 import { Toaster } from '@/components/toaster';
+import { MobileAppShell } from '@/components/mobile-app-shell';
 import { ProfilePrompt } from '@/components/profile-prompt';
 import { getSiteContent } from '@/lib/site-content';
 import { apiFetch } from '@/lib/api-client';
@@ -76,6 +77,8 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
       <main className="container">{children}</main>
 
       <Toaster />
+      {/* Phones (up to 900 px): the app-style bottom bar and the "View cart" pill. Hidden by CSS on a computer. */}
+      <MobileAppShell />
 
 
       {/* Post-login profile completion (asks for name + the missing contact). */}

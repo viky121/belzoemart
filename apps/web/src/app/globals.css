@@ -7664,3 +7664,401 @@ a.offer-banner:hover {
     padding-right: 12px;
   }
 }
+
+/* ============================================================
+   Phone layout like the app (screens up to 900 px): bottom bar, "View cart" pill, app-style top bar.
+   A computer sees none of this.
+   ============================================================ */
+:root {
+  --mtab-h: 62px;
+  --mtab-accent: #1b7a5e;
+  --mtab-accent-bg: #e4f3ec;
+}
+.mtab,
+.mpill,
+.macct {
+  display: none;
+}
+/* The picture that flies from a product into the Cart tab. */
+.fly-ghost {
+  position: fixed;
+  z-index: 10000;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: #fff center / cover no-repeat;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.3);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+/* Categories and Offers pages */
+.catpg,
+.offpg {
+  padding: 16px 0 28px;
+}
+.catpg__title,
+.offpg__head h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+.catpg__sub,
+.offpg__head p {
+  margin: 4px 0 14px;
+  color: var(--muted, #64748b);
+  font-size: 0.9rem;
+}
+.catpg__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.catpg__card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  height: 100%;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid var(--border-2, #e5e9ef);
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  color: inherit;
+}
+.catpg__card:active {
+  transform: scale(0.98);
+}
+.catpg__pic {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f3f5f8;
+}
+.catpg__pic img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.catpg__emoji {
+  font-size: 2.4rem;
+}
+.catpg__name {
+  margin-top: 4px;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+.catpg__hint {
+  font-size: 0.76rem;
+  line-height: 1.3;
+  color: var(--muted, #64748b);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.catpg__empty,
+.offpg__empty {
+  color: var(--muted, #64748b);
+  padding: 24px 0;
+}
+.offpg__head {
+  padding: 0 2px;
+}
+.offpg__chip {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--mtab-accent-bg);
+  color: var(--mtab-accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.offpg .product-grid {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+@media (max-width: 900px) {
+  /* Top: only the logo and the search bar. Account, wishlist, cart and the category links live in the bottom bar. */
+  .em-actions,
+  .em-catbar,
+  .site-header nav.main,
+  .cat-strip {
+    display: none !important;
+  }
+  .em-topbar__inner {
+    justify-content: flex-start;
+  }
+  .em-search {
+    flex: 1 1 auto;
+  }
+
+  /* Room under the page so the bar never hides the last row. */
+  .theme-root:has(.mtab) {
+    padding-bottom: calc(var(--mtab-h) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .mtab {
+    display: flex;
+    align-items: stretch;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 900;
+    height: calc(var(--mtab-h) + env(safe-area-inset-bottom, 0px));
+    padding: 6px 4px env(safe-area-inset-bottom, 0px);
+    background: #fff;
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -4px 18px rgba(15, 23, 42, 0.14);
+  }
+  .mtab__item {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding-top: 2px;
+    color: #8a94a6;
+    font-size: 0.69rem;
+    font-weight: 700;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mtab__ic {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 30px;
+    border-radius: 15px;
+    transition: background 0.2s ease;
+  }
+  .mtab__item.is-on {
+    color: var(--mtab-accent);
+  }
+  .mtab__item.is-on .mtab__ic {
+    background: var(--mtab-accent-bg);
+  }
+  .mtab__label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mtab__badge {
+    position: absolute;
+    top: -4px;
+    right: 3px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: #e11d48;
+    color: #fff;
+    font-style: normal;
+    font-size: 0.64rem;
+    font-weight: 800;
+    line-height: 18px;
+    text-align: center;
+    box-shadow: 0 0 0 2px #fff;
+  }
+  .mtab__ic.is-bump {
+    animation: mtab-bump 0.6s ease;
+  }
+
+  /* "View cart, N items" pill above the bar, like the app. */
+  .mpill {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(var(--mtab-h) + env(safe-area-inset-bottom, 0px) + 10px);
+    max-width: 480px;
+    margin: 0 auto;
+    z-index: 890;
+    padding: 8px 12px 8px 10px;
+    border-radius: 999px;
+    background: var(--mtab-accent);
+    color: #fff;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.28);
+    text-decoration: none;
+  }
+  .mpill.is-bump {
+    animation: mpill-pop 0.6s ease;
+  }
+  .mpill__thumbs {
+    position: relative;
+    flex: none;
+    height: 34px;
+    min-width: 34px;
+    width: 74px;
+  }
+  .mpill__thumb {
+    position: absolute;
+    top: 0;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #fff;
+    border: 2px solid var(--mtab-accent);
+    font-size: 0.9rem;
+  }
+  .mpill__thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .mpill__text {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    line-height: 1.2;
+  }
+  .mpill__text strong {
+    font-size: 0.95rem;
+  }
+  .mpill__text span {
+    font-size: 0.78rem;
+    opacity: 0.9;
+  }
+  .mpill__go {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--mtab-accent);
+    font-size: 1.3rem;
+    line-height: 1;
+  }
+
+  /* The "Added to cart" message sits above the pill and the bar, with its button. */
+  .belzo-toast {
+    bottom: calc(var(--mtab-h) + env(safe-area-inset-bottom, 0px) + 72px);
+    max-width: calc(100vw - 24px);
+  }
+  .belzo-toast--action {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 9px 10px 9px 18px;
+    white-space: nowrap;
+  }
+  .belzo-toast__btn {
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: #fff;
+    color: #0f172a;
+    font-weight: 800;
+    font-size: 0.8rem;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  /* Account tab: a list of rows like the app. The desktop side menu is not needed here. */
+  .acctx__side {
+    display: none;
+  }
+  .macct {
+    display: block;
+  }
+  .macct ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    border: 1px solid var(--border-2, #e5e9ef);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .macct li + li {
+    border-top: 1px solid var(--border-2, #eef1f5);
+  }
+  .macct__row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    min-height: 58px;
+    padding: 10px 14px;
+    background: none;
+    border: 0;
+    color: inherit;
+    text-align: left;
+    font: inherit;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .macct__row:active {
+    background: #f6f8fa;
+  }
+  .macct__ic {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: var(--mtab-accent-bg);
+    font-size: 1.1rem;
+  }
+  .macct__text {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .macct__text strong {
+    font-size: 0.95rem;
+    color: #0f172a;
+  }
+  .macct__text em {
+    font-style: normal;
+    font-size: 0.78rem;
+    color: var(--muted, #64748b);
+  }
+  .macct__chev {
+    color: #9aa4b2;
+    font-size: 1.4rem;
+  }
+  .macct__row--out .macct__text strong {
+    color: #b91c1c;
+  }
+  .macct__row--out .macct__ic {
+    background: #fdecec;
+  }
+}
+
+@keyframes mtab-bump {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.3); }
+  60% { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+@keyframes mpill-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mtab__ic.is-bump,
+  .mpill.is-bump {
+    animation: none;
+  }
+}

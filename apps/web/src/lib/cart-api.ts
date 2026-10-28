@@ -78,18 +78,31 @@ export function cartCount(view: CartView): number {
   return view.items.filter((i) => !i.savedForLater).reduce((s, i) => s + i.quantity, 0);
 }
 
-/** Broadcast the latest cart count so the header badge updates everywhere. */
+/** Pictures of the first few cart items, for the phone "View cart" pill. */
+export function cartThumbs(view: CartView, max = 3): (string | null)[] {
+  return view.items
+    .filter((i) => !i.savedForLater)
+    .slice(0, max)
+    .map((i) => i.imageUrl);
+}
+
+/** Broadcast the latest cart so the header badge, the phone Cart tab and the "View cart" pill update everywhere. */
 function emitCart(view: CartView): CartView {
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('belzo:cart', { detail: { count: cartCount(view) } }));
+    window.dispatchEvent(new CustomEvent('belzo:cart', { detail: { count: cartCount(view), thumbs: cartThumbs(view) } }));
   }
   return view;
 }
 
-/** Fire a transient toast message. */
-export function toast(message: string): void {
+export interface ToastAction {
+  label: string;
+  href: string;
+}
+
+/** Fire a transient toast message, optionally with one link button (for example "View cart"). */
+export function toast(message: string, action?: ToastAction): void {
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('belzo:toast', { detail: { message } }));
+    window.dispatchEvent(new CustomEvent('belzo:toast', { detail: { message, action } }));
   }
 }
 
@@ -98,7 +111,7 @@ export const cartApi = {
   add: (variantId: string, quantity: number, accessToken?: string) =>
     apiFetch<CartView>('/cart/items', cartOptions(accessToken, { method: 'POST', body: { variantId, quantity } })).then(
       (v) => {
-        toast('Added to cart');
+        toast('Added to cart', { label: 'View cart', href: '/cart' });
         return emitCart(v);
       },
     ),

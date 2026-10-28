@@ -16,16 +16,23 @@ export function InfiniteProducts({
   endpoint,
   query,
   testId,
+  discountedOnly = false,
 }: {
   initial: Paginated<ProductCardDto>;
   endpoint: 'products' | 'search';
   /** Filters and sort of the listing, without `page`. */
   query: string;
   testId: string;
+  /** The list is sorted by discount: show only products priced below their MRP and stop at the first without a discount. */
+  discountedOnly?: boolean;
 }) {
-  const [items, setItems] = useState<ProductCardDto[]>(initial.items);
+  const [items, setItems] = useState<ProductCardDto[]>(
+    discountedOnly ? initial.items.filter((p) => p.discountPct > 0) : initial.items,
+  );
   const [page, setPage] = useState(initial.page);
-  const [more, setMore] = useState(hasMoreProducts(initial.items.length, initial.total, initial.items.length));
+  const [more, setMore] = useState(
+    hasMoreProducts(initial.items.length, initial.total, initial.items.length) && !(discountedOnly && initial.items.some((p) => p.discountPct <= 0)),
+  );
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const itemsRef = useRef(items);
@@ -40,10 +47,11 @@ export function InfiniteProducts({
     try {
       const qs = pageQuery(query, page + 1);
       const res = endpoint === 'search' ? await catalogueApi.search(qs) : await catalogueApi.products(qs);
-      const merged = mergeProducts(itemsRef.current, res.items);
+      const fresh = discountedOnly ? res.items.filter((p) => p.discountPct > 0) : res.items;
+      const merged = mergeProducts(itemsRef.current, fresh);
       itemsRef.current = merged;
       setItems(merged);
-      setMore(hasMoreProducts(merged.length, res.total, res.items.length));
+      setMore(hasMoreProducts(merged.length, res.total, res.items.length) && !(discountedOnly && fresh.length < res.items.length));
       setPage(res.page);
     } catch {
       setFailed(true);
@@ -51,7 +59,7 @@ export function InfiniteProducts({
       busy.current = false;
       setLoading(false);
     }
-  }, [endpoint, page, query]);
+  }, [endpoint, page, query, discountedOnly]);
 
   // Load the next page when the end of the grid comes near the screen.
   useEffect(() => {

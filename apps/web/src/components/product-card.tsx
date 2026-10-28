@@ -7,6 +7,7 @@ import { formatInr } from '@/lib/catalogue-api';
 import { placeholderImage, isUsableImageUrl } from '@/lib/category-theme';
 import { cartApi, toast } from '@/lib/cart-api';
 import { useAuth } from '@/lib/auth-context';
+import { flyToCart } from '@/lib/fly-to-cart';
 
 /** Storefront product card used in listings, rails and search results. */
 export function ProductCard({ product }: { product: ProductCardDto }) {
@@ -44,12 +45,17 @@ export function ProductCard({ product }: { product: ProductCardDto }) {
   async function setCartQty(e: React.MouseEvent, next: number) {
     stop(e);
     if (!variantId || busy) return;
+    // The picture that will fly into the Cart tab (phones only).
+    const picture = (e.currentTarget as HTMLElement).closest('.product-card')?.querySelector('.product-card__image img') ?? null;
     setBusy(true);
     const prev = qty;
     setQty(next); // optimistic
     try {
       if (next <= 0) await cartApi.remove(variantId, accessToken ?? undefined);
-      else if (prev <= 0) await cartApi.add(variantId, next, accessToken ?? undefined);
+      else if (prev <= 0) {
+        await cartApi.add(variantId, next, accessToken ?? undefined);
+        flyToCart(picture, showReal ? product.imageUrl : null);
+      }
       else await cartApi.update(variantId, next, accessToken ?? undefined);
     } catch (err) {
       setQty(prev); // revert on failure

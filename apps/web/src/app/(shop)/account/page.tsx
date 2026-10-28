@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth-context';
 import { loginHref } from '@/lib/auth-redirect';
 import { formatInr } from '@/lib/catalogue-api';
 import { AccountSidebar } from '@/components/account-sidebar';
+import { MobileAccountMenu } from '@/components/mobile-account-menu';
 import { AddressManager } from '@/components/address-manager';
 import { ProfilePhotoEditor } from '@/components/profile-photo-editor';
 
@@ -30,13 +31,15 @@ interface OrderSummary {
 
 export default function AccountPage() {
   const router = useRouter();
-  const { accessToken, authFetch } = useAuth();
+  const { accessToken, authFetch, ready } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [wishCount, setWishCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Wait until the saved sign-in has been looked at, so a reload of this page does not send a signed-in customer to Login.
+    if (!ready) return;
     if (!accessToken) {
       router.push(loginHref('/account'));
       return;
@@ -55,7 +58,7 @@ export default function AccountPage() {
         setError('Could not load your account. Please sign in again.');
       }
     })();
-  }, [accessToken, authFetch, router]);
+  }, [accessToken, authFetch, router, ready]);
 
   // Refresh the shown profile when the "Complete your profile" popup saves.
   useEffect(() => {
@@ -103,6 +106,7 @@ export default function AccountPage() {
           <span className="acct-hero__verified">✓ Verified Account</span>
         </div>
 
+        <MobileAccountMenu />
         <div className="acct-card" data-testid="account-profile">
           <div className="acct-card__head">
             <h2>👤 Personal Information</h2>
