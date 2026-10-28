@@ -106,3 +106,4 @@
 - [x] Checkout PIN check at the address form (web + app): a new address with a PIN we do not deliver to is refused on the form; the "not deliverable" message sits with the address. Built and verified 2026-10-26; NOT deployed (web and a new APK; no API change).
 - [ ] Website on a phone like the app (2026-10-27): questions Q1-Q7 in `aidlc-docs/inception/requirements/web-app-shell-questions.md`; AWAITING USER ANSWERS. Standing rule: ask before every deploy and every build.
 - [x] Website on a phone like the app, step 1 (2026-10-27): answers Q1-Q7 = A; built and checked, NOT deployed (ask first). Step 2 pending the user's word. Summary `aidlc-docs/construction/web-app-shell/code/summary.md`.
+- [x] Website on a phone like the app, step 2 (2026-10-27): sticky Add to cart on the product page, short footer, page fade; built and checked, NOT deployed (steps 1 and 2 both wait for the user's word to deploy).

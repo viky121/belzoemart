@@ -37,7 +37,8 @@ describe('bottom bar', () => {
     expect(cartPillHidden('/checkout')).toBe(true);
     expect(cartPillHidden('/cart')).toBe(true);
     expect(cartPillHidden('/')).toBe(false);
-    expect(cartPillHidden('/product/x')).toBe(false);
+    expect(cartPillHidden('/product/x')).toBe(true); // a product page has its own Add to cart bar
+    expect(cartPillHidden('/offers')).toBe(false);
   });
 
   it('words the item count and the badge', () => {

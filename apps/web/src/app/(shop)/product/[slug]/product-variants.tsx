@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { effectiveOrderLimits, orderLimitsHint, type ActiveOfferView, type VariantDto } from '@belzo/shared';
 import { formatInr } from '@/lib/catalogue-api';
 import { cartApi } from '@/lib/cart-api';
+import { flyToCart } from '@/lib/fly-to-cart';
 import { useAuth } from '@/lib/auth-context';
 import { QtyStepper } from '@/components/qty-stepper';
 import { buildSlabs, slabIndexForQty } from '@/lib/slab-pricing';
@@ -96,6 +97,20 @@ export function ProductVariants({
     }
   }
 
+  /** The sticky phone bar: add the item and stay on the page (the picture flies into the Cart tab and the message offers View cart). */
+  async function addAndStay() {
+    if (!selected || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await cartApi.add(selected.id, qty, accessToken ?? undefined);
+      flyToCart(document.querySelector('.pdp__hero-img'), document.querySelector<HTMLImageElement>('.pdp__hero-img')?.currentSrc ?? null);
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : 'Could not add to cart. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <>
     <div className="pdp-price" data-testid="pdp-price">
@@ -232,6 +247,19 @@ export function ProductVariants({
           {error}
         </p>
       )}
+    </div>
+    {/* Phones only (CSS): price, Add to cart and Buy now stay in reach above the bottom bar while the page scrolls. */}
+    <div className="stickybuy" data-testid="pdp-sticky-bar">
+      <div className="stickybuy__price">
+        <strong>{formatInr(unitPrice)}</strong>
+        {off > 0 && <s>{formatInr(selected.mrp)}</s>}
+      </div>
+      <button className="stickybuy__add" disabled={!selected.inStock || busy} onClick={() => void addAndStay()} data-testid="pdp-sticky-add">
+        {selected.inStock ? (busy ? 'Adding…' : '🛒 Add to cart') : 'Out of stock'}
+      </button>
+      <button className="stickybuy__buy" disabled={!selected.inStock || busy} onClick={() => addToCart('checkout')} data-testid="pdp-sticky-buy">
+        Buy now
+      </button>
     </div>
     </>
   );

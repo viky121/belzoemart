@@ -36,9 +36,9 @@ export function tabBarHidden(pathname: string): boolean {
   return BARE_PAGES.some((p) => is(pathname, p));
 }
 
-/** The floating "View cart" pill is not shown where the bar is hidden, or on the cart page itself. */
+/** The floating "View cart" pill is not shown where the bar is hidden, on the cart page itself, or on a product page (its own bar is there). */
 export function cartPillHidden(pathname: string): boolean {
-  return tabBarHidden(pathname) || is(pathname, '/cart');
+  return tabBarHidden(pathname) || is(pathname, '/cart') || is(pathname, '/product');
 }
 
 export const itemsLabel = (n: number): string => `${n} ${n === 1 ? 'item' : 'items'}`;

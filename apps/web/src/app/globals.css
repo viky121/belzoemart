@@ -8062,3 +8062,136 @@ a.offer-banner:hover {
     animation: none;
   }
 }
+
+/* ============================================================
+   Phone layout, step 2: sticky Add to cart on the product page, short footer, app-like page changes
+   ============================================================ */
+.stickybuy {
+  display: none;
+}
+/* Opacity only: a transform here would turn this wrapper into the "screen" for fixed bars inside the page. */
+@keyframes page-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 900px) {
+  /* A page fades in softly each time the visitor moves to another page. */
+  .page-in {
+    animation: page-in 0.22s ease-out;
+  }
+  /* Quicker, cleaner taps: no 300 ms wait, no grey flash, and a small press effect on cards and buttons. */
+  a,
+  button {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .product-card:active,
+  .em-cat:active {
+    transform: scale(0.985);
+  }
+
+  /* Product page: price, Add to cart and Buy now above the bottom bar. */
+  .stickybuy {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--mtab-h) + env(safe-area-inset-bottom, 0px));
+    z-index: 880;
+    padding: 8px 12px;
+    background: #fff;
+    border-top: 1px solid var(--border-2, #e5e9ef);
+    box-shadow: 0 -4px 14px rgba(15, 23, 42, 0.08);
+  }
+  .stickybuy__price {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    min-width: 0;
+    line-height: 1.15;
+  }
+  .stickybuy__price strong {
+    font-size: 1.05rem;
+    color: #0f172a;
+  }
+  .stickybuy__price s {
+    font-size: 0.72rem;
+    color: var(--muted, #64748b);
+  }
+  .stickybuy__add,
+  .stickybuy__buy {
+    flex: 1 1 0;
+    min-height: 44px;
+    padding: 0 10px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .stickybuy__add {
+    background: #fff;
+    color: var(--mtab-accent);
+    border: 2px solid var(--mtab-accent);
+  }
+  .stickybuy__buy {
+    background: var(--mtab-accent);
+    color: #fff;
+    border: 2px solid var(--mtab-accent);
+  }
+  .stickybuy__add:disabled,
+  .stickybuy__buy:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  /* Room under the product page for both bars, and the message and cart tab stay clear of the sticky bar. */
+  .theme-root:has(.stickybuy) {
+    padding-bottom: calc(var(--mtab-h) + env(safe-area-inset-bottom, 0px) + 68px);
+  }
+  body:has(.stickybuy) .belzo-toast {
+    bottom: calc(var(--mtab-h) + env(safe-area-inset-bottom, 0px) + 84px);
+  }
+
+  /* Footer: just the logo, the links in a tight wrapped list, and the support line. */
+  .em-footer__grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 20px 16px 6px;
+  }
+  .em-footer__brand p,
+  .em-footer__social,
+  .em-footer__col.em-footer__news,
+  .em-footer__col h4 {
+    display: none;
+  }
+  .em-footer__col {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+  }
+  .em-footer__col a,
+  .em-footer__col span {
+    font-size: 0.8rem;
+  }
+  .em-footer__bar {
+    padding: 10px 16px 14px;
+    font-size: 0.74rem;
+  }
+  .footer-cols .footer-col h4 {
+    display: none;
+  }
+  .footer-cols {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-in {
+    animation: none !important;
+  }
+}

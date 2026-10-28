@@ -781,3 +781,10 @@ answer: both"
 **AI Response**: "Took all recommended answers (Q1 to Q7 = A). Wrote web-app-shell-requirements.md. Built step 1: bottom bar (Home, Categories, Offers, Cart with count, Account), logo-and-search-only top bar on screens up to 900 px, add-to-cart flight into the Cart tab with bump, vibration, 'Added to cart / View cart' message and the floating 'View cart, N items' pill, new /categories and /offers pages, a phone Account list; the Account page now waits for the saved sign-in before sending a visitor to Login. Web tsc, eslint, jest (394) pass; checked in headless Chrome at 390 px. Nothing deployed or built. Step 2 (sticky Add to cart on the product page, short footer, smoother feel) waits for the user."
 **Context**: Construction, summary in aidlc-docs/construction/web-app-shell/code/summary.md
 ---
+---
+## Website on a phone like the app: step 2
+**Timestamp**: 2026-10-27T21:30:00Z
+**User Input**: "haan"
+**AI Response**: "Read 'haan' as the go-ahead for step 2 (the previous message said step 2 starts on 'haan'); it was not read as permission to deploy. Built step 2 (phones, up to 900 px): a sticky bar on the product page with the price, Add to cart (adds and stays, the picture flies into the Cart tab, the message offers View cart) and Buy now, above the bottom bar; the View cart pill is not shown on product pages; a short footer (logo, links in a wrapped list, support line; no description, social icons or newsletter); each page fades in on a page change (app/(shop)/template.tsx, opacity only because a transform would move fixed bars); quicker taps and a small press effect on cards. Checked in headless Chrome at 390 px: the first try showed the sticky bar in the middle of the page because the fade used a transform; fixed by using opacity only, and the bar then sat above the bottom bar. Web tsc, eslint, jest (398) pass. Nothing deployed or built."
+**Context**: Web only.
+---

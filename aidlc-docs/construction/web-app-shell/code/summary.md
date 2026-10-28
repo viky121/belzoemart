@@ -31,3 +31,11 @@ Request and answers: `aidlc-docs/inception/requirements/web-app-shell-questions.
 ## Step 2 (after you have seen step 1)
 
 Sticky "Add to cart" bar on the product page, a short footer on phones, smoother page-to-page feel.
+
+## Step 2 (built 2026-10-27, not deployed)
+
+- **Product page (phones):** a bar above the bottom bar with the price (and the old price), "Add to cart" and "Buy now". Add to cart adds and stays on the page: the picture flies into the Cart tab and the message offers "View cart". Buy now goes to checkout. Out of stock switches both off. The View cart pill is not shown on product pages. The normal buy box stays for computers.
+- **Footer (phones):** the logo, the links in a wrapped list, and the support line. The description, social icons, newsletter form and headings are hidden.
+- **Page changes:** every page fades in (`app/(shop)/template.tsx`, opacity only: a transform would make the page the "screen" for fixed bars and move the sticky bar into the middle of the page, which showed up in the first browser check). Taps are quicker and cards and category tiles give a small press effect.
+- **Checks:** web tsc, eslint, jest (398 passed, new `product-variants.test.tsx`); looked at in headless Chrome at 390 px.
+- **Not checked:** a real phone, and adding to the cart from the sticky bar with a real cart (the flight itself was seen in step 1).
