@@ -809,3 +809,10 @@ answer: both"
 **AI Response**: "The question file was not filled in, but the request came again with the one answer that mattered: the app only, not the website. Used the recommended answer for the other questions (adapted to the app) and wrote the assumptions in phone-grid-category-sections-requirements.md. Built: 3 products per row in the category list, search, Offers and the Home Deals grid (2 on a phone under 340 dp or with very large text); a compact card where the title takes up to 3 lines and the price, MRP and offer are never limited; a block per home category (the circles' categories and order) with 6 products and a See more button that adds 6 more and disappears after the last products (none at 6 or fewer products). App tsc, eslint, jest (328) pass. No API or website change. No APK built, nothing deployed. Three test files were first written without 'await' before fireEvent and failed in confusing ways; fixed."
 **Context**: Mobile app only. Needs an APK (0.1.20) when the user says so.
 ---
+---
+## Build - mobile APK 0.1.20 (3 per row, category blocks)
+**Timestamp**: 2026-10-28T06:40:00Z
+**User Input**: "ha bna do"
+**AI Response**: "Raised the app version to 0.1.20 (commit 926138c, includes 0d6c88d) and submitted the Android preview build to EAS: a2ca4a24-300e-4088-93d7-5ff328860794. EAS was still queued or building when this was written; the download link is added when it finishes. No deploy (no API or website change)."
+**Context**: Build approved by the user
+---
