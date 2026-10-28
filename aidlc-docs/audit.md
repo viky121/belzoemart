@@ -788,3 +788,10 @@ answer: both"
 **AI Response**: "Read 'haan' as the go-ahead for step 2 (the previous message said step 2 starts on 'haan'); it was not read as permission to deploy. Built step 2 (phones, up to 900 px): a sticky bar on the product page with the price, Add to cart (adds and stays, the picture flies into the Cart tab, the message offers View cart) and Buy now, above the bottom bar; the View cart pill is not shown on product pages; a short footer (logo, links in a wrapped list, support line; no description, social icons or newsletter); each page fades in on a page change (app/(shop)/template.tsx, opacity only because a transform would move fixed bars); quicker taps and a small press effect on cards. Checked in headless Chrome at 390 px: the first try showed the sticky bar in the middle of the page because the fade used a transform; fixed by using opacity only, and the bar then sat above the bottom bar. Web tsc, eslint, jest (398) pass. Nothing deployed or built."
 **Context**: Web only.
 ---
+---
+## Deploy - website on a phone like the app (steps 1 and 2, web only)
+**Timestamp**: 2026-10-28T03:15:00Z
+**User Input**: "ha deploy kardo"
+**AI Response**: "Took a DB dump (belzo-backup-2026-10-28-0825-predeploy.sql), deployed commit 895c90a (web only; API unchanged, no migrations, no app change). Server memory before the build: 1.9 GB total, about 1 GB available, 2 GB swap free. Live checks: health ok, home, categories, offers, cart, search and a category page 200, admin route 401 without login, the bottom bar is in the home page, the product page carries the sticky bar, the phone CSS is served, no error lines in the web log. No APK build was started or needed."
+**Context**: Deploy approved by the user
+---
