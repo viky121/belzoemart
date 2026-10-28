@@ -12,7 +12,7 @@ import {
 import { useIsFocused, useNavigation, type NavigationProp } from '@react-navigation/native';
 import { skipToken, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { qk } from '@/api/query-keys';
@@ -30,10 +30,12 @@ import { useCartIdentity, useSessionStore } from '@/store/session';
 import { theme } from '@/theme';
 import { useBrand } from '@/theme/use-brand';
 import { OfflineBanner } from '@/ui/OfflineBanner';
-import { ProductCard } from '@/ui/ProductCard';
+import { ProductGridCard } from '@/ui/ProductGridCard';
 import { ProductRail } from '@/ui/ProductRail';
 import { SectionHeader } from '@/ui/SectionHeader';
+import { gridCellWidth, useGridColumns } from '@/ui/use-grid-columns';
 
+import { CategoryProductBlocks } from '../components/CategoryProductBlocks';
 import { CategoryShortcuts } from '../components/CategoryShortcuts';
 import { HeroBanner } from '../components/HeroBanner';
 import { HomeHeader } from '../components/HomeHeader';
@@ -69,6 +71,10 @@ export function HomeScreen() {
     .reduce((n, l) => n + l.quantity, 0);
   const deals = useProducts({ sort: 'discount' });
   const dealItems = (deals.data?.pages[0]?.items ?? []).slice(0, 6);
+  // Three products in a row (two on a very narrow phone or with very large text).
+  const cols = useGridColumns();
+  const { width } = useWindowDimensions();
+  const cellW = gridCellWidth(width, cols, theme.spacing.md, GRID_GAP);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -129,6 +135,7 @@ export function HomeScreen() {
         categories.refetch(),
         deals.refetch(),
         queryClient.invalidateQueries({ queryKey: ['home-rail'] }),
+        queryClient.invalidateQueries({ queryKey: ['home-category'] }),
         recentIds.length > 0 ? recent.refetch() : Promise.resolve(),
       ]);
     } finally {
@@ -176,8 +183,9 @@ export function HomeScreen() {
             />
             <View style={styles.grid}>
               {dealItems.map((item) => (
-                <View key={item.id} style={styles.gridCell}>
-                  <ProductCard
+                <View key={item.id} style={{ width: cellW }}>
+                  <ProductGridCard
+                    dense={cols === 3}
                     product={item}
                     onPress={() => onPressProduct(item)}
                     wishlisted={heart.isWishlisted(item)}
@@ -202,6 +210,14 @@ export function HomeScreen() {
           />
         ))}
 
+        <CategoryProductBlocks
+          tiles={categoryTiles}
+          onPressProduct={onPressProduct}
+          onOpenCategory={openCategory}
+          cardProps={cardCart.cardProps}
+          isWishlisted={heart.isWishlisted}
+          onToggleWishlist={heart.onToggle}
+        />
         {recentIds.length > 0 ? (
           <ProductRail
             title="Recently viewed"
@@ -220,6 +236,8 @@ export function HomeScreen() {
   );
 }
 
+/** Space between two product cards in the home grids. */
+const GRID_GAP = 8;
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.surface },
   // Light grey page so the white category card and product cards lift off the background.
@@ -230,9 +248,8 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.lg,
-    rowGap: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    columnGap: GRID_GAP,
+    rowGap: GRID_GAP,
   },
-  gridCell: { width: '48.5%' },
 });

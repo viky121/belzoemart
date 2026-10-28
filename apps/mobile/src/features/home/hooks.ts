@@ -4,11 +4,12 @@ import {
   type MobileHome,
   type ProductCardDto,
 } from '@belzo/shared';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import { qk, STALE } from '@/api/query-keys';
-import type { Banner, PublicSettings } from '@/api/types';
+import type { Banner, Paginated, PublicSettings } from '@/api/types';
+import { fetchProducts } from '@/features/products/api';
 
 import {
   fetchHomeBanners,
@@ -48,6 +49,21 @@ export function useSectionRail(section: HomeSection) {
   return useQuery<ProductCardDto[]>({
     queryKey: ['home-rail', section.id, section.source],
     queryFn: () => fetchSectionProducts(section),
+    staleTime: STALE.product,
+  });
+}
+
+/** Products shown in a category block on the home page, and added by each tap on "See more". */
+export const HOME_CATEGORY_PAGE = 6;
+
+/** The products of one category, six at a time: the first six now, the next six on "See more". */
+export function useCategoryBlock(categoryId: string) {
+  return useInfiniteQuery({
+    queryKey: ['home-category', categoryId],
+    queryFn: ({ pageParam }) => fetchProducts({ categoryId, page: pageParam, pageSize: HOME_CATEGORY_PAGE }),
+    initialPageParam: 1,
+    getNextPageParam: (last: Paginated<ProductCardDto>) =>
+      last.page * last.pageSize < last.total ? last.page + 1 : undefined,
     staleTime: STALE.product,
   });
 }

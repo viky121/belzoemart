@@ -13,7 +13,7 @@ import { useBottomInset } from '@/lib/use-bottom-inset';
 import type { RootScreenProps } from '@/navigation/types';
 import { theme } from '@/theme';
 import { useBrand } from '@/theme/use-brand';
-import { Button, Chip, EmptyState, ErrorState, ProductCard, Screen } from '@/ui';
+import { Button, Chip, EmptyState, ErrorState, ProductGridCard, Screen, useGridColumns } from '@/ui';
 import { IconButton } from '@/ui/IconButton';
 import { ProductGridSkeleton } from '@/ui/Skeleton';
 import { Sheet } from '@/ui/Sheet';
@@ -75,6 +75,8 @@ export function ProductListScreen({ navigation, route }: RootScreenProps<'Produc
   const categories = useCategories();
   const heart = useCardWishlist();
   const cardCart = useCardCart();
+  // Three products in a row (two on a very narrow phone or with very large text).
+  const cols = useGridColumns();
   const bottomInset = useBottomInset();
 
   const resolvedCategoryId = useMemo(() => {
@@ -176,7 +178,8 @@ export function ProductListScreen({ navigation, route }: RootScreenProps<'Produc
       ) : (
         <FlashList
           data={products}
-          numColumns={2}
+          key={cols}
+          numColumns={cols}
           keyExtractor={(p) => p.id}
           contentContainerStyle={[styles.grid, { paddingBottom: 140 + bottomInset }]}
           onEndReachedThreshold={0.5}
@@ -184,8 +187,9 @@ export function ProductListScreen({ navigation, route }: RootScreenProps<'Produc
             if (list.hasNextPage && !list.isFetchingNextPage) void list.fetchNextPage();
           }}
           renderItem={({ item }) => (
-            <View style={styles.cell}>
-              <ProductCard
+            <View style={cols === 3 ? styles.cell3 : styles.cell}>
+              <ProductGridCard
+                dense={cols === 3}
                 product={item}
                 onPress={() => onPressProduct(item)}
                 wishlisted={heart.isWishlisted(item)}
@@ -293,6 +297,7 @@ const styles = StyleSheet.create({
   // Extra bottom room so the last row clears the floating "View cart" bar.
   grid: { padding: theme.spacing.sm, paddingBottom: 96 },
   cell: { flex: 1, padding: theme.spacing.xs },
+  cell3: { flex: 1, padding: 3 },
   footer: { paddingVertical: theme.spacing.lg },
   sheetBody: { paddingVertical: theme.spacing.md, gap: theme.spacing.md },
   sortRow: {

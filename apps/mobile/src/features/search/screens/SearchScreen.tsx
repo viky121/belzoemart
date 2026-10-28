@@ -10,7 +10,7 @@ import type { RootScreenProps } from '@/navigation/types';
 import { useRecentSearchesStore } from '@/store/recent-searches';
 import { theme } from '@/theme';
 import { useBrand } from '@/theme/use-brand';
-import { Chip, EmptyState, ErrorState, ProductCard, Screen } from '@/ui';
+import { Chip, EmptyState, ErrorState, ProductGridCard, Screen, useGridColumns } from '@/ui';
 import { SearchBar } from '@/ui/SearchBar';
 import { ProductGridSkeleton } from '@/ui/Skeleton';
 
@@ -36,6 +36,8 @@ export function SearchScreen({ navigation, route }: RootScreenProps<'Search'>) {
   const [sort, setSort] = useState<ProductSort>(clampSort(route.params?.sort));
 
   const cardCart = useCardCart();
+  // Three products in a row (two on a very narrow phone or with very large text).
+  const cols = useGridColumns();
   const recent = useRecentSearchesStore();
   const autoQ = useDebouncedValue(q.trim(), 250);
   const resultsQ = useDebouncedValue(q.trim(), 400);
@@ -130,7 +132,8 @@ export function SearchScreen({ navigation, route }: RootScreenProps<'Search'>) {
           ) : (
             <FlashList
               data={items}
-              numColumns={2}
+              key={cols}
+          numColumns={cols}
               keyExtractor={(p) => p.id}
               contentContainerStyle={styles.grid}
               onEndReachedThreshold={0.5}
@@ -138,8 +141,9 @@ export function SearchScreen({ navigation, route }: RootScreenProps<'Search'>) {
                 if (results.hasNextPage && !results.isFetchingNextPage) void results.fetchNextPage();
               }}
               renderItem={({ item }) => (
-                <View style={styles.cell}>
-                  <ProductCard
+                <View style={cols === 3 ? styles.cell3 : styles.cell}>
+                  <ProductGridCard
+                    dense={cols === 3}
                     product={item}
                     onPress={() => onPressProduct(item)}
                     {...cardCart.cardProps(item)}
@@ -203,5 +207,6 @@ const styles = StyleSheet.create({
   sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm, padding: theme.spacing.lg, paddingTop: 0 },
   grid: { padding: theme.spacing.sm },
   cell: { flex: 1, padding: theme.spacing.sm },
+  cell3: { flex: 1, padding: 3 },
   footer: { paddingVertical: theme.spacing.lg },
 });

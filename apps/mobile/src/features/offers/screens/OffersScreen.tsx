@@ -11,7 +11,7 @@ import { useCardWishlist } from '@/features/wishlist/use-card-wishlist';
 import type { RootStackParamList } from '@/navigation/types';
 import { theme } from '@/theme';
 import { useBrand } from '@/theme/use-brand';
-import { EmptyState, ErrorState, ProductCard, Screen } from '@/ui';
+import { EmptyState, ErrorState, ProductGridCard, Screen, useGridColumns } from '@/ui';
 import { IconButton } from '@/ui/IconButton';
 import { ProductGridSkeleton } from '@/ui/Skeleton';
 
@@ -23,6 +23,8 @@ export function OffersScreen() {
   const list = useProducts({ sort: 'discount' });
   const heart = useCardWishlist();
   const cardCart = useCardCart();
+  // Three products in a row (two on a very narrow phone or with very large text).
+  const cols = useGridColumns();
   const brand = useBrand();
   const products = useMemo(
     () => (list.data?.pages.flatMap((p) => p.items) ?? []).filter((p) => (p.mrp ?? 0) > p.sellingPrice),
@@ -64,7 +66,8 @@ export function OffersScreen() {
       ) : (
         <FlashList
           data={products}
-          numColumns={2}
+          key={cols}
+          numColumns={cols}
           keyExtractor={(p) => p.id}
           contentContainerStyle={styles.grid}
           onEndReachedThreshold={0.5}
@@ -72,8 +75,9 @@ export function OffersScreen() {
             if (list.hasNextPage && !list.isFetchingNextPage) void list.fetchNextPage();
           }}
           renderItem={({ item }) => (
-            <View style={styles.cell}>
-              <ProductCard
+            <View style={cols === 3 ? styles.cell3 : styles.cell}>
+              <ProductGridCard
+                dense={cols === 3}
                 product={item}
                 onPress={() => open(item)}
                 wishlisted={heart.isWishlisted(item)}
@@ -124,5 +128,6 @@ const styles = StyleSheet.create({
   sub: { ...theme.typography.caption, color: theme.colors.muted },
   grid: { padding: theme.spacing.sm, paddingBottom: 150 },
   cell: { flex: 1, padding: theme.spacing.xs },
+  cell3: { flex: 1, padding: 3 },
   footer: { paddingVertical: theme.spacing.lg },
 });

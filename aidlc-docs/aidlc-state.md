@@ -107,3 +107,5 @@
 - [ ] Website on a phone like the app (2026-10-27): questions Q1-Q7 in `aidlc-docs/inception/requirements/web-app-shell-questions.md`; AWAITING USER ANSWERS. Standing rule: ask before every deploy and every build.
 - [x] Website on a phone like the app, step 1 (2026-10-27): answers Q1-Q7 = A; built and checked, NOT deployed (ask first). Step 2 pending the user's word. Summary `aidlc-docs/construction/web-app-shell/code/summary.md`.
 - [x] Website on a phone like the app, step 2 (2026-10-27): sticky Add to cart on the product page, short footer, page fade; built and checked, NOT deployed (steps 1 and 2 both wait for the user's word to deploy).
+- [ ] 3 products per row + category sections with See more on Home (2026-10-28): questions Q1-Q7 in `aidlc-docs/inception/requirements/phone-grid-category-sections-questions.md`; AWAITING USER ANSWERS.
+- [x] App: 3 products per row + category blocks with See more on Home (2026-10-28): app only (user clarified), other answers assumed recommended; built and tested; NO APK built yet (ask first). Summary `aidlc-docs/construction/app-grid-category-blocks/code/summary.md`.
