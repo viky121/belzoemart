@@ -886,3 +886,43 @@ answer: both"
 **AI Response**: "New feature, so requirements first. Looked at the code: order needs a delivery address (addressId required), the PIN check blocks unserviceable addresses, delivery charge flat Rs. 40 (free over Rs. 300), COD orders confirm at placing, store address already in settings, admin order flow has Create shipment / Packed / Shipped / Out for delivery / Delivered. Wrote 8 questions (where: web/app, pickup address and note, address needed or not, charges, payment wording, admin handling, customer notification/pickup code, time slot and on/off switch) in aidlc-docs/inception/requirements/self-pickup-questions.md. Waiting for the answers. Nothing built or deployed."
 **Context**: Requirements Analysis, standard depth. Standing rule: ask before every deploy and every build.
 ---
+
+---
+## Self pickup - answers to Q1-Q8 and clarification round
+**Timestamp**: 2026-10-31T16:10:00Z
+**User Input**: "Sawal ye hain:
+
+Website aur app dono me chahiye, ya sirf ek me?
+
+A. dono me
+
+Pickup address ke saath timings ya note bhi dikhana hai?
+
+A. Yes
+
+Pickup me customer ka address aur PIN check hataun?
+
+A. Nahi
+
+Delivery charge aur COD fee pickup me ₹0 rakhun?
+
+Yes
+
+Payment ka naam \"Pay at shop on pickup\" rakhun?
+
+Agar COD hai tabhi
+
+Admin me pickup order kaise chale?
+
+Same as Current
+
+Customer ko kya batayein, aur pickup code chahiye?
+
+Nahi Pickup code nahi chiye,
+
+Time slot aur on/off switch chahiye?
+
+Yes"
+**AI Response**: "Clear: Q1 both web and app, Q2 address + timings/note, Q4 charges Rs. 0, Q5 'Pay at shop on pickup' only for the cash option, Q8 slot and on/off switch both wanted. Ambiguous (the answers were to my short paraphrases, not the option letters): Q3 'Nahi' (keep address? keep PIN check?), Q6 'Same as Current' (does it include Create shipment?), Q7 (notification without code?), Q8 (how the time slot works: the original options only had a no-slot variant). Wrote 4 follow-up questions in aidlc-docs/inception/requirements/self-pickup-clarification-questions.md with my reading of the clear answers listed at the top. Waiting. Nothing built or deployed."
+**Context**: Requirements Analysis, clarification round.
+---

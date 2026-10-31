@@ -116,3 +116,4 @@
 - [x] Bug fix 2026-10-31: guest/customer cart creation race gave a 500 (unique guestToken/customerId when requests arrive together). Fixed in `CartService.findOrCreateCart`; tested incl. 20 parallel requests on a scratch Postgres; NOT deployed (ask first; API only, no migration).
 - [x] Cart creation race fix: DEPLOYED 2026-10-31 (main 7735b1e, API only).
 - [ ] Self pickup at checkout (2026-10-31): questions Q1-Q8 in `aidlc-docs/inception/requirements/self-pickup-questions.md`; AWAITING USER ANSWERS. Standing rule: ask before every deploy and every build.
+- [ ] Self pickup: Q1-Q8 answered 2026-10-31 (both web+app, address+timings note, Rs. 0 charges, "Pay at shop on pickup" for cash, slot + on/off switch); 4 answers need a clarification round: `aidlc-docs/inception/requirements/self-pickup-clarification-questions.md`; AWAITING USER ANSWERS.
