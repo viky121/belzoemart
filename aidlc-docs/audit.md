@@ -830,3 +830,11 @@ answer: both"
 **AI Response**: "Took a DB dump (belzo-backup-2026-10-31-0925-predeploy.sql), deployed commit abbe4d0 (api, web and worker; no migrations, no app change). The build took about 25 minutes because the server (1.9 GB RAM) was already using swap. Live checks: health ok, home, offers and admin orders pages 200, POST /admin/orders/:id/confirm exists (401 without login), all six containers up, no error lines in the api and worker logs. The existing pending COD orders were NOT touched: confirming a customer's order (and cancelling the old test orders) waits for the user."
 **Context**: Deploy approved by the user
 ---
+
+---
+## System test (whole system), read-only
+**Timestamp**: 2026-10-31T06:10:00Z
+**User Input**: "okay pure system ka test karo and report btao mujhe"
+**AI Response**: "Ran the automated checks (shared 512, API 1116, web 401, mobile 328 tests pass; tsc clean; eslint 0 errors), a scratch-database check (16 migrations apply, no schema drift, report DB tests 5/5), the web production build (passes), a dependency audit (100 findings, Next.js 14.2.5 is the main one), live read-only smoke tests of pages, API, auth guards, input handling, headers, TLS and speed, read-only SQL data checks on production (0 integrity mismatches) and a server health check. Nothing was deployed or built on the server, no orders placed. Found and fixed one own bug in code: the Wallet row in the phone Account tab linked to a page that does not exist (404); not deployed. Report: aidlc-docs/construction/build-and-test/system-test-report-2026-10-31.md. Main findings: no automatic database backup, Next.js 14.2.5 is old, 8 old pending COD test orders, tight server memory, COD cash not recorded as paid, missing robots.txt/sitemap.xml."
+**Context**: Build and Test, system-wide check. APK 0.1.20 finished.
+---

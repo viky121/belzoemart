@@ -60,9 +60,10 @@ describe('the phone bottom bar', () => {
 describe('the Account tab list', () => {
   it('lists the places an account needs, with Logout last', () => {
     const html = renderToStaticMarkup(<MobileAccountMenu />);
-    for (const label of ['My Orders', 'Wishlist', 'Addresses', 'Wallet', 'Notifications', 'Help &amp; Support', 'Logout']) {
+    for (const label of ['My Orders', 'Wishlist', 'Addresses', 'Notifications', 'Help &amp; Support', 'Logout']) {
       expect(html).toContain(label);
     }
+    expect(html).not.toContain('/wallet'); // there is no wallet page on the website yet
     expect(html.indexOf('Logout')).toBeGreaterThan(html.indexOf('Help &amp; Support'));
     expect(html).toContain('href="/wishlist"');
     expect(html).toContain('data-testid="mobile-account-logout"');

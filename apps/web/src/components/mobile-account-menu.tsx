@@ -7,7 +7,6 @@ const ROWS: { href: string; label: string; hint: string; icon: string }[] = [
   { href: '/orders', label: 'My Orders', hint: 'Track and view your orders', icon: '📦' },
   { href: '/wishlist', label: 'Wishlist', hint: 'Your saved items', icon: '♥' },
   { href: '/account#addresses', label: 'Addresses', hint: 'Where we deliver', icon: '📍' },
-  { href: '/wallet', label: 'Wallet', hint: 'Your Belzo balance', icon: '👛' },
   { href: '/notifications', label: 'Notifications', hint: 'Offers and updates', icon: '🔔' },
   { href: '/page/contact', label: 'Help & Support', hint: 'We are here to help', icon: '🎧' },
 ];
