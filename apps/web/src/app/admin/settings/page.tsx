@@ -21,6 +21,7 @@ const INVOICE_FIELDS: { key: string; label: string; type: 'text' | 'textarea'; p
   { key: 'store.phone', label: 'Phone', type: 'text' },
   { key: 'store.email', label: 'Email', type: 'text' },
   { key: 'store.fssai', label: 'FSSAI licence no. (printed on the invoice for food items)', type: 'text', placeholder: '14-digit FSSAI number' },
+  { key: 'store.codPaymentQr', label: 'UPI payment QR on Cash on Delivery invoices (leave empty to use the SBI QR)', type: 'text', placeholder: 'upi://pay?pa=name@bank' },
   { key: 'store.website', label: 'Website', type: 'text', placeholder: 'https://' },
   { key: 'store.logoUrl', label: 'Logo URL (https)', type: 'text', placeholder: 'https://' },
   { key: 'store.invoiceTerms', label: 'Invoice terms / return note', type: 'textarea' },

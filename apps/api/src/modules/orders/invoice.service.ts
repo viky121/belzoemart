@@ -6,6 +6,8 @@ import { STORAGE_PROVIDER, type StorageProvider } from '../../integrations/stora
 import { SettingsService } from '../admin/settings.service';
 import {
   buildInvoiceDocument,
+  DEFAULT_COD_PAYMENT_QR,
+  isUpiPayLink,
   type InvoiceDocument,
   type InvoiceOrder,
   type InvoiceSeller,
@@ -194,7 +196,7 @@ export class InvoiceService {
 
   /** Store identity for the invoice header, from admin settings with env/default fallbacks. */
   private async loadSeller(): Promise<InvoiceSeller> {
-    const [name, legalName, gstinSetting, address, city, pincode, stateSetting, phone, email, website, logoUrl, terms, fssai] =
+    const [name, legalName, gstinSetting, address, city, pincode, stateSetting, phone, email, website, logoUrl, terms, fssai, codQr] =
       await Promise.all(
         [
           'store.name',
@@ -210,6 +212,7 @@ export class InvoiceService {
           'store.logoUrl',
           'store.invoiceTerms',
           'store.fssai',
+          'store.codPaymentQr',
         ].map((k) => this.resolveString(k)),
       );
     const storeName = name ?? 'Belzo eMart';
@@ -232,6 +235,8 @@ export class InvoiceService {
       logoUrl: await this.resolveLogo(logoUrl),
       terms: terms ?? null,
       fssai: fssai ?? null,
+      // The admin's own UPI link when it is a proper upi://pay link, else the shop's SBI QR code.
+      codPaymentQr: codQr && isUpiPayLink(codQr) ? codQr : DEFAULT_COD_PAYMENT_QR,
     };
   }
 

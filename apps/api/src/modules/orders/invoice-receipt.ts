@@ -1,5 +1,5 @@
 import QRCode from 'qrcode';
-import { DEFAULT_TERMS, escapeHtml, type InvoiceDocument } from './invoice-document';
+import { DEFAULT_TERMS, escapeHtml, isUpiPayLink, upiIdOf, type InvoiceDocument } from './invoice-document';
 
 /**
  * The customer's bill as a narrow (80 mm) shop receipt: logo and store details on top, "TAX INVOICE", the
@@ -208,7 +208,15 @@ export function buildReceipt(doc: InvoiceDocument): ReceiptRow[] {
   // ---- References + QR ----
   rows.push({ t: 'kv', left: 'Tax Invoice No', right: doc.number });
   rows.push({ t: 'text', text: `Order ID: ${doc.orderId}`, small: true });
-  if (doc.verifyUrl) rows.push({ t: 'qr', data: doc.verifyUrl, caption: 'Scan to view your order' });
+  // Cash on Delivery with money still to pay: the shop's UPI payment QR code instead of the order QR code.
+  const payLink = doc.isCod && doc.balanceDue > 0 && s.codPaymentQr && isUpiPayLink(s.codPaymentQr) ? s.codPaymentQr : null;
+  if (payLink) {
+    rows.push({ t: 'qr', data: payLink, caption: `Scan to pay Rs. ${amt(doc.balanceDue)} by UPI` });
+    const upiId = upiIdOf(payLink);
+    if (upiId) rows.push({ t: 'center', text: `UPI ID: ${upiId}`, small: true });
+  } else if (doc.verifyUrl) {
+    rows.push({ t: 'qr', data: doc.verifyUrl, caption: 'Scan to view your order' });
+  }
   rows.push({ t: 'rule', style: 'dash' });
 
   // ---- Terms and thanks ----

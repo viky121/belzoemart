@@ -75,6 +75,29 @@ export interface InvoiceSeller {
   /** FSSAI licence number (food sellers). */
   fssai: string | null;
   terms: string | null;
+  /**
+   * UPI payment link (upi://pay?...) printed as a QR code on Cash on Delivery invoices, in place of the
+   * "view your order" QR code. Empty or missing: the order QR code is printed as for every other order.
+   */
+  codPaymentQr?: string | null;
+}
+
+/**
+ * The shop's SBI UPI QR code (the one on the counter stand), read from the photo of the stand.
+ * Used on Cash on Delivery invoices unless the admin sets `store.codPaymentQr`.
+ */
+export const DEFAULT_COD_PAYMENT_QR =
+  'upi://pay?pa=SBIBHIM.INSTANT97993723982907045@sbipay&tn=StaticQR&mode=01&orgid=180080&purpose=00';
+
+/** A UPI payment link we accept for the COD QR code: upi://pay?..., short enough for a small receipt QR. */
+export function isUpiPayLink(v: string): boolean {
+  return /^upi:\/\/pay\?[^\s]{5,400}$/i.test(v);
+}
+
+/** The UPI ID (pa=) inside a payment link, or null. */
+export function upiIdOf(link: string): string | null {
+  const q = link.split('?')[1] ?? '';
+  return new URLSearchParams(q).get('pa');
 }
 
 export interface InvoiceParty {

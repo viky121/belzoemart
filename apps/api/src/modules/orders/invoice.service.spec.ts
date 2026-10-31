@@ -32,6 +32,7 @@ describe('InvoiceService', () => {
   function build(
     settingsMap: Record<string, unknown>,
     existingInvoice: { orderId: string; number: string; url: string; createdAt: Date } | null = null,
+    payments: unknown[] = [],
   ) {
     const puts: { key: string; html: string; cacheControl?: string }[] = [];
     const prisma = {
@@ -41,7 +42,7 @@ describe('InvoiceService', () => {
         update: jest.fn(async () => ({})),
       },
       order: {
-        findUnique: jest.fn(async () => ORDER),
+        findUnique: jest.fn(async () => ({ ...ORDER, payments })),
         update: jest.fn(async () => ({})),
       },
       address: {
@@ -143,6 +144,38 @@ describe('InvoiceService', () => {
         if (prev === undefined) delete process.env.PUBLIC_BASE_URL;
         else process.env.PUBLIC_BASE_URL = prev;
       }
+    });
+    describe('payment QR code on a Cash on Delivery invoice', () => {
+      const COD = [{ provider: 'cod', status: 'pending', method: null, providerPaymentId: null, createdAt: new Date('2025-03-14T10:00:00Z') }];
+      const PAID = [{ ...COD[0]!, provider: 'razorpay', status: 'captured' }];
+      it('uses the shop SBI UPI QR code by default', async () => {
+        const { svc, getHtml } = build({}, null, COD);
+        await svc.generate('order-1');
+        expect(getHtml()).toContain('Scan to pay Rs.');
+        expect(getHtml()).toContain('UPI ID: SBIBHIM.INSTANT97993723982907045@sbipay');
+        expect(getHtml()).not.toContain('Scan to view your order');
+      });
+      it("uses the admin's own UPI link, and ignores a setting that is not a upi://pay link", async () => {
+        const own = build({ 'store.codPaymentQr': 'upi://pay?pa=own@okbank&tn=x' }, null, COD);
+        await own.svc.generate('order-1');
+        expect(own.getHtml()).toContain('UPI ID: own@okbank');
+        const bad = build({ 'store.codPaymentQr': 'https://evil.example' }, null, COD);
+        await bad.svc.generate('order-1');
+        expect(bad.getHtml()).toContain('UPI ID: SBIBHIM.INSTANT97993723982907045@sbipay');
+      });
+      it('keeps the order QR code on a paid online order', async () => {
+        const prev = process.env.PUBLIC_BASE_URL;
+        process.env.PUBLIC_BASE_URL = 'https://belzoemart.com';
+        try {
+          const { svc, getHtml } = build({}, null, PAID);
+          await svc.generate('order-1');
+          expect(getHtml()).toContain('Scan to view your order');
+          expect(getHtml()).not.toContain('UPI ID');
+        } finally {
+          if (prev === undefined) delete process.env.PUBLIC_BASE_URL;
+          else process.env.PUBLIC_BASE_URL = prev;
+        }
+      });
     });
     it('renders the new store identity settings and the product HSN', async () => {
       const { svc, getHtml, prisma } = build({

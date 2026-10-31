@@ -1,7 +1,10 @@
 import { computeTotals, paise } from '@belzo/shared';
 import {
   buildInvoiceDocument,
+  DEFAULT_COD_PAYMENT_QR,
   escapeHtml,
+  isUpiPayLink,
+  upiIdOf,
   type BuildInvoiceInput,
   type InvoiceOrder,
   type InvoiceSeller,
@@ -249,6 +252,43 @@ describe('buildReceipt — content', () => {
     expect(none.find((r) => r.t === 'qr')).toBeUndefined();
   });
 
+  describe('payment QR code on Cash on Delivery invoices', () => {
+    const UPI = 'upi://pay?pa=shop@sbipay&tn=StaticQR&mode=01';
+    const withQr = { seller: { ...SELLER, codPaymentQr: UPI } };
+    it('prints the UPI QR code and the UPI ID instead of the order QR code', () => {
+      const doc = docOf(orderOf({ cod: true }), withQr);
+      const rows = buildReceipt(doc);
+      const qrs = rows.filter((r) => r.t === 'qr');
+      expect(qrs).toHaveLength(1);
+      expect(qrs[0]).toMatchObject({ data: UPI, caption: `Scan to pay Rs. ${amt(doc.balanceDue)} by UPI` });
+      expect(texts(rows)).toContain('UPI ID: shop@sbipay');
+      expect(JSON.stringify(rows)).not.toContain('/orders/');
+    });
+    it('keeps the order QR code for an online order that is paid', () => {
+      const rows = buildReceipt(docOf(orderOf({ cod: false }), withQr));
+      expect(rows.find((r) => r.t === 'qr')).toMatchObject({ data: 'https://belzoemart.com/orders/3f2a1c9e-4d5b-4c1a-9e33-7b5a1f0c2d11' });
+      expect(texts(rows).join('\n')).not.toContain('UPI ID');
+    });
+    it('keeps the order QR code when no payment QR is set or it is not a UPI link', () => {
+      for (const seller of [SELLER, { ...SELLER, codPaymentQr: null }, { ...SELLER, codPaymentQr: 'https://evil.example/pay' }]) {
+        const rows = buildReceipt(docOf(orderOf({ cod: true }), { seller }));
+        expect(rows.find((r) => r.t === 'qr')).toMatchObject({ data: expect.stringContaining('/orders/') });
+      }
+    });
+    it('draws in the HTML and the PDF without error', async () => {
+      const doc = docOf(orderOf({ cod: true }), withQr);
+      const html = renderInvoiceHtml(doc);
+      expect(html).toContain('<svg class="qr"');
+      expect(html).toContain('Scan to pay Rs.');
+      const pdf = await renderInvoicePdf(doc);
+      expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+    });
+    it('the real SBI QR code link makes a valid, scannable-size QR code', () => {
+      expect(isUpiPayLink(DEFAULT_COD_PAYMENT_QR)).toBe(true);
+      expect(upiIdOf(DEFAULT_COD_PAYMENT_QR)).toBe('SBIBHIM.INSTANT97993723982907045@sbipay');
+      expect(qrMatrix(DEFAULT_COD_PAYMENT_QR).length).toBeLessThanOrEqual(45);
+    });
+  });
   it('uses the store terms when set', () => {
     const lines = texts(buildReceipt(docOf(orderOf(), { seller: { ...SELLER, terms: 'No returns on opened food.' } })));
     expect(lines).toContain('No returns on opened food.');

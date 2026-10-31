@@ -838,3 +838,11 @@ answer: both"
 **AI Response**: "Ran the automated checks (shared 512, API 1116, web 401, mobile 328 tests pass; tsc clean; eslint 0 errors), a scratch-database check (16 migrations apply, no schema drift, report DB tests 5/5), the web production build (passes), a dependency audit (100 findings, Next.js 14.2.5 is the main one), live read-only smoke tests of pages, API, auth guards, input handling, headers, TLS and speed, read-only SQL data checks on production (0 integrity mismatches) and a server health check. Nothing was deployed or built on the server, no orders placed. Found and fixed one own bug in code: the Wallet row in the phone Account tab linked to a page that does not exist (404); not deployed. Report: aidlc-docs/construction/build-and-test/system-test-report-2026-10-31.md. Main findings: no automatic database backup, Next.js 14.2.5 is old, 8 old pending COD test orders, tight server memory, COD cash not recorded as paid, missing robots.txt/sitemap.xml."
 **Context**: Build and Test, system-wide check. APK 0.1.20 finished.
 ---
+
+---
+## COD invoice shows the shop's UPI payment QR code
+**Timestamp**: 2026-10-31T13:30:00Z
+**User Input**: "jan v koi cod order kare, to invoice me jaha abhi order view ka QR code aa rah ahai, uske jagah WhatsApp Image 2026-10-31 at 10.03.34 AM.jpeg is payment ka QR code aa jaye, ye sirf COD case me rahega"
+**AI Response**: "Read the QR code from the photo (UPI link of the shop's SBI account, same UPI ID as printed on the stand). Cash on Delivery invoices with money still to pay now print that QR code (with 'Scan to pay Rs. X by UPI' and the UPI ID) instead of 'Scan to view your order'; online orders keep the order QR code. Optional admin setting store.codPaymentQr overrides the link (only upi://pay links accepted). API tsc, eslint, jest (1124) pass; web tsc, eslint pass; a sample COD invoice was rendered to PDF and the QR code read back correctly at 100 and 203 dpi. Not deployed, nothing built. The photo itself was left uncommitted in the repo root."
+**Context**: Small change request, no new requirements stage. Summary: aidlc-docs/construction/cod-payment-qr/code/summary.md
+---
