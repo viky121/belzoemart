@@ -862,3 +862,11 @@ answer: both"
 **AI Response**: "Deployed main (commit a976521: COD payment QR code; the Wallet link fix is NOT in it, it waits on branch draft/wallet-link-fix). Took a DB dump first (belzo-backup-2026-10-31-1901-predeploy.sql), built api and web on the server (about 7 minutes this time), no migrations, restarted. Checks: health ready 200, home, offers, admin settings page and a category page 200, admin settings API 401 without login, all six containers up, the compiled API contains the SBI QR link, no errors in worker and web logs. One error in the API log, unrelated to this change and already in the code before: two parallel requests with the same guest cart token both try to create the cart, the second hits the unique key on guestToken and answers 500 (seen from a crawler on GET /cart). Not fixed yet; reported to the user. A real COD invoice was not opened (needs a login); the QR drawing was verified before on a sample PDF."
 **Context**: Deploy approved by the user (COD QR only).
 ---
+
+---
+## Bug fix - first cart request race (500)
+**Timestamp**: 2026-10-31T14:40:00Z
+**User Input**: "ha fix ka do"
+**AI Response**: "Cause: on a first visit a browser or crawler sends several cart requests together with the same cart token; each looks for the cart, finds none, and each tries to create it; the database refuses the second (unique guestToken, Prisma P2002) and the API answered 500 (seen in the production log from a Meta crawler on GET /api/v1/cart). Same weakness for a signed-in customer (unique customerId). Fix in CartService.findOrCreateCart: when the create is refused with P2002, read the cart the other request made and use it; any other error still fails. Tests: 5 new unit tests; plus a throwaway check on a scratch Postgres with 20 parallel first requests (all got the same single cart; scratch DB and test file removed). API tsc, eslint, jest (1129) pass. Not deployed, nothing built."
+**Context**: Small bug fix, no new requirements. Needs an API deploy only (no migration, no web change).
+---

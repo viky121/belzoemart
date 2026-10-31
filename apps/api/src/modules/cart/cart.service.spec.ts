@@ -187,3 +187,37 @@ describe('CartService.removePurchased (A4)', () => {
     expect(deleteMany).not.toHaveBeenCalled();
   });
 });
+
+describe('CartService cart creation when two requests arrive together', () => {
+  const unique = Object.assign(new Error('Unique constraint failed on the fields: (`guestToken`)'), { code: 'P2002' });
+  function make(findResults: unknown[], createImpl: () => Promise<unknown>) {
+    const find = jest.fn();
+    for (const r of findResults) find.mockResolvedValueOnce(r);
+    const create = jest.fn(createImpl);
+    const svc = new CartService({ cart: { findUnique: find, create } } as unknown as PrismaService);
+    return { svc, find, create };
+  }
+  it('takes the cart the other request made instead of failing (guest)', async () => {
+    const { svc, create } = make([null, { id: 'made-by-other' }], () => Promise.reject(unique));
+    await expect(svc['findOrCreateCart']({ guestToken: 'guest-token-1' })).resolves.toEqual({ id: 'made-by-other' });
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+  it('does the same for a signed-in customer', async () => {
+    const { svc } = make([null, { id: 'c9' }], () => Promise.reject(unique));
+    await expect(svc['findOrCreateCart']({ customerId: 'u1' })).resolves.toEqual({ id: 'c9' });
+  });
+  it('creates the cart when none exists and nothing races', async () => {
+    const { svc, create } = make([null], async () => ({ id: 'new' }));
+    await expect(svc['findOrCreateCart']({ guestToken: 'guest-token-2' })).resolves.toEqual({ id: 'new' });
+    expect(create).toHaveBeenCalledWith({ data: { guestToken: 'guest-token-2' } });
+  });
+  it('still fails on any other database error', async () => {
+    const boom = Object.assign(new Error('connection lost'), { code: 'P1001' });
+    const { svc } = make([null], () => Promise.reject(boom));
+    await expect(svc['findOrCreateCart']({ guestToken: 'guest-token-3' })).rejects.toBe(boom);
+  });
+  it('fails when the unique error comes but the cart cannot be found afterwards', async () => {
+    const { svc } = make([null, null], () => Promise.reject(unique));
+    await expect(svc['findOrCreateCart']({ guestToken: 'guest-token-4' })).rejects.toBe(unique);
+  });
+});

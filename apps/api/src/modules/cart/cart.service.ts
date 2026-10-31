@@ -41,14 +41,32 @@ export class CartService {
 
   private async findOrCreateCart(ref: CartRef) {
     if (ref.customerId) {
-      const existing = await this.prisma.cart.findUnique({ where: { customerId: ref.customerId } });
-      return existing ?? this.prisma.cart.create({ data: { customerId: ref.customerId } });
+      const where = { customerId: ref.customerId };
+      return (await this.prisma.cart.findUnique({ where })) ?? this.createOrFind(where);
     }
     if (ref.guestToken) {
-      const existing = await this.prisma.cart.findUnique({ where: { guestToken: ref.guestToken } });
-      return existing ?? this.prisma.cart.create({ data: { guestToken: ref.guestToken } });
+      const where = { guestToken: ref.guestToken };
+      return (await this.prisma.cart.findUnique({ where })) ?? this.createOrFind(where);
     }
     throw new Error('CartRef requires customerId or guestToken');
+  }
+
+  /**
+   * Create the cart. A phone or browser often sends several requests at once on its first visit, all with
+   * the same cart token, so another request may create the cart between our look-up and our create. The
+   * database then refuses the second one (unique customerId / guestToken, Prisma code P2002); we take the
+   * cart that request made instead of failing with a 500.
+   */
+  private async createOrFind(where: { customerId: string } | { guestToken: string }) {
+    try {
+      return await this.prisma.cart.create({ data: where });
+    } catch (e) {
+      if ((e as { code?: string } | null)?.code === 'P2002') {
+        const made = await this.prisma.cart.findUnique({ where });
+        if (made) return made;
+      }
+      throw e;
+    }
   }
 
   /**
