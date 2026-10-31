@@ -115,3 +115,4 @@
 - [x] COD payment QR on invoices: DEPLOYED 2026-10-31 (main a976521). Wallet link fix held on branch `draft/wallet-link-fix` (not live). Open finding: guest cart create race gives a 500 (unique guestToken) when two requests arrive together; not fixed.
 - [x] Bug fix 2026-10-31: guest/customer cart creation race gave a 500 (unique guestToken/customerId when requests arrive together). Fixed in `CartService.findOrCreateCart`; tested incl. 20 parallel requests on a scratch Postgres; NOT deployed (ask first; API only, no migration).
 - [x] Cart creation race fix: DEPLOYED 2026-10-31 (main 7735b1e, API only).
+- [ ] Self pickup at checkout (2026-10-31): questions Q1-Q8 in `aidlc-docs/inception/requirements/self-pickup-questions.md`; AWAITING USER ANSWERS. Standing rule: ask before every deploy and every build.

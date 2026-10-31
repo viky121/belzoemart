@@ -878,3 +878,11 @@ answer: both"
 **AI Response**: "Deployed main 7735b1e, API only (api and worker image; web untouched; Wallet link fix stays on branch draft/wallet-link-fix). DB dump first (belzo-backup-2026-10-31-1931-predeploy.sql), no migrations. Checks: health ready, home and offers 200, six containers up, compiled API has the fix, no error-level lines in api, worker and web logs since the restart. Live proof: 12 parallel GET /api/v1/cart with one new guest token all answered 200 (before the fix this pattern gave a 500). The one empty test cart row this made was deleted afterwards."
 **Context**: Deploy approved by the user ("Deploy karun?" -> "ha").
 ---
+
+---
+## Self pickup at checkout - request and questions
+**Timestamp**: 2026-10-31T15:30:00Z
+**User Input**: "BHai check page pe ek self pickup ka option chiye, jaha pe shop ka address show hoga, jisse kya hoga ki, customer jab v order kare to checkout page pe self shipment ka option aaye, usko sekct karke customemr COD ya Prepais payment kar sakta hai, ye optional hoga mendetory nahi."
+**AI Response**: "New feature, so requirements first. Looked at the code: order needs a delivery address (addressId required), the PIN check blocks unserviceable addresses, delivery charge flat Rs. 40 (free over Rs. 300), COD orders confirm at placing, store address already in settings, admin order flow has Create shipment / Packed / Shipped / Out for delivery / Delivered. Wrote 8 questions (where: web/app, pickup address and note, address needed or not, charges, payment wording, admin handling, customer notification/pickup code, time slot and on/off switch) in aidlc-docs/inception/requirements/self-pickup-questions.md. Waiting for the answers. Nothing built or deployed."
+**Context**: Requirements Analysis, standard depth. Standing rule: ask before every deploy and every build.
+---
