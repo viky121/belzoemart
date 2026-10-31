@@ -870,3 +870,11 @@ answer: both"
 **AI Response**: "Cause: on a first visit a browser or crawler sends several cart requests together with the same cart token; each looks for the cart, finds none, and each tries to create it; the database refuses the second (unique guestToken, Prisma P2002) and the API answered 500 (seen in the production log from a Meta crawler on GET /api/v1/cart). Same weakness for a signed-in customer (unique customerId). Fix in CartService.findOrCreateCart: when the create is refused with P2002, read the cart the other request made and use it; any other error still fails. Tests: 5 new unit tests; plus a throwaway check on a scratch Postgres with 20 parallel first requests (all got the same single cart; scratch DB and test file removed). API tsc, eslint, jest (1129) pass. Not deployed, nothing built."
 **Context**: Small bug fix, no new requirements. Needs an API deploy only (no migration, no web change).
 ---
+
+---
+## Deploy - cart creation race fix
+**Timestamp**: 2026-10-31T15:00:00Z
+**User Input**: "ha"
+**AI Response**: "Deployed main 7735b1e, API only (api and worker image; web untouched; Wallet link fix stays on branch draft/wallet-link-fix). DB dump first (belzo-backup-2026-10-31-1931-predeploy.sql), no migrations. Checks: health ready, home and offers 200, six containers up, compiled API has the fix, no error-level lines in api, worker and web logs since the restart. Live proof: 12 parallel GET /api/v1/cart with one new guest token all answered 200 (before the fix this pattern gave a 500). The one empty test cart row this made was deleted afterwards."
+**Context**: Deploy approved by the user ("Deploy karun?" -> "ha").
+---

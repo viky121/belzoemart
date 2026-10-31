@@ -114,3 +114,4 @@
 - [x] COD invoice prints the shop's UPI payment QR code instead of the order QR code (2026-10-31): built and verified, NOT deployed (ask first); API only plus one admin setting field (web). Summary `aidlc-docs/construction/cod-payment-qr/code/summary.md`.
 - [x] COD payment QR on invoices: DEPLOYED 2026-10-31 (main a976521). Wallet link fix held on branch `draft/wallet-link-fix` (not live). Open finding: guest cart create race gives a 500 (unique guestToken) when two requests arrive together; not fixed.
 - [x] Bug fix 2026-10-31: guest/customer cart creation race gave a 500 (unique guestToken/customerId when requests arrive together). Fixed in `CartService.findOrCreateCart`; tested incl. 20 parallel requests on a scratch Postgres; NOT deployed (ask first; API only, no migration).
+- [x] Cart creation race fix: DEPLOYED 2026-10-31 (main 7735b1e, API only).
