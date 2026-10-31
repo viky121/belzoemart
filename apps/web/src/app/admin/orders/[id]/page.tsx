@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { adminFetch } from '@/lib/admin-api';
 import { formatInr } from '@/lib/catalogue-api';
+import { pendingAction, WAITING_FOR_PAYMENT_HINT } from '@/lib/admin-order-actions';
 import { isUsableImageUrl, placeholderImage } from '@/lib/category-theme';
 
 interface AdminItem {
@@ -134,6 +135,8 @@ export default function AdminOrderDetailPage() {
   const [order, setOrder] = useState<AdminOrderDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmMsg, setConfirmMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -152,6 +155,20 @@ export default function AdminOrderDetailPage() {
   useEffect(() => {
     void load();
   }, [load]);
+  /** A pending Cash on Delivery order has nothing to wait for: the admin confirms it by hand. */
+  async function confirmCod() {
+    if (!id) return;
+    setConfirming(true);
+    setConfirmMsg(null);
+    try {
+      await adminFetch(`/admin/orders/${id}/confirm`, { method: 'POST' });
+      await load();
+    } catch (e) {
+      setConfirmMsg(`Could not confirm the order: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setConfirming(false);
+    }
+  }
 
   if (loading && !order) {
     return (
@@ -189,6 +206,28 @@ export default function AdminOrderDetailPage() {
         </span>
       </div>
 
+      {pendingAction(order.status, order.payments) === 'confirm_cod' && (
+        <section className="admin-card" data-testid="aod-confirm-cod">
+          <strong>This Cash on Delivery order is waiting to be confirmed.</strong>
+          <p className="admin-subtitle" style={{ margin: '4px 0 10px' }}>
+            Confirm it to book the stock and start the delivery. The customer is told, and the invoice is made.
+          </p>
+          <button className="auth-btn" onClick={confirmCod} disabled={confirming} data-testid="aod-confirm-btn">
+            {confirming ? 'Confirming…' : 'Confirm order'}
+          </button>
+          {confirmMsg && (
+            <p className="prod-form__msg prod-form__msg--err" role="alert">
+              {confirmMsg}
+            </p>
+          )}
+        </section>
+      )}
+      {pendingAction(order.status, order.payments) === 'waiting_payment' && (
+        <section className="admin-card" data-testid="aod-waiting-payment">
+          <strong>Waiting for the customer&apos;s payment.</strong>
+          <p className="admin-subtitle" style={{ margin: '4px 0 0' }}>{WAITING_FOR_PAYMENT_HINT}</p>
+        </section>
+      )}
       {order.status === 'cancelled' && order.cancelledReason && (
         <section className="admin-card">
           <strong>Cancellation reason:</strong> {order.cancelledReason}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { adminFetch } from '@/lib/admin-api';
 import { formatInr } from '@/lib/catalogue-api';
+import { pendingAction, WAITING_FOR_PAYMENT_HINT } from '@/lib/admin-order-actions';
 
 interface AdminOrder {
   id: string;
@@ -11,6 +12,7 @@ interface AdminOrder {
   grandTotal: number;
   createdAt: string;
   invoiceUrl: string | null;
+  payments?: { provider: string; status: string }[];
 }
 interface Paged {
   items: AdminOrder[];
@@ -86,6 +88,19 @@ export default function AdminOrdersPage() {
     void load();
   }
 
+  /** A pending Cash on Delivery order has nothing to wait for: the admin confirms it by hand. */
+  async function confirmCod(o: AdminOrder) {
+    setBusyId(o.id);
+    try {
+      await adminFetch(`/admin/orders/${o.id}/confirm`, { method: 'POST' });
+      setMsg(`Order #${o.id.slice(0, 8).toUpperCase()} confirmed`);
+      void load();
+    } catch (e) {
+      setMsg(`Could not confirm the order: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusyId(null);
+    }
+  }
   async function createShipment(o: AdminOrder) {
     await adminFetch(`/admin/orders/${o.id}/shipment`, { method: 'POST' });
     setMsg(`Shipment created for ${o.id.slice(0, 8)}`);
@@ -169,6 +184,16 @@ export default function AdminOrdersPage() {
                     <Link href={`/admin/orders/${o.id}`} className="aod-link" data-testid={`order-view-${o.id}`}>
                       View
                     </Link>
+                    {pendingAction(o.status, o.payments ?? []) === 'confirm_cod' && (
+                      <button onClick={() => confirmCod(o)} disabled={busyId === o.id} data-testid={`confirm-${o.id}`}>
+                        {busyId === o.id ? 'Confirming…' : 'Confirm order'}
+                      </button>
+                    )}
+                    {pendingAction(o.status, o.payments ?? []) === 'waiting_payment' && (
+                      <span className="admin-muted" title={WAITING_FOR_PAYMENT_HINT} data-testid={`waiting-${o.id}`}>
+                        Waiting for payment
+                      </span>
+                    )}
                     {o.status === 'confirmed' && (
                       <button onClick={() => createShipment(o)} data-testid={`ship-${o.id}`}>Create shipment</button>
                     )}

@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Query } from '@nestjs/common';
+import { Body, Controller, Logger, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { checkoutPreviewSchema, placeOrderSchema } from '@belzo/shared';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
@@ -18,6 +18,8 @@ class PlaceOrderDto extends createZodDto(placeOrderSchema) {}
 @ApiBearerAuth()
 @Controller('checkout')
 export class CheckoutController {
+  private readonly logger = new Logger('CheckoutController');
+
   constructor(
     private readonly checkout: CheckoutService,
     private readonly payments: PaymentService,
@@ -50,6 +52,15 @@ export class CheckoutController {
     if (dto.paymentMethod !== 'cod') {
       const init = await this.payments.initiate(result.orderId);
       clientConfig = init.clientConfig;
+    }
+    // Cash on Delivery has no payment to wait for: confirm it now (also on a replayed key, in case the first try
+    // failed). If this fails the order stays pending and the admin can confirm it from the orders page.
+    if (dto.paymentMethod === 'cod') {
+      try {
+        await this.payments.confirmCodOrder(result.orderId);
+      } catch (e) {
+        this.logger.error(`Could not confirm Cash on Delivery order ${result.orderId}: ${String(e)}`);
+      }
     }
     return { ...result, payment: { ...result.payment, clientConfig } };
   }

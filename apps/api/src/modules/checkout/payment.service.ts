@@ -329,25 +329,52 @@ export class PaymentService {
       return true;
     });
     if (!won) return;
+    await this.afterConfirmed(order, true);
+  }
 
+  /**
+   * Cash on Delivery has no payment to wait for, so the order is confirmed as soon as it is placed. Only a
+   * PENDING order with a Cash on Delivery payment is touched: an online order waits for its payment and a
+   * confirmed one is left alone, so calling this twice is safe. Returns true when this call confirmed the order.
+   */
+  async confirmCodOrder(orderId: string): Promise<boolean> {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId }, include: { items: true, payments: true } });
+    if (!order || order.status !== 'pending') return false;
+    if (!order.payments.some((p) => p.provider === 'cod')) return false;
+    const claim = await this.prisma.order.updateMany({ where: { id: orderId, status: 'pending' }, data: { status: 'confirmed' } });
+    if (claim.count === 0) return false;
+    // The purchased cart lines were already cleared when the order was placed.
+    await this.afterConfirmed(order, false);
+    return true;
+  }
+
+  /**
+   * What follows an order turning confirmed (paid, or Cash on Delivery): the reserved stock becomes a sale,
+   * then fulfilment, the customer message and the invoice are told. Runs once, by whoever won the claim.
+   */
+  private async afterConfirmed(
+    order: { id: string; customerId: string; items: { variantId: string; quantity: number }[] },
+    clearCart: boolean,
+  ): Promise<void> {
     // Convert reservations to sales (decrements reserved).
     for (const item of order.items) {
       await this.inventory.confirmSale(item.variantId, item.quantity, order.id);
     }
 
-    // Paid: clear the purchased lines from the customer's cart. Runs once,
-    // because only the caller that won the claim above gets here.
-    // Non-fatal: the payment is already captured.
-    try {
-      await this.cart.removePurchased(order.customerId, order.items.map((i) => i.variantId));
-    } catch (e) {
-      this.logger.warn(`Cart clear failed for order ${order.id}: ${String(e)}`);
+    if (clearCart) {
+      // Paid: clear the purchased lines from the customer's cart.
+      // Non-fatal: the payment is already captured.
+      try {
+        await this.cart.removePurchased(order.customerId, order.items.map((i) => i.variantId));
+      } catch (e) {
+        this.logger.warn(`Cart clear failed for order ${order.id}: ${String(e)}`);
+      }
     }
 
     // Hand off to U5 fulfilment + U6 notifications (async, decoupled).
-    await this.queue.enqueue(QUEUES.SHIPMENTS, 'order.confirmed', { orderId: payment.orderId });
-    await this.queue.enqueue(QUEUES.NOTIFICATIONS, 'order.confirmed', { orderId: payment.orderId });
-    await this.queue.enqueue(QUEUES.INVOICES, 'order.confirmed', { orderId: payment.orderId });
+    await this.queue.enqueue(QUEUES.SHIPMENTS, 'order.confirmed', { orderId: order.id });
+    await this.queue.enqueue(QUEUES.NOTIFICATIONS, 'order.confirmed', { orderId: order.id });
+    await this.queue.enqueue(QUEUES.INVOICES, 'order.confirmed', { orderId: order.id });
   }
 
   private async refundLateCapture(payment: PaymentRef, providerPaymentId?: string, method?: string): Promise<void> {

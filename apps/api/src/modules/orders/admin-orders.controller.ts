@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { ORDER_STATUSES } from '@belzo/shared';
@@ -10,6 +10,7 @@ import { AuditLogService } from '../admin/audit-log.service';
 import { OrderService } from './order.service';
 import { FulfilmentService } from './fulfilment.service';
 import { InvoiceService } from './invoice.service';
+import { PaymentService } from '../checkout/payment.service';
 import { ReturnService } from './return.service';
 
 const transitionSchema = z.object({ status: z.enum(ORDER_STATUSES) });
@@ -36,6 +37,7 @@ export class AdminOrdersController {
     private readonly returns: ReturnService,
     private readonly invoices: InvoiceService,
     private readonly audit: AuditLogService,
+    private readonly payments: PaymentService,
   ) {}
 
   @RequirePermission('orders.view')
@@ -57,6 +59,22 @@ export class AdminOrdersController {
   @Patch(':id/status')
   transition(@Param('id') id: string, @Body() dto: TransitionDto) {
     return this.orders.transition(id, dto.status);
+  }
+
+  /**
+   * Confirm a pending Cash on Delivery order (one placed before orders were confirmed automatically, or whose
+   * automatic confirmation failed). An online order is confirmed by its payment, never from here.
+   */
+  @Post(':id/confirm')
+  async confirm(@CurrentUser() user: JwtPrincipal, @Param('id') id: string) {
+    const done = await this.payments.confirmCodOrder(id);
+    if (!done) {
+      throw new BadRequestException(
+        'Only a pending Cash on Delivery order can be confirmed here. An online order is confirmed when its payment arrives.',
+      );
+    }
+    await this.audit.record(user.sub, 'order.confirm_cod', id, { status: 'pending' }, { status: 'confirmed' });
+    return { orderId: id, status: 'confirmed' as const };
   }
 
   @Post(':id/cancel')
