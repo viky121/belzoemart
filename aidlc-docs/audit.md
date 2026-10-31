@@ -846,3 +846,11 @@ answer: both"
 **AI Response**: "Read the QR code from the photo (UPI link of the shop's SBI account, same UPI ID as printed on the stand). Cash on Delivery invoices with money still to pay now print that QR code (with 'Scan to pay Rs. X by UPI' and the UPI ID) instead of 'Scan to view your order'; online orders keep the order QR code. Optional admin setting store.codPaymentQr overrides the link (only upi://pay links accepted). API tsc, eslint, jest (1124) pass; web tsc, eslint pass; a sample COD invoice was rendered to PDF and the QR code read back correctly at 100 and 203 dpi. Not deployed, nothing built. The photo itself was left uncommitted in the repo root."
 **Context**: Small change request, no new requirements stage. Summary: aidlc-docs/construction/cod-payment-qr/code/summary.md
 ---
+
+---
+## Wallet fix to draft, deploy the COD QR change
+**Timestamp**: 2026-10-31T13:50:00Z
+**User Input**: "nahi wallet abhi draft me dalo, and QR wala depoly karo"
+**AI Response**: "The Wallet link fix (commit 342c711) was moved to the branch draft/wallet-link-fix; main got the two files back as they were live (dead Wallet row stays for now). The COD payment QR change (add24c2) is deployed next: backup, upload, build api and web, migrate (none), restart, checks. Result is logged in the next entry."
+**Context**: Explicit deploy approval from the user for the COD QR code change only.
+---
