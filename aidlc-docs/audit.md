@@ -854,3 +854,11 @@ answer: both"
 **AI Response**: "The Wallet link fix (commit 342c711) was moved to the branch draft/wallet-link-fix; main got the two files back as they were live (dead Wallet row stays for now). The COD payment QR change (add24c2) is deployed next: backup, upload, build api and web, migrate (none), restart, checks. Result is logged in the next entry."
 **Context**: Explicit deploy approval from the user for the COD QR code change only.
 ---
+
+---
+## Deploy - COD invoice payment QR code
+**Timestamp**: 2026-10-31T14:10:00Z
+**User Input**: "nahi wallet abhi draft me dalo, and QR wala depoly karo" (see previous entry)
+**AI Response**: "Deployed main (commit a976521: COD payment QR code; the Wallet link fix is NOT in it, it waits on branch draft/wallet-link-fix). Took a DB dump first (belzo-backup-2026-10-31-1901-predeploy.sql), built api and web on the server (about 7 minutes this time), no migrations, restarted. Checks: health ready 200, home, offers, admin settings page and a category page 200, admin settings API 401 without login, all six containers up, the compiled API contains the SBI QR link, no errors in worker and web logs. One error in the API log, unrelated to this change and already in the code before: two parallel requests with the same guest cart token both try to create the cart, the second hits the unique key on guestToken and answers 500 (seen from a crawler on GET /cart). Not fixed yet; reported to the user. A real COD invoice was not opened (needs a login); the QR drawing was verified before on a sample PDF."
+**Context**: Deploy approved by the user (COD QR only).
+---
