@@ -956,3 +956,11 @@ Customer aaj se agle 2 din me se ek din aur ek slot chunega. Aaj ke liye wahi sl
 **AI Response**: "Android app: the checkout started on Cash on Delivery whenever both choices were offered. Now it starts on online payment (UPI / Card / Net Banking) when the shop offers it, and on Cash on Delivery only when online payment is not offered; a choice the customer makes is kept. (A second price preview is asked only when the method in force differs from the first guess, because Cash on Delivery can carry a fee.) Website: checked the code, the checkout already starts on UPI (useState 'upi') and only moves to UPI if the shop switches COD off; no change needed. Tests updated/added (selection rules, real screen starts on UPI, COD tests now choose COD first); app tsc, eslint, jest pass. Not deployed, no APK built."
 **Context**: Small fix. Needs a new APK for the app; the website part needs nothing.
 ---
+
+---
+## Deploy - self pickup (web, API, worker) and migration
+**Timestamp**: 2026-11-01T01:45:00Z
+**User Input**: "HA DEPLY KARDO"
+**AI Response**: "Deployed main c6095c6 (self pickup on website, API, worker; app UPI default and pickup parts wait for a new APK, none built). DB dump first (belzo-backup-2026-11-01-0651-predeploy.sql), built api and web on the server (about 9 minutes), ran migrations: 17 finished, last 20261031120000_order_self_pickup, none unfinished; all 42 existing orders are 'delivery'. Checks: health ready, home, offers, checkout, admin orders, admin settings, category pages 200; GET /api/v1/checkout/pickup answers (enabled, shop address from settings, Today/Tomorrow/day after with 10 slots each); checkout preview 401 without login; six containers up; no error-level log lines in api, worker, web. Self pickup is ON by default as decided. The Wallet link fix is still on branch draft/wallet-link-fix (not deployed). Note for the shop: the Settings > Store address already ends with the PIN (472001) and the checkout adds ' - 472001' again, so the address shows the PIN twice until that text is tidied."
+**Context**: Deploy approved by the user. No APK built.
+---
