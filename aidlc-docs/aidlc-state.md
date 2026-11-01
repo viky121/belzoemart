@@ -121,3 +121,4 @@
 - [x] Self pickup at checkout (2026-10-31): built and verified (web, app, API, admin; migration `20261031120000_order_self_pickup`), summary `aidlc-docs/construction/self-pickup/code/summary.md`. NOT deployed, NO APK built (ask first). Needs: API + web + worker deploy with the migration, new APK; then fill Settings > Store address and Settings > Self pickup.
 - [x] Default payment method is online (UPI) in the app checkout (2026-10-31); website already did. Built and tested; NOT built as APK (ask first). Goes in the same APK as self pickup.
 - [x] Self pickup: DEPLOYED 2026-11-01 (website, API, worker; migration order_self_pickup applied). Android app part waits for a new APK (not built; ask first). Shop to-do: Settings > Self pickup (note, hours); tidy Settings > Store address (PIN shown twice).
+- [x] APK 0.1.21 (self pickup + UPI default) submitted to EAS 2026-11-01, build id 908b56ed-52f8-471d-87c8-13e840f6466b.

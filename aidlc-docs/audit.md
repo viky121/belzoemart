@@ -964,3 +964,11 @@ Customer aaj se agle 2 din me se ek din aur ek slot chunega. Aaj ke liye wahi sl
 **AI Response**: "Deployed main c6095c6 (self pickup on website, API, worker; app UPI default and pickup parts wait for a new APK, none built). DB dump first (belzo-backup-2026-11-01-0651-predeploy.sql), built api and web on the server (about 9 minutes), ran migrations: 17 finished, last 20261031120000_order_self_pickup, none unfinished; all 42 existing orders are 'delivery'. Checks: health ready, home, offers, checkout, admin orders, admin settings, category pages 200; GET /api/v1/checkout/pickup answers (enabled, shop address from settings, Today/Tomorrow/day after with 10 slots each); checkout preview 401 without login; six containers up; no error-level log lines in api, worker, web. Self pickup is ON by default as decided. The Wallet link fix is still on branch draft/wallet-link-fix (not deployed). Note for the shop: the Settings > Store address already ends with the PIN (472001) and the checkout adds ' - 472001' again, so the address shows the PIN twice until that text is tidied."
 **Context**: Deploy approved by the user. No APK built.
 ---
+
+---
+## APK 0.1.21 build submitted (self pickup + UPI default)
+**Timestamp**: 2026-11-01T02:10:00Z
+**User Input**: "Naya APK: usmein self pickup aur UPI default dono honge. Bolo to banau. ISKO KAR DO"
+**AI Response**: "Version bumped to 0.1.21 (apps/mobile/app.config.ts) and an Android preview build submitted to EAS: build id 908b56ed-52f8-471d-87c8-13e840f6466b. It contains self pickup in the checkout and order screens, the online-payment (UPI) default, and the earlier changes (3 products per row, category blocks). The Expo token was used only for this command and unset afterwards. The download link is sent to the user when the build finishes."
+**Context**: Build approved by the user.
+---
