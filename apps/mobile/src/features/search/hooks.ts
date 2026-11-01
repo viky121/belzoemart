@@ -4,15 +4,23 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { qk, STALE } from '@/api/query-keys';
 import type { Paginated } from '@/api/types';
 
-import { fetchAutocomplete, fetchSearch } from './api';
+import { fetchSearch } from './api';
 
 const SEARCH_PAGE_SIZE = 20;
+/** Products shown in the suggestion list while typing (same count as the website's dropdown). */
+const SUGGESTION_COUNT = 6;
 
-/** Autocomplete suggestions; only runs at >= 2 chars (design §11 Search). */
-export function useAutocomplete(q: string) {
-  return useQuery<string[]>({
-    queryKey: qk.autocomplete(q),
-    queryFn: () => fetchAutocomplete(q),
+/**
+ * Product suggestions (picture, short name, price) while typing; only runs at >= 2 chars
+ * (design §11 Search). Uses the normal search, so a suggestion is a real product the customer can open.
+ */
+export function useSuggestions(q: string) {
+  return useQuery<ProductCardDto[]>({
+    queryKey: qk.suggestions(q),
+    queryFn: async () => {
+      const page = await fetchSearch({ q, page: 1, pageSize: SUGGESTION_COUNT, sort: 'relevance' });
+      return page.items;
+    },
     enabled: q.length >= 2,
     staleTime: STALE.product,
   });

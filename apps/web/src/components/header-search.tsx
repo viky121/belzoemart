@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { ProductCardDto } from '@belzo/shared';
+import { shortProductTitle, type ProductCardDto } from '@belzo/shared';
 import { catalogueApi, formatInr } from '@/lib/catalogue-api';
 import { useAccessTokenIfAny } from '@/lib/auth-context';
 import { trackSearch } from '@/lib/search-track';
@@ -124,7 +124,9 @@ export function HeaderSearch() {
               ) : (
                 <span className="search-suggest__img search-suggest__img--ph" aria-hidden />
               )}
-              <span className="search-suggest__title">{p.title}</span>
+              <span className="search-suggest__title" title={p.title}>
+                {shortProductTitle(p.title)}
+              </span>
               <span className="search-suggest__price">{formatInr(p.sellingPrice)}</span>
             </button>
           ))}

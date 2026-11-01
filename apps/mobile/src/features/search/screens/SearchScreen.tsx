@@ -1,4 +1,4 @@
-import type { ProductCardDto, ProductSort } from '@belzo/shared';
+import { formatInr, shortProductTitle, type ProductCardDto, type ProductSort } from '@belzo/shared';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
 import { useEffect, useMemo, useState } from 'react';
@@ -11,11 +11,14 @@ import { useRecentSearchesStore } from '@/store/recent-searches';
 import { theme } from '@/theme';
 import { useBrand } from '@/theme/use-brand';
 import { Chip, EmptyState, ErrorState, ProductGridCard, Screen, useGridColumns } from '@/ui';
+import { RemoteImage } from '@/ui/RemoteImage';
 import { SearchBar } from '@/ui/SearchBar';
 import { ProductGridSkeleton } from '@/ui/Skeleton';
 
 import { logSearch } from '../api';
-import { useAutocomplete, useSearchResults } from '../hooks';
+import { useSearchResults, useSuggestions } from '../hooks';
+
+const SUGGESTION_IMG = 52;
 
 const SEARCH_SORTS: { key: ProductSort; label: string }[] = [
   { key: 'relevance', label: 'Relevance' },
@@ -42,7 +45,7 @@ export function SearchScreen({ navigation, route }: RootScreenProps<'Search'>) {
   const autoQ = useDebouncedValue(q.trim(), 250);
   const resultsQ = useDebouncedValue(q.trim(), 400);
 
-  const auto = useAutocomplete(autoQ);
+  const suggestions = useSuggestions(autoQ);
   const results = useSearchResults(resultsQ, sort);
   const items = useMemo(() => results.data?.pages.flatMap((p) => p.items) ?? [], [results.data]);
 
@@ -59,9 +62,17 @@ export function SearchScreen({ navigation, route }: RootScreenProps<'Search'>) {
     logSearch(term);
   }
 
-  const showSuggestions = !submitted && autoQ.length >= 2 && (auto.data?.length ?? 0) > 0;
+  const showSuggestions = !submitted && autoQ.length >= 2 && (suggestions.data?.length ?? 0) > 0;
   const onPressProduct = (p: ProductCardDto) =>
     navigation.navigate('ProductDetail', { idOrSlug: p.slug });
+
+  // The customer typed words and picked a product from the list: that is a real search (same as the website).
+  function pickSuggestion(p: ProductCardDto) {
+    const term = q.trim();
+    recent.add(term);
+    logSearch(term);
+    onPressProduct(p);
+  }
 
   return (
     <Screen>
@@ -108,13 +119,39 @@ export function SearchScreen({ navigation, route }: RootScreenProps<'Search'>) {
         </View>
       ) : showSuggestions ? (
         <View style={styles.suggestions} testID="search-suggestions">
-          {(auto.data ?? []).map((s) => (
-            <Pressable key={s} style={styles.suggestionRow} onPress={() => selectTerm(s)} accessibilityRole="button">
-              <MaterialCommunityIcons name="magnify" size={18} color={theme.colors.mutedSoft} />
-              <Text style={styles.suggestionText}>{s}</Text>
-              <MaterialCommunityIcons name="arrow-top-left" size={18} color={theme.colors.mutedSoft} />
+          {(suggestions.data ?? []).map((p) => (
+            <Pressable
+              key={p.id}
+              style={styles.suggestionRow}
+              onPress={() => pickSuggestion(p)}
+              accessibilityRole="button"
+              accessibilityLabel={shortProductTitle(p.title)}
+              testID={`suggest-${p.slug}`}
+            >
+              <RemoteImage
+                uri={p.imageUrl}
+                width={SUGGESTION_IMG}
+                height={SUGGESTION_IMG}
+                contentFit="contain"
+                fallbackLabel={p.title}
+                radius={theme.radius.md}
+              />
+              <Text style={styles.suggestionText} numberOfLines={2}>
+                {shortProductTitle(p.title)}
+              </Text>
+              <Text style={styles.suggestionPrice}>{formatInr(p.sellingPrice)}</Text>
             </Pressable>
           ))}
+          <Pressable
+            style={styles.seeAll}
+            onPress={() => selectTerm(q.trim())}
+            accessibilityRole="button"
+            testID="suggest-see-all"
+          >
+            <Text style={[styles.seeAllText, { color: brand.primary }]} numberOfLines={1}>
+              {`See all results for "${q.trim()}"`}
+            </Text>
+          </Pressable>
         </View>
       ) : (
         <>
@@ -197,6 +234,7 @@ const styles = StyleSheet.create({
   suggestions: { paddingHorizontal: theme.spacing.lg },
   suggestionRow: {
     minHeight: theme.touch.minTouch,
+    paddingVertical: theme.spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.md,
@@ -204,6 +242,9 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.border,
   },
   suggestionText: { ...theme.typography.bodyLg, color: theme.colors.ink, flex: 1 },
+  suggestionPrice: { ...theme.typography.body, color: theme.colors.inkStrong, fontWeight: '700' },
+  seeAll: { minHeight: theme.touch.minTouch, alignItems: 'center', justifyContent: 'center' },
+  seeAllText: { ...theme.typography.body, fontWeight: '700' },
   sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm, padding: theme.spacing.lg, paddingTop: 0 },
   grid: { padding: theme.spacing.sm },
   cell: { flex: 1, padding: theme.spacing.sm },

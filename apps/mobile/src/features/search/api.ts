@@ -3,10 +3,6 @@ import type { ProductCardDto, ProductSort } from '@belzo/shared';
 import { apiRequest } from '@/api/client';
 import type { Paginated } from '@/api/types';
 
-export function fetchAutocomplete(q: string): Promise<string[]> {
-  return apiRequest<string[]>('/search/autocomplete', { query: { q } });
-}
-
 /**
  * Tells the shop that the customer made a real search (Enter, a tapped suggestion or recent search),
  * so the admin "Search terms" report can count it. Fire and forget: never throws, never shown to the customer.
