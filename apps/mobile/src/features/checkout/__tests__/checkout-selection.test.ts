@@ -1,6 +1,6 @@
 import type { Address } from '@/api/types';
 
-import { availableMethods, preselectMethod, selectCheckoutAddress } from '../checkout-selection';
+import { availableMethods, preselectMethod, resolveMethod, selectCheckoutAddress } from '../checkout-selection';
 
 function addr(id: string, isDefault = false): Address {
   return {
@@ -54,9 +54,25 @@ describe('availableMethods / preselectMethod', () => {
     expect(m).toEqual(['upi']);
     expect(preselectMethod(m)).toBe('upi');
   });
-  it('offers both and preselects COD', () => {
+  it('offers both and preselects online payment (UPI), not Cash on Delivery', () => {
     const m = availableMethods(true, true);
     expect(m).toEqual(['cod', 'upi']);
-    expect(preselectMethod(m)).toBe('cod');
+    expect(preselectMethod(m)).toBe('upi');
+  });
+});
+
+describe('resolveMethod', () => {
+  it('starts on online payment when both are offered, and when nothing is known yet', () => {
+    expect(resolveMethod(null, ['cod', 'upi'])).toBe('upi');
+    expect(resolveMethod(null, [])).toBe('upi');
+  });
+  it('keeps the customer\'s own choice while it is still offered', () => {
+    expect(resolveMethod('cod', ['cod', 'upi'])).toBe('cod');
+    expect(resolveMethod('upi', ['cod', 'upi'])).toBe('upi');
+  });
+  it('falls back to what is offered when the chosen method is not', () => {
+    expect(resolveMethod('upi', ['cod'])).toBe('cod');
+    expect(resolveMethod('cod', ['upi'])).toBe('upi');
+    expect(resolveMethod(null, ['cod'])).toBe('cod');
   });
 });

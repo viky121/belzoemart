@@ -22,9 +22,18 @@ export function availableMethods(codEnabled: boolean, onlineEnabled: boolean): C
   return methods;
 }
 
-/** Preselect: the only method, or COD when both are offered (design §11). */
+/** Preselect: the only method, or online (UPI / card / net banking) when both are offered. */
 export function preselectMethod(methods: CheckoutMethod[]): CheckoutMethod | null {
   if (methods.length === 0) return null;
   if (methods.length === 1) return methods[0]!;
-  return 'cod';
+  return 'upi';
+}
+
+/**
+ * The payment method in force: the customer's own choice while it is still on offer, else the default
+ * (online when it is offered, otherwise Cash on Delivery). Before the offer is known, online is assumed.
+ */
+export function resolveMethod(chosen: CheckoutMethod | null, methods: CheckoutMethod[]): CheckoutMethod {
+  if (chosen && methods.includes(chosen)) return chosen;
+  return preselectMethod(methods) ?? chosen ?? 'upi';
 }

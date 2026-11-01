@@ -72,9 +72,18 @@ describe('Checkout: Cash on Delivery', () => {
   });
   afterEach(() => jest.restoreAllMocks());
 
+  it('starts on online payment (UPI), not Cash on Delivery', async () => {
+    serve(() => reply({}));
+    const ui = await render(<Harness />);
+    const upi = await ui.findByLabelText(/UPI \/ Card \/ Net Banking/, {}, { timeout: 4000 });
+    expect(upi.props.accessibilityState?.checked).toBe(true);
+    expect(ui.getByLabelText(/Cash on Delivery/).props.accessibilityState?.checked).toBe(false);
+    expect(await ui.findByText('Pay & Place Order')).toBeTruthy();
+  });
   it('places the order and moves to the confirmation page (it must not get stuck on "Placing your order")', async () => {
     const calls = serve(() => reply({ orderId: 'order-123', reused: false, breakup: BREAKUP, payment: { provider: 'cod', amount: 2880 } }));
     const ui = await render(<Harness />);
+    await fireEvent.press(await ui.findByLabelText(/Cash on Delivery/, {}, { timeout: 4000 }));
     const button = await ui.findByTestId('place-order', {}, { timeout: 4000 });
     await waitFor(() => expect(button.props.accessibilityState?.disabled).not.toBe(true), { timeout: 4000 });
     await fireEvent.press(button);
@@ -88,6 +97,7 @@ describe('Checkout: Cash on Delivery', () => {
   it('shows the reason and stays on the page when the server refuses the order', async () => {
     serve(() => reply({ statusCode: 400, error: 'BadRequestException', message: 'Cash on Delivery is currently unavailable.' }, 400));
     const ui = await render(<Harness />);
+    await fireEvent.press(await ui.findByLabelText(/Cash on Delivery/, {}, { timeout: 4000 }));
     const button = await ui.findByTestId('place-order', {}, { timeout: 4000 });
     await waitFor(() => expect(button.props.accessibilityState?.disabled).not.toBe(true), { timeout: 4000 });
     await fireEvent.press(button);

@@ -22,7 +22,7 @@ import { useToast } from '@/ui/Toast';
 import { cancelOrder, placeOrder } from '../api';
 import {
   availableMethods,
-  preselectMethod,
+  resolveMethod,
   selectCheckoutAddress,
   type CheckoutMethod,
 } from '../checkout-selection';
@@ -55,7 +55,8 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
   const addresses = addressesQuery.data ?? [];
   const address = selectCheckoutAddress(addresses, route.params?.addressId);
 
-  const [method, setMethod] = useState<CheckoutMethod>('cod');
+  // The customer's own choice; until they choose, online payment (UPI) is the default when it is offered.
+  const [chosenMethod, setMethod] = useState<CheckoutMethod | null>(null);
   // Self pickup (optional): collect the order from the shop instead of home delivery.
   const [wantedFulfilment, setFulfilment] = useState<FulfilmentMethod>('delivery');
   const [chosenSlot, setSlotStart] = useState('');
@@ -73,18 +74,18 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
   const pickupMode = fulfilment === 'pickup';
   const slotStart = chosenSlot && pickupInfo && findOfferedSlot(pickupInfo.days ?? [], chosenSlot) ? chosenSlot : '';
 
-  const preview = usePreview(address?.id ?? null, couponCode, method, fulfilment);
+  // The first preview is asked for the method the customer chose, or online. It also tells which methods the shop
+  // offers; when the method in force turns out to be a different one (online is not offered, so Cash on Delivery),
+  // a second preview is asked for it, because Cash on Delivery can carry a fee.
+  const probeMethod: CheckoutMethod = chosenMethod ?? 'upi';
+  const probe = usePreview(address?.id ?? null, couponCode, probeMethod, fulfilment);
 
   // Pay-online is offered when the server has a live gateway (or the build flag forces it on).
-  const onlineOffered = env.onlinePaymentEnabled || preview.data?.onlinePayment === true;
-
-  // Correct an unavailable preselection once the preview tells us what's offered.
-  if (preview.isSuccess && method === 'cod' && !preview.data.codEnabled) {
-    const next = preselectMethod(availableMethods(false, onlineOffered));
-    if (next && next !== method) setMethod(next);
-  }
-
-  const methods = preview.data ? availableMethods(preview.data.codEnabled, onlineOffered) : [];
+  const onlineOffered = env.onlinePaymentEnabled || probe.data?.onlinePayment === true;
+  const methods = probe.data ? availableMethods(probe.data.codEnabled, onlineOffered) : [];
+  const method = resolveMethod(chosenMethod, methods);
+  const second = usePreview(address?.id ?? null, couponCode, method === probeMethod ? null : method, fulfilment);
+  const preview = method === probeMethod ? probe : second;
 
   usePreventRemove(placing, () => {
     toast.show({ message: 'Placing your order…', tone: 'info' });

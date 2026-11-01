@@ -948,3 +948,11 @@ Customer aaj se agle 2 din me se ek din aur ek slot chunega. Aaj ke liye wahi sl
 **AI Response**: "Built self pickup for website, Android app, API and admin: shared slot rules (India time), migration 20261031120000_order_self_pickup (enum + 3 columns), GET /checkout/pickup, checkout preview/place with pickup (no PIN check only for pickup, Rs. 0 delivery, no COD fee, CGST+SGST, slot checked again on the server), pickup flow Ready for pickup / Picked up (payment paid at shop marked received), ready-for-pickup notification and email, no shipment and no delivery partner for pickup orders, invoice wording, admin Settings > Self pickup, admin order tags and buttons, customer order page and app order screens. Verified: shared 538, API 1164 (+6 real-database tests on a scratch Postgres with all migrations, drift empty), web 418, app 335 tests pass; tsc clean; eslint 0 errors; next build passes. The Wallet link fix stays on branch draft/wallet-link-fix (not in this work). Summary: aidlc-docs/construction/self-pickup/code/summary.md. NOT deployed, no APK built; asking the user first."
 **Context**: Construction complete for this feature. Standing rule: ask before every deploy and every build.
 ---
+
+---
+## Default payment method: online (UPI) instead of Cash on Delivery
+**Timestamp**: 2026-10-31T20:10:00Z
+**User Input**: "EK AUR FIX THA DEFAULT ME PAYMENT METHOD upi WALA KARNA HAI COD NAHI, BOTH MOBILE AND WEB MAI" (with a screenshot of the app checkout showing Cash on Delivery selected)
+**AI Response**: "Android app: the checkout started on Cash on Delivery whenever both choices were offered. Now it starts on online payment (UPI / Card / Net Banking) when the shop offers it, and on Cash on Delivery only when online payment is not offered; a choice the customer makes is kept. (A second price preview is asked only when the method in force differs from the first guess, because Cash on Delivery can carry a fee.) Website: checked the code, the checkout already starts on UPI (useState 'upi') and only moves to UPI if the shop switches COD off; no change needed. Tests updated/added (selection rules, real screen starts on UPI, COD tests now choose COD first); app tsc, eslint, jest pass. Not deployed, no APK built."
+**Context**: Small fix. Needs a new APK for the app; the website part needs nothing.
+---
