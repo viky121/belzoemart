@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { statusLabel } from '@belzo/shared';
+import { orderStatusLabel } from '@belzo/shared';
 import { useAuth } from '@/lib/auth-context';
 import { loginHref } from '@/lib/auth-redirect';
 import { formatInr } from '@/lib/catalogue-api';
@@ -23,6 +23,7 @@ interface Profile {
 interface OrderSummary {
   id: string;
   status: string;
+  fulfilment?: 'delivery' | 'pickup';
   grandTotal: number;
   createdAt: string;
   itemCount: number;
@@ -151,7 +152,7 @@ export default function AccountPage() {
                     <span className="acct-orders__meta">
                       {o.itemCount} item{o.itemCount !== 1 ? 's' : ''} · {formatInr(o.grandTotal)}
                     </span>
-                    <span className="acct-orders__status">{statusLabel(o.status)}</span>
+                    <span className="acct-orders__status">{orderStatusLabel(o.status, o.fulfilment)}</span>
                   </Link>
                 </li>
               ))}

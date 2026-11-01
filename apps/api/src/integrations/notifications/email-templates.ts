@@ -124,6 +124,12 @@ function addressBlock(a: MailAddress | null): string {
   return `<p style="margin:20px 0 4px;font-weight:700">Delivering to</p><p style="margin:0;color:#374151">${lines.join('<br>')}</p>`;
 }
 
+/** Self pickup: where and when the customer collects the order (the shop address is on the order page). */
+function pickupBlock(slot: string | null | undefined): string {
+  return `<p style="margin:20px 0 4px;font-weight:700">Self pickup</p><p style="margin:0;color:#374151">${
+    slot ? `Collect your order at the shop on ${esc(slot)}.` : 'Collect your order at the shop.'
+  } We will tell you when it is ready.</p>`;
+}
 function firstName(name: string | null | undefined): string {
   const n = (name ?? '').trim().split(/\s+/)[0];
   return n || 'there';
@@ -144,13 +150,15 @@ export function orderConfirmedEmail(input: {
   name?: string | null;
   order: MailOrder;
   address: MailAddress | null;
+  /** Self pickup order: shows the pickup time instead of a delivery address. */
+  pickup?: { slot: string | null };
 }): RenderedEmail {
   const ref = orderRef(input.order.id);
   const body = `<p>Hi ${esc(firstName(input.name))},</p>
 <p>Thank you for your order. We have received it and are getting it ready. Your tax invoice will follow in a separate email.</p>
 <p style="margin:16px 0 4px"><strong>Order ${esc(ref)}</strong></p>
 ${itemsTable(input.order)}
-${addressBlock(input.address)}
+${input.pickup ? pickupBlock(input.pickup.slot) : addressBlock(input.address)}
 ${button('View order', orderUrl(input.order.id))}`;
   return { subject: `Order confirmed ${ref} - ${STORE_NAME}`, html: layout('Your order is confirmed', body) };
 }
@@ -182,10 +190,18 @@ ${button('Track your order', track)}`;
   return { subject: `Your order ${ref} has shipped - ${STORE_NAME}`, html: layout('Your order is on its way', body) };
 }
 
-export function orderDeliveredEmail(input: { name?: string | null; orderId: string }): RenderedEmail {
+export function orderReadyForPickupEmail(input: { name?: string | null; orderId: string; slot?: string | null }): RenderedEmail {
   const ref = orderRef(input.orderId);
   const body = `<p>Hi ${esc(firstName(input.name))},</p>
-<p>Your order <strong>${esc(ref)}</strong> has been delivered. We hope you enjoy it.</p>
+<p>Your order <strong>${esc(ref)}</strong> is packed and ready for pickup at the shop${input.slot ? `, as planned for ${esc(input.slot)}` : ''}.</p>
+<p>The shop address and timings are on your order page.</p>
+${button('View order', orderUrl(input.orderId))}`;
+  return { subject: `Your order ${ref} is ready for pickup - ${STORE_NAME}`, html: layout('Your order is ready for pickup', body) };
+}
+export function orderDeliveredEmail(input: { name?: string | null; orderId: string; pickup?: boolean }): RenderedEmail {
+  const ref = orderRef(input.orderId);
+  const body = `<p>Hi ${esc(firstName(input.name))},</p>
+<p>Your order <strong>${esc(ref)}</strong> has been ${input.pickup ? 'picked up' : 'delivered'}. We hope you enjoy it.</p>
 <p>You can view the order, download your invoice or share a review from your account.</p>
 ${button('View order', orderUrl(input.orderId))}`;
   return { subject: `Your order ${ref} was delivered - ${STORE_NAME}`, html: layout('Your order was delivered', body) };

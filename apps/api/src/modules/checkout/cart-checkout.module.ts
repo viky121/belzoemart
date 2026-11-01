@@ -13,6 +13,8 @@ import { CheckoutController } from './checkout.controller';
 import { CouponController } from './coupon.controller';
 import { AdminCouponController } from './admin-coupon.controller';
 import { PaymentController } from './payment.controller';
+import { PickupController } from './pickup.controller';
+import { PickupService } from './pickup.service';
 
 /**
  * Cart + checkout domain module (U4). Depends on CatalogueModule
@@ -21,8 +23,8 @@ import { PaymentController } from './payment.controller';
  */
 @Module({
   imports: [CatalogueModule, IdentityModule, PaymentModule, AdminModule],
-  controllers: [CartController, CheckoutController, CouponController, AdminCouponController, PaymentController],
-  providers: [CartService, CouponService, PricingService, CheckoutService, PaymentService],
-  exports: [PaymentService, CheckoutService, CartService],
+  controllers: [CartController, CheckoutController, CouponController, AdminCouponController, PaymentController, PickupController],
+  providers: [CartService, CouponService, PricingService, CheckoutService, PaymentService, PickupService],
+  exports: [PaymentService, CheckoutService, CartService, PickupService],
 })
 export class CartCheckoutModule {}

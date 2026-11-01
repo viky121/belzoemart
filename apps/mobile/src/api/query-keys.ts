@@ -19,8 +19,9 @@ export const qk = {
   activeOffers: ['offers', 'active'] as const,
   me: ['me'] as const,
   addresses: ['addresses'] as const,
-  preview: (addressId: string, coupon: string | null | undefined, method: string) =>
-    ['checkout', 'preview', addressId, coupon ?? '', method] as const,
+  preview: (addressId: string, coupon: string | null | undefined, method: string, fulfilment: string = 'delivery') =>
+    ['checkout', 'preview', addressId, coupon ?? '', method, fulfilment] as const,
+  pickup: ['checkout', 'pickup'] as const,
   orders: ['orders'] as const,
   order: (id: string) => ['order', id] as const,
   notifications: ['notifications'] as const,

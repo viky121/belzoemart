@@ -425,6 +425,12 @@ enum PaymentStatus {
   partially_refunded
 }
 
+/// How the customer gets the order: home delivery, or collects it from the shop (self pickup).
+enum FulfilmentMethod {
+  delivery
+  pickup
+}
+
 enum OrderStatus {
   pending
   confirmed
@@ -498,11 +504,14 @@ model CouponRedemption {
 }
 
 model Order {
-  id              String      @id @default(uuid())
+  id              String           @id @default(uuid())
   customerId      String
   addressId       String
-  status          OrderStatus @default(pending)
-  idempotencyKey  String      @unique
+  status          OrderStatus      @default(pending)
+  fulfilment      FulfilmentMethod @default(delivery)
+  pickupSlotStart DateTime? // self pickup: start of the time slot the customer chose
+  pickupSlotEnd   DateTime?
+  idempotencyKey  String           @unique
   couponCode      String?
   subtotal        Int
   discount        Int
@@ -515,8 +524,8 @@ model Order {
   grandTotal      Int
   invoiceUrl      String?
   cancelledReason String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   items        OrderItem[]
   payments     Payment[]
@@ -531,7 +540,7 @@ model Order {
 }
 
 model OrderItem {
-  id         String @id @default(uuid())
+  id         String  @id @default(uuid())
   orderId    String
   variantId  String
   title      String

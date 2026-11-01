@@ -187,7 +187,9 @@ export class JobQueryService {
     const active = await this.repo.findActiveByOrder(this.prisma, orderId);
 
     let reason: string | null = null;
-    if (!(ASSIGNABLE_ORDER_STATUSES as readonly string[]).includes(order.status)) {
+    if (order.fulfilment === 'pickup') {
+      reason = 'This is a self pickup order. The customer collects it from the shop';
+    } else if (!(ASSIGNABLE_ORDER_STATUSES as readonly string[]).includes(order.status)) {
       reason = order.status === 'pending' ? 'Confirm the order first' : `An order that is ${order.status.replace(/_/g, ' ')} cannot be assigned`;
     } else if (active && active.status !== 'new') {
       reason = 'This order is already with a delivery partner';

@@ -26,6 +26,8 @@ const LABELS: AddressInput['label'][] = ['home', 'work', 'other'];
 export function AddressFormScreen({ navigation, route }: RootScreenProps<'AddressForm'>) {
   const addressId = route.params?.addressId;
   const selectForCheckout = route.params?.selectForCheckout === true;
+  // Self pickup: the customer comes to the shop, so a PIN code outside our delivery list is fine.
+  const pickup = route.params?.pickup === true;
   const { data: addresses } = useAddresses();
   const customer = useSessionStore((s) => s.customer);
   const existing = addressId ? addresses?.find((a) => a.id === addressId) : undefined;
@@ -57,7 +59,7 @@ export function AddressFormScreen({ navigation, route }: RootScreenProps<'Addres
   const labelValue = useWatch({ control, name: 'label' });
   const stateValue = useWatch({ control, name: 'state' });
   const pincode = useWatch({ control, name: 'pincode' });
-  const checkDelivery = selectForCheckout && !addressId;
+  const checkDelivery = selectForCheckout && !addressId && !pickup;
   const validPin = /^[1-9]\d{5}$/.test(pincode ?? '');
   const delivery = useQuery({
     queryKey: ['pin-delivery', pincode],

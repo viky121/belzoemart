@@ -1,4 +1,4 @@
-import { breakupView, formatInr, snapshotFromBreakup } from '@belzo/shared';
+import { breakupView, cashLabel, findOfferedSlot, formatInr, snapshotFromBreakup, type FulfilmentMethod } from '@belzo/shared';
 import { usePreventRemove } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -28,7 +28,8 @@ import {
 } from '../checkout-selection';
 import { computeFingerprint, getOrCreateAttempt, settleAttempt } from '../checkout-attempt';
 import { handlePaymentOutcome } from '../payment-outcome';
-import { usePreview } from '../hooks';
+import { PickupSelector } from '../components/PickupSelector';
+import { usePickupInfo, usePreview } from '../hooks';
 
 type ConfirmationParams = {
   orderId: string;
@@ -55,12 +56,24 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
   const address = selectCheckoutAddress(addresses, route.params?.addressId);
 
   const [method, setMethod] = useState<CheckoutMethod>('cod');
+  // Self pickup (optional): collect the order from the shop instead of home delivery.
+  const [wantedFulfilment, setFulfilment] = useState<FulfilmentMethod>('delivery');
+  const [chosenSlot, setSlotStart] = useState('');
   const [placing, setPlacing] = useState(false);
   // Where to go once the order is placed. Set together with placing=false; see the effect below.
   const [nextRoute, setNextRoute] = useState<ConfirmationParams | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const preview = usePreview(address?.id ?? null, couponCode, method);
+  const pickupQuery = usePickupInfo();
+  const pickupInfo = pickupQuery.data ?? null;
+  const pickupOffered = Boolean(pickupInfo?.enabled && (pickupInfo.days?.length ?? 0) > 0);
+  // If the shop switched pickup off, the choice falls back to home delivery; a slot that is no longer on offer
+  // counts as not chosen (the customer is asked again).
+  const fulfilment: FulfilmentMethod = wantedFulfilment === 'pickup' && pickupOffered ? 'pickup' : 'delivery';
+  const pickupMode = fulfilment === 'pickup';
+  const slotStart = chosenSlot && pickupInfo && findOfferedSlot(pickupInfo.days ?? [], chosenSlot) ? chosenSlot : '';
+
+  const preview = usePreview(address?.id ?? null, couponCode, method, fulfilment);
 
   // Pay-online is offered when the server has a live gateway (or the build flag forces it on).
   const onlineOffered = env.onlinePaymentEnabled || preview.data?.onlinePayment === true;
@@ -102,12 +115,20 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
         paymentMethod: method,
         couponCode,
         lines: activeLines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })),
+        fulfilment,
+        pickupSlotStart: pickupMode ? slotStart : null,
       });
       const key = await getOrCreateAttempt(fingerprint);
 
       let result;
       try {
-        result = await placeOrder(key, { addressId: address.id, paymentMethod: method, couponCode: couponCode ?? undefined });
+        result = await placeOrder(key, {
+          addressId: address.id,
+          paymentMethod: method,
+          couponCode: couponCode ?? undefined,
+          fulfilment,
+          pickupSlotStart: pickupMode ? slotStart : undefined,
+        });
       } catch (e) {
         const err = toApiError(e);
         const ambiguous = err.kind === 'network' || err.kind === 'timeout' || (err.kind === 'http' && err.status >= 500);
@@ -116,6 +137,8 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
           return;
         }
         await settleAttempt('definitive');
+        // The pickup time may have just gone by: show the fresh list so the customer can choose again.
+        if (pickupMode) void pickupQuery.refetch();
         setErrorMsg(userMessage(err) || 'Could not place the order.');
         return;
       }
@@ -156,12 +179,15 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
   }
   if (addresses.length === 0) {
     return (
-      <Screen>
+      <Screen scroll padded>
+        {pickupOffered && pickupInfo ? (
+          <PickupSelector info={pickupInfo} fulfilment={fulfilment} onFulfilment={setFulfilment} slotStart={slotStart} onSlot={setSlotStart} deliveryPrice="" />
+        ) : null}
         <EmptyState
           icon="map-marker-plus-outline"
-          title="Add a delivery address"
-          body="We need an address to deliver your order."
-          action={{ label: 'Add address', onPress: () => navigation.navigate('AddressForm', { selectForCheckout: true }) }}
+          title={pickupMode ? 'Add your address' : 'Add a delivery address'}
+          body={pickupMode ? 'We keep an address with your order for the bill.' : 'We need an address to deliver your order.'}
+          action={{ label: 'Add address', onPress: () => navigation.navigate('AddressForm', { selectForCheckout: true, pickup: pickupMode }) }}
         />
       </Screen>
     );
@@ -171,12 +197,18 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
   const view = preview.data ? breakupView(snapshotFromBreakup(preview.data.breakup)) : null;
   const shipping = view ? (view.rows.find((r) => r.key === 'shipping')?.amount ?? 0) : null;
   const canPlace =
-    Boolean(address) && methods.length > 0 && preview.isSuccess && Boolean(preview.data?.serviceable) && !placing && !nextRoute;
+    Boolean(address) &&
+    methods.length > 0 &&
+    preview.isSuccess &&
+    // Home delivery needs a PIN code we deliver to; self pickup needs a time slot instead.
+    (pickupMode ? slotStart !== '' : Boolean(preview.data?.serviceable)) &&
+    !placing &&
+    !nextRoute;
 
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.body}>
-        <Text style={styles.section}>Delivery Address</Text>
+        <Text style={styles.section}>{pickupMode ? 'Your Address (for the bill)' : 'Delivery Address'}</Text>
         {address ? (
           <View style={styles.card}>
             <View style={styles.addrRow}>
@@ -191,7 +223,7 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
                 <Text style={styles.addrLine}>{address.phone}</Text>
               </View>
               <Pressable
-                onPress={() => navigation.navigate('Addresses', { selectForCheckout: true })}
+                onPress={() => navigation.navigate('Addresses', { selectForCheckout: true, pickup: pickupMode })}
                 accessibilityRole="button"
                 accessibilityLabel="Change delivery address"
                 hitSlop={8}
@@ -202,24 +234,35 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
           </View>
         ) : null}
 
-        {preview.data && !preview.data.serviceable && address ? (
+        {!pickupMode && preview.data && !preview.data.serviceable && address ? (
           <Text style={styles.banner} testID="checkout-not-serviceable">
             {`Sorry, we don't deliver to PIN code ${address.pincode} yet. Tap Edit to choose or add an address with a PIN code we deliver to.`}
           </Text>
         ) : null}
         <Text style={styles.section}>Delivery Method</Text>
-        <View style={[styles.card, styles.methodCard]}>
-          <View style={styles.radioOn}>
-            <View style={styles.radioDot} />
+        {pickupOffered && pickupInfo ? (
+          <PickupSelector
+            info={pickupInfo}
+            fulfilment={fulfilment}
+            onFulfilment={setFulfilment}
+            slotStart={slotStart}
+            onSlot={setSlotStart}
+            deliveryPrice={pickupMode || shipping === null ? '' : shipping === 0 ? 'Free' : formatInr(shipping)}
+          />
+        ) : (
+          <View style={[styles.card, styles.methodCard]}>
+            <View style={styles.radioOn}>
+              <View style={styles.radioDot} />
+            </View>
+            <View style={styles.addrText}>
+              <Text style={styles.methodTitle}>Standard Delivery</Text>
+              <Text style={styles.addrLine}>Delivery in 3–5 days</Text>
+            </View>
+            <Text style={styles.methodPrice}>
+              {shipping === null ? '' : shipping === 0 ? 'Free' : formatInr(shipping)}
+            </Text>
           </View>
-          <View style={styles.addrText}>
-            <Text style={styles.methodTitle}>Standard Delivery</Text>
-            <Text style={styles.addrLine}>Delivery in 3–5 days</Text>
-          </View>
-          <Text style={styles.methodPrice}>
-            {shipping === null ? '' : shipping === 0 ? 'Free' : formatInr(shipping)}
-          </Text>
-        </View>
+        )}
 
         <Text style={styles.section}>Payment Method</Text>
         {noMethod ? (
@@ -236,8 +279,8 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
             ) : null}
             {methods.includes('cod') ? (
               <RadioRow
-                label="Cash on Delivery"
-                description="Pay when your order arrives"
+                label={cashLabel(fulfilment)}
+                description={pickupMode ? 'Pay with cash or UPI at the shop when you collect it' : 'Pay when your order arrives'}
                 selected={method === 'cod'}
                 onPress={() => setMethod('cod')}
               />

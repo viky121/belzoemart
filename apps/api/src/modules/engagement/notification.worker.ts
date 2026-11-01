@@ -7,17 +7,25 @@ import { QueueService } from '../../common/queue/queue.service';
 import {
   orderConfirmedEmail,
   orderDeliveredEmail,
+  orderReadyForPickupEmail,
   orderShippedEmail,
   welcomeEmail,
   type RenderedEmail,
 } from '../../integrations/notifications/email-templates';
+import { formatPickupSlot } from '@belzo/shared';
 import { NotificationService } from './notification.service';
 
 interface OrderJob {
   orderId: string;
 }
 
-type OrderEventType = 'order.confirmed' | 'order.payment_failed' | 'order.shipped' | 'order.delivered' | 'generic';
+type OrderEventType =
+  | 'order.confirmed'
+  | 'order.payment_failed'
+  | 'order.shipped'
+  | 'order.delivered'
+  | 'order.ready_for_pickup'
+  | 'generic';
 
 /**
  * NotificationDispatcher (BR-8). Consumes the NOTIFICATIONS queue for order and
@@ -112,6 +120,9 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
     order: {
       id: string;
       addressId: string;
+      fulfilment: 'delivery' | 'pickup';
+      pickupSlotStart: Date | null;
+      pickupSlotEnd: Date | null;
       subtotal: number;
       discount: number;
       shipping: number;
@@ -122,7 +133,13 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
     customerName: string | null,
   ): Promise<RenderedEmail | undefined> {
     try {
+      const pickup = order.fulfilment === 'pickup';
+      const slot = formatPickupSlot(order.pickupSlotStart, order.pickupSlotEnd);
+      if (type === 'order.ready_for_pickup') {
+        return orderReadyForPickupEmail({ name: customerName, orderId: order.id, slot });
+      }
       if (type === 'order.confirmed') {
+        if (pickup) return orderConfirmedEmail({ name: customerName, order, address: null, pickup: { slot } });
         const address = await this.prisma.address.findUnique({ where: { id: order.addressId } });
         return orderConfirmedEmail({ name: customerName, order, address });
       }
@@ -141,7 +158,7 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
         });
       }
       if (type === 'order.delivered') {
-        return orderDeliveredEmail({ name: customerName, orderId: order.id });
+        return orderDeliveredEmail({ name: customerName, orderId: order.id, pickup });
       }
     } catch (err) {
       this.logger.warn({ err, orderId: order.id }, 'Could not build the rich order email, sending the plain one');
@@ -159,6 +176,8 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
         return 'order.shipped';
       case 'order.delivered':
         return 'order.delivered';
+      case 'order.ready_for_pickup':
+        return 'order.ready_for_pickup';
       default:
         return 'generic';
     }

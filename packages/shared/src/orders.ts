@@ -1,4 +1,14 @@
 import { ORDER_TRANSITIONS, SYSTEM_CANCEL_FROM, type OrderStatus } from './constants';
+import type { FulfilmentMethod } from './pickup';
+
+/**
+ * A self pickup order is never shipped: once it is packed ("Ready for pickup") the next step is delivered
+ * ("Picked up"). Everything else is the same table as home delivery.
+ */
+const PICKUP_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  ...ORDER_TRANSITIONS,
+  packed: ['delivered', 'cancelled'],
+};
 
 /**
  * Order state-machine helpers (BR-1). The transition table lives in
@@ -6,13 +16,13 @@ import { ORDER_TRANSITIONS, SYSTEM_CANCEL_FROM, type OrderStatus } from './const
  */
 
 /** True iff `to` is a permitted next state from `from`. */
-export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
-  return ORDER_TRANSITIONS[from]?.includes(to) ?? false;
+export function canTransition(from: OrderStatus, to: OrderStatus, fulfilment: FulfilmentMethod = 'delivery'): boolean {
+  return (fulfilment === 'pickup' ? PICKUP_TRANSITIONS : ORDER_TRANSITIONS)[from]?.includes(to) ?? false;
 }
 
 /** The permitted next states from a status. */
-export function nextStates(from: OrderStatus): OrderStatus[] {
-  return ORDER_TRANSITIONS[from] ?? [];
+export function nextStates(from: OrderStatus, fulfilment: FulfilmentMethod = 'delivery'): OrderStatus[] {
+  return (fulfilment === 'pickup' ? PICKUP_TRANSITIONS : ORDER_TRANSITIONS)[from] ?? [];
 }
 
 /** Customer may cancel any time before the order has shipped (BR-2). */

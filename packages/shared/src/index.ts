@@ -29,3 +29,4 @@ export * from './report-calc';
 export * from './permissions';
 export * from './offers';
 export * from './offers-view';
+export * from './pickup';

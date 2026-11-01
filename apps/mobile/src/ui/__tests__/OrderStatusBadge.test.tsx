@@ -19,6 +19,20 @@ describe('OrderStatusBadge', () => {
     },
   );
 
+  it('says "Ready for pickup" and "Picked up" for a self pickup order', async () => {
+    await renderWithProviders(<OrderStatusBadge status="packed" fulfilment="pickup" />, { navigation: false });
+    expect(screen.getByText('Ready for pickup')).toBeTruthy();
+    expect(screen.getByLabelText('Order status: Ready for pickup')).toBeTruthy();
+  });
+  it('a pickup order that is picked up is green; a delivery order is unchanged', async () => {
+    await renderWithProviders(<OrderStatusBadge status="delivered" fulfilment="pickup" />, { navigation: false });
+    expect(screen.getByText('Picked up')).toBeTruthy();
+    expect(screen.getByTestId('order-status-ok')).toBeTruthy();
+  });
+  it('without a fulfilment (older orders) it is still Packed', async () => {
+    await renderWithProviders(<OrderStatusBadge status="packed" />, { navigation: false });
+    expect(screen.getByText('Packed')).toBeTruthy();
+  });
   it('maps tones to the design colours', () => {
     expect(statusBadge('delivered').tone).toBe('ok');
     expect(TONE_COLORS.ok.fg).toBe('#15674f');

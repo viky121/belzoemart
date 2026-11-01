@@ -926,3 +926,25 @@ Yes"
 **AI Response**: "Clear: Q1 both web and app, Q2 address + timings/note, Q4 charges Rs. 0, Q5 'Pay at shop on pickup' only for the cash option, Q8 slot and on/off switch both wanted. Ambiguous (the answers were to my short paraphrases, not the option letters): Q3 'Nahi' (keep address? keep PIN check?), Q6 'Same as Current' (does it include Create shipment?), Q7 (notification without code?), Q8 (how the time slot works: the original options only had a no-slot variant). Wrote 4 follow-up questions in aidlc-docs/inception/requirements/self-pickup-clarification-questions.md with my reading of the clear answers listed at the top. Waiting. Nothing built or deployed."
 **Context**: Requirements Analysis, clarification round.
 ---
+
+---
+## Self pickup - clarification answers, requirements written, build started
+**Timestamp**: 2026-10-31T17:20:00Z
+**User Input**: "Aapne \"Nahi\" kaha (address aur PIN check mat hatao). To pickup me customer address chunega ya nahi? Aur kya PIN check bhi lagega? Mera suggestion: address chune, par PIN check na lage. Is tarah delivery area ke bahar ka customer bhi dukaan aa sakta hai. yES, BUT YE SIRF SELF/PICK UP WALE CASE ME HO WAISE NAHI
+
+Pickup code nahi chahiye, ye samajh gaya. Kya \"order ready hai\" ka message customer ko jana chahiye? Mera suggestion: haan. [YES]
+
+Time slot kaise chale? Mera suggestion: admin Settings me opening time, closing time aur slot length daalega (jaise 10:00 se 20:00, 1 ghante ke slot). [gO aS SUGGESTED]
+
+Customer aaj se agle 2 din me se ek din aur ek slot chunega. Aaj ke liye wahi slot dikhenge jo abhi se kam se kam 2 ghante baad shuru hon. yes"
+**AI Response**: "Mapped: clarification Q1 = B (address picked, PIN check skipped only for pickup), Q3 = A (ready message), Q4 = A (slots as suggested). Clarification Q2 (admin flow) got no reply to my suggestion, so I assumed the recommended option A (Pickup tag, no Create shipment, buttons Ready for pickup / Picked up) and wrote it down as an assumption in aidlc-docs/inception/requirements/self-pickup-requirements.md. Starting the build: shared helpers, migration, API, web, Android app. Nothing deployed, no APK built."
+**Context**: Requirements Analysis complete; Construction started (small feature set, no separate design stage). Standing rule: ask before every deploy and every build.
+---
+
+---
+## Self pickup - built and verified (not deployed)
+**Timestamp**: 2026-10-31T19:30:00Z
+**User Input**: (no new input; continuation of the self pickup request after the clarification answers)
+**AI Response**: "Built self pickup for website, Android app, API and admin: shared slot rules (India time), migration 20261031120000_order_self_pickup (enum + 3 columns), GET /checkout/pickup, checkout preview/place with pickup (no PIN check only for pickup, Rs. 0 delivery, no COD fee, CGST+SGST, slot checked again on the server), pickup flow Ready for pickup / Picked up (payment paid at shop marked received), ready-for-pickup notification and email, no shipment and no delivery partner for pickup orders, invoice wording, admin Settings > Self pickup, admin order tags and buttons, customer order page and app order screens. Verified: shared 538, API 1164 (+6 real-database tests on a scratch Postgres with all migrations, drift empty), web 418, app 335 tests pass; tsc clean; eslint 0 errors; next build passes. The Wallet link fix stays on branch draft/wallet-link-fix (not in this work). Summary: aidlc-docs/construction/self-pickup/code/summary.md. NOT deployed, no APK built; asking the user first."
+**Context**: Construction complete for this feature. Standing rule: ask before every deploy and every build.
+---

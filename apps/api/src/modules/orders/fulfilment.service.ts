@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { ORDER_PROGRESS_STEPS, canTransition, progressRank, type OrderStatus } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { QueueService } from '../../common/queue/queue.service';
@@ -50,6 +50,11 @@ export class FulfilmentService {
     return this.shipping.checkServiceability(pincode, weightGrams, cod);
   }
 
+  /** True for a self pickup order (collected from the shop, never shipped). */
+  async isPickupOrder(orderId: string): Promise<boolean> {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { fulfilment: true } });
+    return order?.fulfilment === 'pickup';
+  }
   /** Create a shipment for a confirmed order and move it to `packed` (BR-6). */
   async createShipment(orderId: string): Promise<{ shipmentId: string; awb: string }> {
     const order = await this.prisma.order.findUnique({
@@ -58,6 +63,10 @@ export class FulfilmentService {
     });
     if (!order) throw new NotFoundException('Order not found');
 
+    // A self pickup order is collected from the shop: nothing is shipped.
+    if (order.fulfilment === 'pickup') {
+      throw new BadRequestException('This is a self pickup order. It has no shipment: mark it Ready for pickup and Picked up instead.');
+    }
     // An order that is in the hands of an in-house delivery partner has its own Shipment; never
     // create a courier or mock shipment behind its back (U8, BR-D59).
     const activeJob = await this.prisma.deliveryJob.findFirst({

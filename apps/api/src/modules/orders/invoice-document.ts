@@ -1,6 +1,7 @@
 import {
   allocateProportional,
   amountInWordsInr,
+  formatPickupSlot,
   gstStateCode,
   isGstInclusiveSnapshot,
 } from '@belzo/shared';
@@ -150,6 +151,10 @@ export interface InvoiceOrder {
   grandTotal: number;
   items: InvoiceOrderItem[];
   payments?: InvoicePayment[];
+  /** 'pickup' = the customer collects the order from the shop. Missing = home delivery. */
+  fulfilment?: 'delivery' | 'pickup';
+  pickupSlotStart?: Date | null;
+  pickupSlotEnd?: Date | null;
 }
 
 export interface InvoiceAddressInput {
@@ -212,7 +217,11 @@ export interface InvoiceDocument {
   productDiscount: number;
   /** What the customer saved in all: product discount plus coupon discount. */
   savings: number;
-  /** Cash on Delivery order. */
+  /** Self pickup order: collected from the shop, not delivered. */
+  isPickup: boolean;
+  /** "Sat, 31 Oct, 12:00 PM - 1:00 PM" for a pickup order, else null. */
+  pickupSlot: string | null;
+  /** Cash on Delivery order (for a pickup order: pay at the shop). */
   isCod: boolean;
   /** The payment went through (status Paid). */
   paymentSettled: boolean;
@@ -327,7 +336,7 @@ function splitLineTaxes(
   return delta === 0 ? { cgst, sgst, igst: zeros } : null;
 }
 
-function paymentInfo(payments: InvoicePayment[] | undefined): {
+function paymentInfo(payments: InvoicePayment[] | undefined, atShop = false): {
   method: string;
   status: string;
   isCod: boolean;
@@ -339,7 +348,7 @@ function paymentInfo(payments: InvoicePayment[] | undefined): {
   const p = byLatest.find((x) => x.status === 'captured') ?? byLatest[0]!;
   const isCod = p.provider === 'cod';
   let method: string;
-  if (isCod) method = 'Cash on Delivery';
+  if (isCod) method = atShop ? 'Pay at shop on pickup' : 'Cash on Delivery';
   else if (p.provider === 'razorpay') method = `Online (Razorpay${clean(p.method) ? ` \u00b7 ${clean(p.method)}` : ''})`;
   else if (p.provider === 'mock') method = 'Online (test)';
   else method = p.provider;
@@ -353,7 +362,7 @@ function paymentInfo(payments: InvoicePayment[] | undefined): {
   };
   return {
     method,
-    status: STATUS[p.status] ?? p.status,
+    status: atShop && isCod ? (STATUS[p.status] ?? p.status).replace('pay on delivery', 'pay at shop') : (STATUS[p.status] ?? p.status),
     isCod,
     settled: p.status === 'captured',
     ref: clean(p.providerPaymentId),
@@ -377,9 +386,11 @@ export function buildInvoiceDocument(input: BuildInvoiceInput): InvoiceDocument 
   // Regime mirrors what was charged (D5): IGST stored => inter-state; CGST/SGST
   // stored => intra-state; zero-tax orders fall back to the same state
   // comparison checkout uses (trim + lowercase).
+  const isPickup = order.fulfilment === 'pickup';
   const buyerState = clean(address?.state);
+  // A pickup order is handed over in the shop's own state, so it is always intra-state (as checkout charged it).
   const sameStateByName =
-    buyerState === null || seller.state === null
+    isPickup || buyerState === null || seller.state === null
       ? true
       : buyerState.toLowerCase() === seller.state.trim().toLowerCase();
   const noTax = order.cgst === 0 && order.sgst === 0 && order.igst === 0;
@@ -527,7 +538,7 @@ export function buildInvoiceDocument(input: BuildInvoiceInput): InvoiceDocument 
     ...addressParty(),
   };
 
-  const pay = paymentInfo(order.payments);
+  const pay = paymentInfo(order.payments, isPickup);
   const mrpTotal = sum(lines.map((l) => l.mrp * l.quantity));
   const productDiscount = Math.max(0, mrpTotal - grossSum);
   const amountPaid = pay.settled ? order.grandTotal : 0;
@@ -542,6 +553,8 @@ export function buildInvoiceDocument(input: BuildInvoiceInput): InvoiceDocument 
     mrpTotal,
     productDiscount,
     savings: productDiscount + order.discount,
+    isPickup,
+    pickupSlot: isPickup ? formatPickupSlot(order.pickupSlotStart, order.pickupSlotEnd) : null,
     isCod: pay.isCod,
     paymentSettled: pay.settled,
     paymentRef: pay.ref,
@@ -553,7 +566,13 @@ export function buildInvoiceDocument(input: BuildInvoiceInput): InvoiceDocument 
     orderDate: DATE_FMT.format(order.createdAt),
     paymentMethod: pay.method,
     paymentStatus: pay.status,
-    placeOfSupply: buyerState ? `${buyerState}${buyerCode ? ` (${buyerCode})` : ''}` : '-',
+    placeOfSupply: isPickup
+      ? seller.state
+        ? `${seller.state}${seller.stateCode ? ` (${seller.stateCode})` : ''}`
+        : '-'
+      : buyerState
+        ? `${buyerState}${buyerCode ? ` (${buyerCode})` : ''}`
+        : '-',
     reverseCharge: 'No',
     seller,
     billTo,

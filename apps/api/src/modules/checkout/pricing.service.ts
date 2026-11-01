@@ -51,6 +51,11 @@ export class PricingService {
     flatShippingPaise?: Money;
     codFeePaise?: Money;
     sellerState?: string;
+    /**
+     * Self pickup: nothing is delivered, so no delivery charge and no COD fee, and the goods are handed
+     * over in the shop's own state, so the GST is CGST + SGST whatever the customer's address says.
+     */
+    pickup?: boolean;
   }): PriceBreakup {
     const freeThreshold = input.freeShippingThresholdPaise ?? this.freeShippingThreshold;
     const flat = input.flatShippingPaise ?? this.flatShipping;
@@ -58,12 +63,13 @@ export class PricingService {
     const sellerState = input.sellerState ?? this.sellerState;
 
     const subtotal = input.lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
-    const shipping = paise(subtotal) >= freeThreshold ? paise(0) : flat;
+    const pickup = input.pickup === true;
+    const shipping = pickup || paise(subtotal) >= freeThreshold ? paise(0) : flat;
     return computeTotals({
       lines: input.lines,
-      sameState: input.buyerState.trim().toLowerCase() === sellerState.trim().toLowerCase(),
+      sameState: pickup || input.buyerState.trim().toLowerCase() === sellerState.trim().toLowerCase(),
       shipping,
-      codFee: input.isCod ? codFee : paise(0),
+      codFee: input.isCod && !pickup ? codFee : paise(0),
       coupon: input.coupon,
     });
   }

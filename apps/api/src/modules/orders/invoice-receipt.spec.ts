@@ -252,6 +252,43 @@ describe('buildReceipt — content', () => {
     expect(none.find((r) => r.t === 'qr')).toBeUndefined();
   });
 
+  describe('a self pickup order', () => {
+    const pickupOrder = (): InvoiceOrder => ({
+      ...orderOf({ cod: true }),
+      fulfilment: 'pickup',
+      pickupSlotStart: new Date('2026-11-01T04:30:00.000Z'),
+      pickupSlotEnd: new Date('2026-11-01T05:30:00.000Z'),
+    });
+    it('says Self pickup and the pickup time instead of a delivery address, with no delivery charge line', () => {
+      const lines = texts(buildReceipt(docOf(pickupOrder())));
+      expect(lines).toContain('Delivery|Self pickup');
+      expect(lines).toContain('Pickup time: Sun, 1 Nov, 10:00 AM - 11:00 AM');
+      expect(lines.join('\n')).not.toContain('Deliver to:');
+      expect(lines.some((l) => l.startsWith('Delivery Charges'))).toBe(false);
+    });
+    it('calls the cash payment "Pay at shop on pickup" and what is left "To Pay at Shop"', () => {
+      const doc = docOf(pickupOrder());
+      expect(doc.paymentMethod).toBe('Pay at shop on pickup');
+      expect(doc.paymentStatus).toBe('Pending \u2013 pay at shop');
+      expect(texts(buildReceipt(doc))).toContain(`To Pay at Shop|Rs. ${amt(doc.balanceDue)}`);
+    });
+    it('still prints the shop UPI QR code to pay with, and the place of supply is the shop state even for a customer from another state', () => {
+      const doc = docOf(pickupOrder(), {
+        address: { ...ADDRESS, state: 'Karnataka', pincode: '560001' },
+        seller: { ...SELLER, codPaymentQr: 'upi://pay?pa=shop@sbipay&tn=StaticQR' },
+      });
+      expect(doc.placeOfSupply).toBe('Madhya Pradesh (23)');
+      expect(doc.showIntra).toBe(true);
+      expect(buildReceipt(doc).find((r) => r.t === 'qr')).toMatchObject({ data: 'upi://pay?pa=shop@sbipay&tn=StaticQR' });
+    });
+    it('a delivery order keeps its delivery wording', () => {
+      const lines = texts(buildReceipt(docOf(orderOf({ cod: true }))));
+      expect(lines).toContain('Delivery Charges|FREE');
+      expect(lines.join('\n')).toContain('Deliver to:');
+      expect(lines.some((l) => l.startsWith('To Pay on Delivery'))).toBe(true);
+      expect(lines).not.toContain('Delivery|Self pickup');
+    });
+  });
   describe('payment QR code on Cash on Delivery invoices', () => {
     const UPI = 'upi://pay?pa=shop@sbipay&tn=StaticQR&mode=01';
     const withQr = { seller: { ...SELLER, codPaymentQr: UPI } };

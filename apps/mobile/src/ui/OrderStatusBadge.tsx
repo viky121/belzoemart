@@ -1,4 +1,4 @@
-import { statusBadge, type Tone } from '@belzo/shared';
+import { statusBadge, type FulfilmentMethod, type Tone } from '@belzo/shared';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { theme } from '@/theme';
@@ -14,8 +14,9 @@ export const TONE_COLORS: Record<Tone, { fg: string; bg: string }> = {
   muted: { fg: theme.colors.muted, bg: theme.colors.surface2 },
 };
 
-export function OrderStatusBadge({ status }: { status: string }) {
-  const { label, tone } = statusBadge(status);
+export function OrderStatusBadge({ status, fulfilment }: { status: string; fulfilment?: FulfilmentMethod | null }) {
+  // A self pickup order says "Ready for pickup" / "Picked up".
+  const { label, tone } = statusBadge(status, fulfilment);
   const c = TONE_COLORS[tone];
   return (
     <View

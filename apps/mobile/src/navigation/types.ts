@@ -40,7 +40,7 @@ export type RootStackParamList = {
   Orders: undefined;
   OrderDetail: { id: string };
   Wishlist: undefined;
-  Addresses: { selectForCheckout?: boolean } | undefined;
+  Addresses: { selectForCheckout?: boolean; pickup?: boolean } | undefined;
   Notifications: undefined;
   ProfileEdit: undefined;
   PrivacyData: undefined;
@@ -58,7 +58,7 @@ export type RootStackParamList = {
   };
   Register: { redirect?: RedirectTarget } | undefined;
   ForgotPassword: { redirect?: RedirectTarget } | undefined;
-  AddressForm: { addressId?: string; selectForCheckout?: boolean } | undefined;
+  AddressForm: { addressId?: string; selectForCheckout?: boolean; pickup?: boolean } | undefined;
   // presentation: 'fullScreenModal'
   ImageViewer: { images: string[]; index: number };
 };

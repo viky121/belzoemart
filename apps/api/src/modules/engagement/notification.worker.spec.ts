@@ -21,9 +21,9 @@ describe('NotificationWorker (A5)', () => {
     mockWorkers.length = 0;
   });
 
-  function start() {
+  function start(order: Record<string, unknown> = { id: 'o1', customerId: 'c1' }) {
     const prisma = {
-      order: { findUnique: jest.fn().mockResolvedValue({ id: 'o1', customerId: 'c1' }) },
+      order: { findUnique: jest.fn().mockResolvedValue(order) },
       customer: {
         findUnique: jest.fn().mockResolvedValue({ id: 'c1', locale: 'hi', email: 'a@x.in', phone: null }),
       },
@@ -65,5 +65,28 @@ describe('NotificationWorker (A5)', () => {
       locale: 'hi',
       contact: { email: 'a@x.in', phone: undefined },
     });
+  });
+
+  it('tells the customer a self pickup order is ready, with the pickup time in the email', async () => {
+    // The order the worker reads for this job is a pickup order with a slot.
+    const { processor, notifications } = start({
+      id: 'o1',
+      customerId: 'c1',
+      addressId: 'a1',
+      fulfilment: 'pickup',
+      pickupSlotStart: new Date('2026-11-01T04:30:00.000Z'),
+      pickupSlotEnd: new Date('2026-11-01T05:30:00.000Z'),
+      subtotal: 10000,
+      discount: 0,
+      shipping: 0,
+      codFee: 0,
+      grandTotal: 10000,
+      items: [],
+    });
+    await processor({ id: 'j3', name: 'order.ready_for_pickup', data: { orderId: 'o1' } });
+    const call = notifications.send.mock.calls[0]![0] as { type: string; email?: { subject: string; html: string } };
+    expect(call.type).toBe('order.ready_for_pickup');
+    expect(call.email?.subject).toMatch(/ready for pickup/);
+    expect(call.email?.html).toContain('Sun, 1 Nov, 10:00 AM - 11:00 AM');
   });
 });

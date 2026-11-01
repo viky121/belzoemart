@@ -104,6 +104,8 @@ export interface PublicSettings {
 export interface OrderListItem {
   id: string;
   status: string;
+  /** 'pickup' = the customer collects it from the shop. Missing on older API versions = home delivery. */
+  fulfilment?: 'delivery' | 'pickup';
   grandTotal: number;
   createdAt: string;
   itemCount: number;
@@ -163,7 +165,9 @@ export interface CheckoutPreviewResult {
   breakup: PriceBreakup;
   coupon: { code: string; valid: boolean; reason?: string; discount: number } | null;
   items: unknown[];
+  /** Always true for self pickup (no PIN code check). */
   serviceable: boolean;
+  fulfilment?: 'delivery' | 'pickup';
   codEnabled: boolean;
   /** True when the server has a live payment gateway, so "pay online" can be offered. */
   onlinePayment?: boolean;

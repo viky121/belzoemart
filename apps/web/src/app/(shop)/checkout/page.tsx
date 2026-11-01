@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { PriceBreakup } from '@belzo/shared';
+import { cashLabel, findOfferedSlot, type FulfilmentMethod, type PickupInfo, type PriceBreakup } from '@belzo/shared';
 import { useAuth } from '@/lib/auth-context';
 import { loginHref } from '@/lib/auth-redirect';
 import { formatInr } from '@/lib/catalogue-api';
@@ -13,6 +13,8 @@ import { placeholderImage, isUsableImageUrl } from '@/lib/category-theme';
 import { safeUuid } from '@/lib/uuid';
 import { checkPin, pinRefusal, pinVerdict, type PinVerdict } from '@/lib/pin-check';
 import { safeSession } from '@/lib/safe-storage';
+import { fetchPickupInfo } from '@/lib/pickup-api';
+import { PickupPicker } from '@/components/pickup-picker';
 import { openRazorpayCheckout, verifyBody, type RazorpayClientConfig } from '@/lib/razorpay';
 
 interface Address {
@@ -61,6 +63,30 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Self pickup (optional): the shop address and the time slots come from the server.
+  const [pickupInfo, setPickupInfo] = useState<PickupInfo | null>(null);
+  const [fulfilment, setFulfilment] = useState<FulfilmentMethod>('delivery');
+  const [slotStart, setSlotStart] = useState('');
+  const refreshPickup = useCallback(async () => {
+    const info = await fetchPickupInfo();
+    setPickupInfo(info);
+    return info;
+  }, []);
+  useEffect(() => {
+    void refreshPickup();
+  }, [refreshPickup]);
+  // Slots depend on the time now, so ask again when the customer picks Self pickup.
+  useEffect(() => {
+    if (fulfilment === 'pickup') void refreshPickup();
+  }, [fulfilment, refreshPickup]);
+  useEffect(() => {
+    if (!pickupInfo) return;
+    // The shop switched pickup off, or the chosen slot is no longer on offer.
+    if (fulfilment === 'pickup' && (!pickupInfo.enabled || pickupInfo.days.length === 0)) setFulfilment('delivery');
+    if (slotStart && !findOfferedSlot(pickupInfo.days, slotStart)) setSlotStart('');
+  }, [pickupInfo, fulfilment, slotStart]);
+  const pickupMode = fulfilment === 'pickup';
+
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [savingAddr, setSavingAddr] = useState(false);
@@ -82,7 +108,7 @@ export default function CheckoutPage() {
   const [pinInfo, setPinInfo] = useState<{ pin: string; verdict: PinVerdict | 'checking' } | null>(null);
   useEffect(() => {
     const pin = form.pincode.trim();
-    if (!/^[1-9]\d{5}$/.test(pin)) {
+    if (!/^[1-9]\d{5}$/.test(pin) || fulfilment === 'pickup') {
       setPinInfo(null);
       return;
     }
@@ -94,7 +120,7 @@ export default function CheckoutPage() {
     return () => {
       active = false;
     };
-  }, [form.pincode]);
+  }, [form.pincode, fulfilment]);
 
   const loadAddresses = useCallback(async () => {
     const a = await authFetch<Address[]>('/me/addresses').catch(() => [] as Address[]);
@@ -126,24 +152,24 @@ export default function CheckoutPage() {
       const res = await authFetch<PreviewResult>('/checkout/preview', {
         method: 'POST',
         // The payment method decides the COD fee, so the total shown is the total charged.
-        body: { addressId, couponCode: coupon || undefined, paymentMethod: method },
+        body: { addressId, couponCode: coupon || undefined, paymentMethod: method, fulfilment },
       });
       setPreview(res);
     } catch (e) {
       // The server says why (out of stock, quantity outside the min/max, empty cart ...).
       setError(e instanceof Error && e.message ? e.message : 'Could not compute totals. Is your cart empty?');
     }
-  }, [addressId, coupon, authFetch, method]);
+  }, [addressId, coupon, authFetch, method, fulfilment]);
 
   // Totals of the previously chosen address must never stay on screen (or keep "Place order" enabled)
   // while the new address is being checked.
   useEffect(() => {
     setPreview(null);
-  }, [addressId]);
+  }, [addressId, fulfilment]);
   useEffect(() => {
     void runPreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addressId, method]);
+  }, [addressId, method, fulfilment]);
 
   async function saveAddress() {
     setAddrError(null);
@@ -162,7 +188,8 @@ export default function CheckoutPage() {
     setSavingAddr(true);
     try {
       // Ask the shop's delivery list first, so a PIN we do not deliver to is refused here, on the form.
-      if (pinVerdict(await checkPin(form.pincode.trim())) === 'bad') {
+      // (A customer who will collect the order from the shop can keep any address: only delivery needs the PIN list.)
+      if (fulfilment !== 'pickup' && pinVerdict(await checkPin(form.pincode.trim())) === 'bad') {
         setAddrError(pinRefusal(form.pincode.trim()));
         return;
       }
@@ -191,7 +218,13 @@ export default function CheckoutPage() {
         payment: { provider: string; amount?: number; clientConfig?: RazorpayClientConfig };
       }>(`/checkout/place?idempotencyKey=${key}`, {
         method: 'POST',
-        body: { addressId, paymentMethod: method, couponCode: coupon || undefined },
+        body: {
+          addressId,
+          paymentMethod: method,
+          couponCode: coupon || undefined,
+          fulfilment,
+          pickupSlotStart: fulfilment === 'pickup' ? slotStart : undefined,
+        },
       });
       safeSession.remove('belzo_coupon');
 
@@ -228,6 +261,8 @@ export default function CheckoutPage() {
       // COD or mock/dev provider → go straight to the result page.
       router.push(`/order-result?orderId=${result.orderId}&provider=${result.payment.provider}`);
     } catch (e) {
+      // The slot may have just gone by: show the fresh list so the customer can choose again.
+      if (fulfilment === 'pickup') void refreshPickup();
       // Surface the server's reason (e.g. non-serviceable PIN) when available.
       setError(
         e instanceof Error && e.message
@@ -242,7 +277,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (preview?.codEnabled === false && method === 'cod') setMethod('upi');
   }, [preview?.codEnabled, method]);
-  const notServiceable = preview?.serviceable === false;
+  const notServiceable = !pickupMode && preview?.serviceable === false;
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -278,10 +313,14 @@ export default function CheckoutPage() {
             </p>
           )}
 
+          {pickupInfo?.enabled && pickupInfo.days.length > 0 && (
+            <PickupPicker info={pickupInfo} fulfilment={fulfilment} onFulfilment={setFulfilment} slotStart={slotStart} onSlot={setSlotStart} />
+          )}
+
           {/* Delivery address */}
           <div className="cox__card">
             <div className="cox__card-head">
-              <h2>Delivery Address</h2>
+              <h2>{pickupMode ? 'Your Address (for the bill)' : 'Delivery Address'}</h2>
               {addresses.length > 0 && !showForm && (
                 <button className="co-link" onClick={() => setShowForm(true)}>
                   + Add New Address
@@ -395,7 +434,10 @@ export default function CheckoutPage() {
               {preview?.codEnabled !== false && (
               <label className={`co-pay__opt${method === 'cod' ? ' co-pay__opt--active' : ''}`}>
                 <input type="radio" checked={method === 'cod'} onChange={() => setMethod('cod')} data-testid="pay-cod" />
-                <span>💵 Cash on Delivery<em>Pay with cash at the time of delivery</em></span>
+                <span>
+                  💵 {cashLabel(fulfilment)}
+                  <em>{pickupMode ? 'Pay with cash or UPI at the shop when you collect the order' : 'Pay with cash at the time of delivery'}</em>
+                </span>
               </label>
               )}
             </div>
@@ -497,7 +539,7 @@ export default function CheckoutPage() {
             <button
               className="co-place"
               onClick={placeOrder}
-              disabled={busy || !addressId || !b || notServiceable}
+              disabled={busy || !addressId || !b || notServiceable || (pickupMode && !slotStart)}
               data-testid="checkout-place-order"
             >
               {busy
@@ -505,7 +547,9 @@ export default function CheckoutPage() {
                 : notServiceable
                   ? 'Not deliverable to this PIN'
                   : method === 'cod'
-                    ? '🔒 Place Order (COD)'
+                    ? pickupMode
+                      ? '🔒 Place Order (Pay at shop)'
+                      : '🔒 Place Order (COD)'
                     : '🔒 Continue to Payment →'}
             </button>
             <div className="cox__secure">🛡️ Your information is 100% secure</div>

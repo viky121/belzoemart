@@ -233,6 +233,7 @@ export class OrderService {
     return orders.map((o) => ({
       id: o.id,
       status: o.status,
+      fulfilment: o.fulfilment,
       grandTotal: o.grandTotal,
       createdAt: o.createdAt,
       itemCount: o.items.reduce((s, i) => s + i.quantity, 0),
@@ -273,11 +274,25 @@ export class OrderService {
   async transition(orderId: string, to: OrderStatus) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Order not found');
-    if (!canTransition(order.status, to)) {
+    const fulfilment = order.fulfilment;
+    if (!canTransition(order.status, to, fulfilment)) {
       throw new BadRequestException(`Illegal transition ${order.status} → ${to}`);
     }
-    const updated = await this.prisma.order.update({ where: { id: orderId }, data: { status: to } });
-    await notifyOrderStatus(this.queue, orderId, to);
+    let updated;
+    if (fulfilment === 'pickup' && to === 'delivered') {
+      // "Picked up": the customer has the goods, so the money paid at the shop counts as received.
+      const [done] = await this.prisma.$transaction([
+        this.prisma.order.update({ where: { id: orderId }, data: { status: to } }),
+        this.prisma.payment.updateMany({
+          where: { orderId, provider: 'cod', status: 'pending' },
+          data: { status: 'captured', method: 'pay_at_shop' },
+        }),
+      ]);
+      updated = done;
+    } else {
+      updated = await this.prisma.order.update({ where: { id: orderId }, data: { status: to } });
+    }
+    await notifyOrderStatus(this.queue, orderId, to, fulfilment);
     return updated;
   }
 

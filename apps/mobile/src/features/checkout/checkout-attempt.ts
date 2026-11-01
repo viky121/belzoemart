@@ -21,11 +21,16 @@ export async function computeFingerprint(input: {
   paymentMethod: string;
   couponCode?: string | null;
   lines: AttemptLine[];
+  /** Self pickup changes the order, so a different method or slot must not reuse an old key. */
+  fulfilment?: string;
+  pickupSlotStart?: string | null;
 }): Promise<string> {
   const parts = [
     input.addressId,
     input.paymentMethod,
     input.couponCode ?? '',
+    input.fulfilment ?? 'delivery',
+    input.pickupSlotStart ?? '',
     ...input.lines.map((l) => `${l.variantId}:${l.quantity}`).sort(),
   ].join('|');
   return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, parts);

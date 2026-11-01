@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { adminFetch } from '@/lib/admin-api';
 import { formatInr } from '@/lib/catalogue-api';
-import { pendingAction, WAITING_FOR_PAYMENT_HINT } from '@/lib/admin-order-actions';
+import { formatPickupSlot, orderStatusLabel, shopAddressLine, type PickupInfo } from '@belzo/shared';
+import { fetchPickupInfo } from '@/lib/pickup-api';
+import { nextStep, pendingAction, pickupHint, WAITING_FOR_PAYMENT_HINT } from '@/lib/admin-order-actions';
 import { isUsableImageUrl, placeholderImage } from '@/lib/category-theme';
 
 interface AdminItem {
@@ -82,6 +84,9 @@ interface AdminReturn {
 interface AdminOrderDetail {
   id: string;
   status: string;
+  fulfilment?: 'delivery' | 'pickup';
+  pickupSlotStart?: string | null;
+  pickupSlotEnd?: string | null;
   createdAt: string;
   couponCode: string | null;
   cancelledReason: string | null;
@@ -137,6 +142,9 @@ export default function AdminOrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [confirmMsg, setConfirmMsg] = useState<string | null>(null);
+  const [pickupInfo, setPickupInfo] = useState<PickupInfo | null>(null);
+  const [stepping, setStepping] = useState(false);
+  const [stepMsg, setStepMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -155,6 +163,24 @@ export default function AdminOrderDetailPage() {
   useEffect(() => {
     void load();
   }, [load]);
+  const isPickup = order?.fulfilment === 'pickup';
+  useEffect(() => {
+    if (isPickup) void fetchPickupInfo().then(setPickupInfo);
+  }, [isPickup]);
+  /** Self pickup: Ready for pickup, then Picked up. */
+  async function moveForward(next: string) {
+    if (!id) return;
+    setStepping(true);
+    setStepMsg(null);
+    try {
+      await adminFetch(`/admin/orders/${id}/status`, { method: 'PATCH', body: { status: next } });
+      await load();
+    } catch (e) {
+      setStepMsg(`Could not update the order: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setStepping(false);
+    }
+  }
   /** A pending Cash on Delivery order has nothing to wait for: the admin confirms it by hand. */
   async function confirmCod() {
     if (!id) return;
@@ -202,9 +228,28 @@ export default function AdminOrderDetailPage() {
           <p className="admin-subtitle" style={{ margin: '4px 0 0' }}>Placed on {fmtDate(order.createdAt)}</p>
         </div>
         <span className={`admin-status ${STATUS_CLASS[order.status] ?? ''}`}>
-          {order.status.replace(/_/g, ' ')}
+          {isPickup ? orderStatusLabel(order.status, 'pickup').toLowerCase() : order.status.replace(/_/g, ' ')}
         </span>
       </div>
+
+      {isPickup && (
+        <section className="admin-card" data-testid="aod-pickup">
+          <div className="admin-card__head"><h2>Self pickup</h2></div>
+          <div className="aod-info">
+            <div className="aod-row"><span>Pickup time</span><strong>{formatPickupSlot(order.pickupSlotStart, order.pickupSlotEnd) ?? '—'}</strong></div>
+            {pickupInfo && <div className="aod-row"><span>Shop</span><strong style={{ textAlign: 'right' }}>{shopAddressLine(pickupInfo.shop) || pickupInfo.shop.name}</strong></div>}
+          </div>
+          {nextStep(order.status, 'pickup') && (
+            <button className="auth-btn" style={{ marginTop: 12 }} onClick={() => moveForward(nextStep(order.status, 'pickup')!.next)} disabled={stepping} data-testid="aod-pickup-step">
+              {stepping ? 'Updating…' : nextStep(order.status, 'pickup')!.label}
+            </button>
+          )}
+          {pickupHint(order.status, 'pickup', order.payments.some((p) => p.provider === 'cod' && p.status === 'pending')) && (
+            <p className="admin-subtitle" style={{ margin: '8px 0 0' }}>{pickupHint(order.status, 'pickup', order.payments.some((p) => p.provider === 'cod' && p.status === 'pending'))}</p>
+          )}
+          {stepMsg && <p className="prod-form__msg prod-form__msg--err" role="alert">{stepMsg}</p>}
+        </section>
+      )}
 
       {pendingAction(order.status, order.payments) === 'confirm_cod' && (
         <section className="admin-card" data-testid="aod-confirm-cod">
@@ -258,7 +303,7 @@ export default function AdminOrderDetailPage() {
 
         {/* Delivery address */}
         <section className="admin-card">
-          <div className="admin-card__head"><h2>Delivery address</h2></div>
+          <div className="admin-card__head"><h2>{isPickup ? 'Customer address (for the bill)' : 'Delivery address'}</h2></div>
           {order.address ? (
             <div className="aod-info">
               <div className="aod-row"><span>Name</span><strong>{order.address.fullName}</strong></div>
@@ -335,7 +380,7 @@ export default function AdminOrderDetailPage() {
                 <strong>−{formatInr(order.discount)}</strong>
               </div>
             )}
-            <div className="aod-row"><span>Delivery</span><strong>{order.shipping > 0 ? formatInr(order.shipping) : 'FREE'}</strong></div>
+            <div className="aod-row"><span>{isPickup ? 'Delivery (self pickup)' : 'Delivery'}</span><strong>{order.shipping > 0 ? formatInr(order.shipping) : 'FREE'}</strong></div>
             {order.codFee > 0 && <div className="aod-row"><span>COD fee</span><strong>{formatInr(order.codFee)}</strong></div>}
             <div className="aod-row"><span>Tax (incl.)</span><strong>{formatInr(order.tax)}</strong></div>
             <div className="aod-row aod-row--total"><span>Grand total</span><strong>{formatInr(order.grandTotal)}</strong></div>
@@ -375,7 +420,7 @@ export default function AdminOrderDetailPage() {
       <section className="admin-card">
         <div className="admin-card__head"><h2>Shipment &amp; tracking</h2></div>
         {order.tracking.shipments.length === 0 ? (
-          <div className="admin-empty">No shipment created yet.</div>
+          <div className="admin-empty">{isPickup ? 'Self pickup: nothing is shipped.' : 'No shipment created yet.'}</div>
         ) : (
           order.tracking.shipments.map((s) => (
             <div key={s.id} className="aod-ship">

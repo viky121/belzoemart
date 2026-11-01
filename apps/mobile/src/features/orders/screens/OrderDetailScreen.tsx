@@ -5,9 +5,12 @@ import {
   cancelUnavailableReason,
   formatDateTime,
   formatInr,
+  formatPickupSlot,
+  paymentSummary,
   resolutionLabel,
   returnEligibility,
   returnStatusLabel,
+  shopAddressLine,
   shortOrderId,
   variantText,
 } from '@belzo/shared';
@@ -26,6 +29,8 @@ import { RemoteImage } from '@/ui/RemoteImage';
 import { DetailSkeleton } from '@/ui/Skeleton';
 import { useToast } from '@/ui/Toast';
 
+import { usePickupInfo } from '@/features/checkout/hooks';
+
 import { fetchInvoice } from '../api';
 import { CancelOrderModal } from '../components/CancelOrderModal';
 import { ReturnRequestModal } from '../components/ReturnRequestModal';
@@ -38,6 +43,9 @@ export function OrderDetailScreen({ navigation, route }: RootScreenProps<'OrderD
   const toast = useToast();
   const { data: order, isLoading, isError, error, refetch } = useOrderDetail(id);
   const reorder = useReorder();
+  const isPickup = order?.fulfilment === 'pickup';
+  // The shop address and timings for a self pickup order (public information).
+  const pickupInfo = usePickupInfo({ enabled: isPickup }).data ?? null;
   const [cancelOpen, setCancelOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [invoiceBusy, setInvoiceBusy] = useState(false);
@@ -98,7 +106,7 @@ export function OrderDetailScreen({ navigation, route }: RootScreenProps<'OrderD
               </Pressable>
               <Text style={styles.date}>Placed {formatDateTime(order.createdAt)}</Text>
             </View>
-            <OrderStatusBadge status={order.status} />
+            <OrderStatusBadge status={order.status} fulfilment={order.fulfilment} />
           </View>
           {order.status === 'cancelled' && order.cancelledReason ? (
             <Text style={styles.cancelReason}>Cancelled: {order.cancelledReason}</Text>
@@ -109,9 +117,11 @@ export function OrderDetailScreen({ navigation, route }: RootScreenProps<'OrderD
           <OrderStepper steps={steps} />
         </Section>
 
-        <Section title="Tracking">
-          <TrackingTimeline tracking={order.tracking} />
-        </Section>
+        {isPickup ? null : (
+          <Section title="Tracking">
+            <TrackingTimeline tracking={order.tracking} />
+          </Section>
+        )}
 
         <Section title={`Items (${order.items.length})`}>
           {order.items.map((item) => {
@@ -135,7 +145,20 @@ export function OrderDetailScreen({ navigation, route }: RootScreenProps<'OrderD
           })}
         </Section>
 
-        {order.address ? (
+        {isPickup ? (
+          <Section title="Self pickup">
+            <Text style={styles.addr} testID="order-pickup-shop">{pickupInfo?.shop.name ?? 'Our shop'}</Text>
+            {pickupInfo && shopAddressLine(pickupInfo.shop) ? <Text style={styles.addr}>{shopAddressLine(pickupInfo.shop)}</Text> : null}
+            {pickupInfo?.shop.phone ? <Text style={styles.addr}>Phone: {pickupInfo.shop.phone}</Text> : null}
+            {pickupInfo?.note ? <Text style={styles.itemMeta}>{pickupInfo.note}</Text> : null}
+            {formatPickupSlot(order.pickupSlotStart, order.pickupSlotEnd) ? (
+              <Text style={styles.pickupSlot} testID="order-pickup-slot">
+                Pickup time: {formatPickupSlot(order.pickupSlotStart, order.pickupSlotEnd)}
+              </Text>
+            ) : null}
+            {order.status === 'packed' ? <Text style={styles.pickupSlot}>Your order is ready. Please collect it from the shop.</Text> : null}
+          </Section>
+        ) : order.address ? (
           <Section title="Delivery address">
             <Text style={styles.addr}>{order.address.fullName} · {order.address.phone}</Text>
             <Text style={styles.addr}>
@@ -149,7 +172,9 @@ export function OrderDetailScreen({ navigation, route }: RootScreenProps<'OrderD
         {payment ? (
           <Section title="Payment">
             <Text style={styles.addr}>
-              {(payment.method ?? payment.provider).toUpperCase()} · {payment.status} · {formatInr(payment.amount)}
+              {isPickup
+                ? `${paymentSummary(order).methodLabel} · ${paymentSummary(order).statusLabel} · ${formatInr(payment.amount)}`
+                : `${(payment.method ?? payment.provider).toUpperCase()} · ${payment.status} · ${formatInr(payment.amount)}`}
             </Text>
           </Section>
         ) : null}
@@ -248,6 +273,7 @@ const styles = StyleSheet.create({
   itemMeta: { ...theme.typography.caption, color: theme.colors.muted },
   itemTotal: { ...theme.typography.body, color: theme.colors.ink, fontWeight: '700' },
   addr: { ...theme.typography.body, color: theme.colors.ink },
+  pickupSlot: { ...theme.typography.body, color: theme.colors.inkStrong, fontWeight: '700', marginTop: theme.spacing.xs },
   priceRow: { flexDirection: 'row', justifyContent: 'space-between' },
   priceLabel: { ...theme.typography.body, color: theme.colors.muted },
   priceValue: { ...theme.typography.body, color: theme.colors.ink },

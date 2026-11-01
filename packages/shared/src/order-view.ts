@@ -1,5 +1,6 @@
 import type { OrderStatus } from './constants';
-import { ORDER_PROGRESS_STEPS, progressRank, statusLabel, type ReconciledTracking } from './order-tracking';
+import { ORDER_PROGRESS_STEPS, normalizeStatus, progressRank, statusLabel, type ReconciledTracking } from './order-tracking';
+import type { FulfilmentMethod } from './pickup';
 import { canCustomerCancel } from './orders';
 import {
   CANCEL_REASONS,
@@ -75,6 +76,10 @@ export interface OrderReturn {
 export interface OrderDetail extends OrderMoneySnapshot {
   id: string;
   status: OrderStatus;
+  /** 'pickup' = the customer collects it from the shop. Missing = home delivery. */
+  fulfilment?: FulfilmentMethod;
+  pickupSlotStart?: string | null;
+  pickupSlotEnd?: string | null;
   createdAt: string;
   updatedAt: string;
   couponCode: string | null;
@@ -95,8 +100,23 @@ export function shortOrderId(id: string): string {
   return id.slice(0, 8).toUpperCase();
 }
 
+/** Status wording for a self pickup order: nothing is shipped, so "Packed" is "Ready for pickup". */
+const PICKUP_STATUS_LABELS: Record<string, string> = { packed: 'Ready for pickup', delivered: 'Picked up' };
+
+/** The steps a self pickup order goes through. */
+export const PICKUP_PROGRESS_STEPS: readonly OrderStatus[] = ['pending', 'confirmed', 'packed', 'delivered'];
+
+/** Customer-facing status label; a pickup order says "Ready for pickup" / "Picked up". */
+export function orderStatusLabel(status: string | null | undefined, fulfilment?: FulfilmentMethod | null): string {
+  if (fulfilment === 'pickup') {
+    const own = PICKUP_STATUS_LABELS[normalizeStatus(status)];
+    if (own) return own;
+  }
+  return statusLabel(status);
+}
+
 /** Human status label + badge tone (`ord-badge--<tone>`). */
-export function statusBadge(status: string): { label: string; tone: Tone } {
+export function statusBadge(status: string, fulfilment?: FulfilmentMethod | null): { label: string; tone: Tone } {
   const tone: Tone =
     status === 'delivered'
       ? 'ok'
@@ -107,7 +127,7 @@ export function statusBadge(status: string): { label: string; tone: Tone } {
           : status === 'pending'
             ? 'warn'
             : 'info';
-  return { label: statusLabel(status), tone };
+  return { label: orderStatusLabel(status, fulfilment), tone };
 }
 
 /** False once the order can no longer change by itself (stop polling). */
@@ -169,20 +189,23 @@ function refundStep(order: OrderDetail): Step | null {
 /** Progress steps driven only by the order status. */
 export function buildStepper(order: OrderDetail): Step[] {
   const steps: Step[] = [];
+  const pickup = order.fulfilment === 'pickup';
+  const progress: readonly OrderStatus[] = pickup ? PICKUP_PROGRESS_STEPS : ORDER_PROGRESS_STEPS;
+  const label = (st: string) => orderStatusLabel(st, order.fulfilment);
   if (order.status === 'cancelled') {
     steps.push({ key: 'pending', label: statusLabel('pending'), state: 'done', at: order.createdAt ?? null });
     // No status history: order.updatedAt also moves on unrelated writes (invoice), so no time.
     steps.push({ key: 'cancelled', label: statusLabel('cancelled'), state: 'terminal', at: null });
   } else if (order.status === 'returned') {
-    for (const s of ORDER_PROGRESS_STEPS) {
-      steps.push({ key: s, label: statusLabel(s), state: 'done', at: stepTime(order, s) });
+    for (const s of progress) {
+      steps.push({ key: s, label: label(s), state: 'done', at: stepTime(order, s) });
     }
     steps.push({ key: 'returned', label: statusLabel('returned'), state: 'terminal', at: null });
   } else {
-    const rank = progressRank(order.status);
-    ORDER_PROGRESS_STEPS.forEach((s, i) => {
+    const rank = pickup ? progress.indexOf(order.status) : progressRank(order.status);
+    progress.forEach((s, i) => {
       const state: StepState = i < rank ? 'done' : i === rank ? 'current' : 'upcoming';
-      steps.push({ key: s, label: statusLabel(s), state, at: state === 'upcoming' ? null : stepTime(order, s) });
+      steps.push({ key: s, label: label(s), state, at: state === 'upcoming' ? null : stepTime(order, s) });
     });
   }
   const refund = refundStep(order);
@@ -231,7 +254,8 @@ export function paymentSummary(order: OrderDetail): PaymentSummary {
     return { methodLabel: 'Not available', statusLabel: 'Not available', isCod: false, isPrepaid: false, amountPaid: 0 };
   }
   const isCod = p.provider === 'cod' || p.method === 'cod';
-  const methodLabel = isCod ? 'Cash on Delivery' : (METHOD_LABELS[(p.method ?? '').toLowerCase()] ?? 'Online payment');
+  const atShop = order.fulfilment === 'pickup';
+  const methodLabel = isCod ? (atShop ? 'Pay at shop on pickup' : 'Cash on Delivery') : (METHOD_LABELS[(p.method ?? '').toLowerCase()] ?? 'Online payment');
   let label: string;
   switch (p.status) {
     case 'captured':
@@ -250,10 +274,14 @@ export function paymentSummary(order: OrderDetail): PaymentSummary {
       if (isCod) {
         label =
           order.status === 'delivered' || order.status === 'returned'
-            ? 'Paid on delivery'
+            ? atShop
+              ? 'Paid at shop'
+              : 'Paid on delivery'
             : order.status === 'cancelled'
               ? 'Not charged'
-              : 'Pay on delivery';
+              : atShop
+                ? 'Pay at shop'
+                : 'Pay on delivery';
       } else {
         label = 'Awaiting payment';
       }
@@ -277,7 +305,7 @@ export function refundNote(order: OrderDetail): string {
   if (summary.isPrepaid && p) {
     return `A refund of ${formatInr(p.amount)} will be issued to your original payment method`;
   }
-  if (summary.isCod) return 'Nothing to refund - this is a Cash on Delivery order';
+  if (summary.isCod) return order.fulfilment === 'pickup' ? 'Nothing to refund - you pay at the shop' : 'Nothing to refund - this is a Cash on Delivery order';
   return 'No payment was taken for this order';
 }
 
@@ -292,7 +320,7 @@ export function cancelEligibility(order: OrderDetail): boolean {
 /** Why Cancel is not offered for an order that is still on its way, else null. */
 export function cancelUnavailableReason(order: OrderDetail): string | null {
   if (canCustomerCancel(order.status) || !isLiveStatus(order.status)) return null;
-  return "Orders can't be cancelled once they have shipped";
+  return order.fulfilment === 'pickup' ? "Orders can't be cancelled once they have been picked up" : "Orders can't be cancelled once they have shipped";
 }
 
 /** Max comment length so that "<label>: <comments>" stays within REASON_MAX_CHARS. */

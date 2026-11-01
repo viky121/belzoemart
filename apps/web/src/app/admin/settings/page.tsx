@@ -6,6 +6,7 @@ import { adminFetch } from '@/lib/admin-api';
 import { ContentEditor } from './content-editor';
 import { HomeSectionsEditor } from './home-sections-editor';
 import { SmsGatewayCard } from './sms-gateway-card';
+import { PickupSettingsCard } from './pickup-settings-card';
 
 type Settings = Record<string, unknown>;
 
@@ -181,6 +182,7 @@ export default function AdminSettingsPage() {
         })}
       </div>
 
+      <PickupSettingsCard settings={settings} onSave={save} />
       <div className="admin-form">
         <h2>Store settings</h2>
         {EDITABLE.map((f) => {

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import type { PickupInfo } from '@belzo/shared';
+import { fetchPickupInfo } from '@/lib/pickup-api';
 import { useAuth } from '@/lib/auth-context';
 import { loginHref } from '@/lib/auth-redirect';
 import {
@@ -17,6 +19,7 @@ import { ReturnRequestModal } from './return-request-modal';
 import {
   DeliveryAddress,
   OrderHeader,
+  PickupDetails,
   OrderItems,
   OrderStepper,
   PriceDetails,
@@ -43,6 +46,7 @@ export default function OrderDetailPage() {
   const [modal, setModal] = useState<'cancel' | 'return' | null>(null);
   const [reordering, setReordering] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [pickupInfo, setPickupInfo] = useState<PickupInfo | null>(null);
   const hasData = useRef(false);
   const inFlight = useRef(false);
 
@@ -72,6 +76,12 @@ export default function OrderDetailPage() {
     }
     void load();
   }, [ready, accessToken, load, router]);
+
+  // Self pickup: the shop address and timings to show.
+  const isPickup = order?.fulfilment === 'pickup';
+  useEffect(() => {
+    if (isPickup) void fetchPickupInfo().then(setPickupInfo);
+  }, [isPickup]);
 
   // Live refresh: whenever the shopper comes back to the tab.
   useEffect(() => {
@@ -174,7 +184,7 @@ export default function OrderDetailPage() {
 
         <aside className="od__side">
           <PriceDetails order={order} />
-          <DeliveryAddress address={order.address} />
+          {order.fulfilment === 'pickup' ? <PickupDetails order={order} info={pickupInfo} /> : <DeliveryAddress address={order.address} />}
 
           <section className="od-card od-actions" aria-labelledby="od-actions-title">
             <h2 id="od-actions-title" className="od-card__title">

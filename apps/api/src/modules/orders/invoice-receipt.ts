@@ -93,7 +93,12 @@ export function buildReceipt(doc: InvoiceDocument): ReceiptRow[] {
   const shipAddress = [ship.line1, ship.line2, [ship.city, ship.pincode].filter(Boolean).join(' - ') || null]
     .filter((x): x is string => Boolean(x))
     .join(', ');
-  if (shipAddress) rows.push({ t: 'text', text: `Deliver to: ${shipAddress}`, small: true });
+  if (doc.isPickup) {
+    rows.push({ t: 'kv', left: 'Delivery', right: 'Self pickup' });
+    if (doc.pickupSlot) rows.push({ t: 'text', text: `Pickup time: ${doc.pickupSlot}`, small: true });
+  } else if (shipAddress) {
+    rows.push({ t: 'text', text: `Deliver to: ${shipAddress}`, small: true });
+  }
   rows.push({ t: 'kv', left: 'Place of Supply', right: doc.placeOfSupply });
   rows.push({ t: 'rule', style: 'dash' });
 
@@ -146,7 +151,7 @@ export function buildReceipt(doc: InvoiceDocument): ReceiptRow[] {
   if (!t.pricesIncludeGst) {
     rows.push({ t: 'kv', left: 'GST', right: amt(t.cgst + t.sgst + t.igst) });
   }
-  rows.push({ t: 'kv', left: 'Delivery Charges', right: t.shipping > 0 ? amt(t.shipping) : 'FREE' });
+  if (!doc.isPickup) rows.push({ t: 'kv', left: 'Delivery Charges', right: t.shipping > 0 ? amt(t.shipping) : 'FREE' });
   if (t.codFee > 0) rows.push({ t: 'kv', left: 'COD Fee', right: amt(t.codFee) });
   if (t.roundOff !== 0) rows.push({ t: 'kv', left: 'Round Off', right: `${t.roundOff < 0 ? '-' : ''}${amt(Math.abs(t.roundOff))}` });
   rows.push({ t: 'rule', style: 'solid' });
@@ -159,7 +164,7 @@ export function buildReceipt(doc: InvoiceDocument): ReceiptRow[] {
   rows.push({ t: 'kv', left: 'Payment Status', right: doc.paymentStatus });
   rows.push({ t: 'kv', left: 'Amount Paid', right: rs(doc.amountPaid) });
   if (doc.balanceDue > 0) {
-    rows.push({ t: 'kv', left: doc.isCod ? 'To Pay on Delivery' : 'Balance Due', right: rs(doc.balanceDue), bold: true });
+    rows.push({ t: 'kv', left: doc.isCod ? (doc.isPickup ? 'To Pay at Shop' : 'To Pay on Delivery') : 'Balance Due', right: rs(doc.balanceDue), bold: true });
   }
   if (doc.paymentRef) rows.push({ t: 'kv', left: 'Payment Ref No', right: doc.paymentRef });
   rows.push({ t: 'rule', style: 'dash' });

@@ -26,6 +26,8 @@ export function toAddressInput(a: Address): AddressInput {
 /** Addresses (design §11): list, add/edit/delete/set-default, and a select mode for checkout. */
 export function AddressesScreen({ navigation, route }: RootScreenProps<'Addresses'>) {
   const selectForCheckout = route.params?.selectForCheckout === true;
+  // Self pickup at checkout: the PIN code check is not applied to the address form.
+  const pickup = route.params?.pickup === true;
   const { data, isLoading, isError, error, refetch } = useAddresses();
   const save = useSaveAddress();
   const del = useDeleteAddress();
@@ -96,7 +98,7 @@ export function AddressesScreen({ navigation, route }: RootScreenProps<'Addresse
 
         <Button
           title="Add address"
-          onPress={() => navigation.navigate('AddressForm', { selectForCheckout })}
+          onPress={() => navigation.navigate('AddressForm', { selectForCheckout, pickup })}
           style={styles.add}
           testID="address-add"
         />

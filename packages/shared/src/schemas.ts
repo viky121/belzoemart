@@ -6,6 +6,7 @@ import {
   PRODUCT_STATUSES,
   SUPPORTED_LOCALES,
 } from './constants';
+import { FULFILMENT_METHODS } from './pickup';
 
 /**
  * Zod schemas shared between the API (runtime validation) and the web app
@@ -481,6 +482,8 @@ export const checkoutPreviewSchema = z.object({
   addressId: uuidSchema,
   couponCode: z.string().trim().max(40).optional(),
   paymentMethod: z.enum(PAYMENT_METHODS).optional(),
+  /** Missing = home delivery (older apps never send it). */
+  fulfilment: z.enum(FULFILMENT_METHODS).optional(),
 });
 export type CheckoutPreview = z.infer<typeof checkoutPreviewSchema>;
 
@@ -488,6 +491,10 @@ export const placeOrderSchema = z.object({
   addressId: uuidSchema,
   paymentMethod: z.enum(PAYMENT_METHODS),
   couponCode: z.string().trim().max(40).optional(),
+  /** Missing = home delivery (older apps never send it). */
+  fulfilment: z.enum(FULFILMENT_METHODS).optional(),
+  /** Start of the chosen pickup slot (ISO time from GET /checkout/pickup); required for pickup. */
+  pickupSlotStart: z.string().datetime().optional(),
 });
 export type PlaceOrder = z.infer<typeof placeOrderSchema>;
 

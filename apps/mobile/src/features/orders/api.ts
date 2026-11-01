@@ -15,6 +15,8 @@ export interface OrderSummaryItem {
 export interface OrderSummary {
   id: string;
   status: string;
+  /** 'pickup' = collected from the shop. Missing on older API versions = home delivery. */
+  fulfilment?: 'delivery' | 'pickup';
   grandTotal: number;
   createdAt: string;
   itemCount: number;

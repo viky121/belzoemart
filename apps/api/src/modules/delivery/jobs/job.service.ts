@@ -90,6 +90,9 @@ export class JobService {
         include: { items: true, payments: true },
       });
       if (!order) throw new DeliveryError(404, 'NOT_FOUND', 'Order not found');
+      if (order.fulfilment === 'pickup') {
+        throw new DeliveryError(409, 'ORDER_NOT_ASSIGNABLE', 'This is a self pickup order. The customer collects it from the shop, so it cannot be given to a delivery partner', { status: order.status });
+      }
       if (!(ASSIGNABLE_ORDER_STATUSES as readonly string[]).includes(order.status)) {
         throw new DeliveryError(409, 'ORDER_NOT_ASSIGNABLE', `An order that is ${order.status.replace(/_/g, ' ')} cannot be given to a delivery partner`, { status: order.status });
       }

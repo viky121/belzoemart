@@ -34,6 +34,7 @@ export class CheckoutController {
       dto.addressId,
       dto.couponCode,
       dto.paymentMethod === 'cod',
+      dto.fulfilment ?? 'delivery',
     );
     // Lets the apps offer "pay online" only when a real gateway is configured.
     return { ...result, onlinePayment: this.payments.onlinePaymentEnabled };

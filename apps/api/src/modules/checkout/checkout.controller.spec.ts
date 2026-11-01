@@ -24,19 +24,24 @@ describe('CheckoutController.preview (A6)', () => {
   it("passes isCod=true for paymentMethod 'cod'", async () => {
     const { controller, checkout } = build();
     await controller.preview(user, { addressId: ADDR, couponCode: 'SAVE10', paymentMethod: 'cod' });
-    expect(checkout.preview).toHaveBeenCalledWith({ customerId: 'cust1' }, ADDR, 'SAVE10', true);
+    expect(checkout.preview).toHaveBeenCalledWith({ customerId: 'cust1' }, ADDR, 'SAVE10', true, 'delivery');
   });
 
   it("passes isCod=false for 'upi'", async () => {
     const { controller, checkout } = build();
     await controller.preview(user, { addressId: ADDR, paymentMethod: 'upi' });
-    expect(checkout.preview).toHaveBeenCalledWith({ customerId: 'cust1' }, ADDR, undefined, false);
+    expect(checkout.preview).toHaveBeenCalledWith({ customerId: 'cust1' }, ADDR, undefined, false, 'delivery');
   });
 
+  it('passes self pickup on to the service', async () => {
+    const { controller, checkout } = build();
+    await controller.preview(user, { addressId: ADDR, paymentMethod: 'cod', fulfilment: 'pickup' });
+    expect(checkout.preview).toHaveBeenCalledWith({ customerId: 'cust1' }, ADDR, undefined, true, 'pickup');
+  });
   it('passes isCod=false when paymentMethod is missing (web, unchanged)', async () => {
     const { controller, checkout } = build();
     await controller.preview(user, { addressId: ADDR });
-    expect(checkout.preview).toHaveBeenCalledWith({ customerId: 'cust1' }, ADDR, undefined, false);
+    expect(checkout.preview).toHaveBeenCalledWith({ customerId: 'cust1' }, ADDR, undefined, false, 'delivery');
   });
 });
 

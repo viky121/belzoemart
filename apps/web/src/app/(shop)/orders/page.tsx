@@ -18,6 +18,8 @@ interface OrderItem {
 interface OrderSummary {
   id: string;
   status: string;
+  /** 'pickup' = collected from the shop. */
+  fulfilment?: 'delivery' | 'pickup';
   grandTotal: number;
   createdAt: string;
   itemCount: number;
@@ -43,13 +45,14 @@ function bucket(status: string): 'pending' | 'processing' | 'delivered' | 'cance
 }
 
 /** Badge (same labels/tones as the order-detail page) + a factual one-liner (no invented dates). */
-function statusMeta(status: string): { label: string; cls: string; msg: string } {
-  const { label, tone } = statusBadge(status);
+function statusMeta(status: string, fulfilment?: 'delivery' | 'pickup'): { label: string; cls: string; msg: string } {
+  const { label, tone } = statusBadge(status, fulfilment);
   const cls = `ord-badge--${tone}`;
-  if (status === 'delivered') return { label, cls, msg: 'Delivered' };
+  if (status === 'delivered') return { label, cls, msg: fulfilment === 'pickup' ? 'Picked up' : 'Delivered' };
   if (status === 'cancelled') return { label, cls, msg: 'Order cancelled' };
   if (status === 'returned') return { label, cls, msg: 'Returned' };
   if (status === 'pending') return { label, cls, msg: 'Preparing for dispatch' };
+  if (fulfilment === 'pickup' && status === 'packed') return { label, cls, msg: 'Collect it from the shop' };
   if (status === 'shipped' || status === 'out_for_delivery') return { label, cls, msg: `${label} - on the way` };
   return { label, cls, msg: 'Being prepared' };
 }
@@ -119,7 +122,7 @@ export default function OrdersPage() {
       ) : (
         <ul className="ord__list">
           {filtered.map((o) => {
-            const meta = statusMeta(o.status);
+            const meta = statusMeta(o.status, o.fulfilment);
             const real = isUsableImageUrl(o.imageUrl);
             const placed = new Date(o.createdAt).toLocaleString('en-IN', {
               day: 'numeric',

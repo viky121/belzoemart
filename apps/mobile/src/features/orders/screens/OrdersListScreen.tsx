@@ -1,4 +1,4 @@
-import { formatDate, formatInr, shortOrderId } from '@belzo/shared';
+import { formatDate, formatInr, orderStatusLabel, shortOrderId } from '@belzo/shared';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -98,14 +98,14 @@ export function OrdersListScreen({ navigation }: RootScreenProps<'Orders'>) {
               style={styles.card}
               onPress={() => navigation.navigate('OrderDetail', { id: o.id })}
               accessibilityRole="button"
-              accessibilityLabel={`Order ${shortOrderId(o.id)}, ${o.status}, ${formatInr(o.grandTotal)}`}
+              accessibilityLabel={`Order ${shortOrderId(o.id)}, ${orderStatusLabel(o.status, o.fulfilment)}, ${formatInr(o.grandTotal)}`}
             >
               <View style={styles.topRow}>
                 <View style={styles.idCol}>
                   <Text style={styles.id}>Order #{shortOrderId(o.id)}</Text>
                   <Text style={styles.meta}>{formatDate(o.createdAt)}</Text>
                 </View>
-                <OrderStatusBadge status={o.status} />
+                <OrderStatusBadge status={o.status} fulfilment={o.fulfilment} />
               </View>
 
               <View style={styles.thumbs}>

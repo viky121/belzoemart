@@ -117,3 +117,5 @@
 - [x] Cart creation race fix: DEPLOYED 2026-10-31 (main 7735b1e, API only).
 - [ ] Self pickup at checkout (2026-10-31): questions Q1-Q8 in `aidlc-docs/inception/requirements/self-pickup-questions.md`; AWAITING USER ANSWERS. Standing rule: ask before every deploy and every build.
 - [ ] Self pickup: Q1-Q8 answered 2026-10-31 (both web+app, address+timings note, Rs. 0 charges, "Pay at shop on pickup" for cash, slot + on/off switch); 4 answers need a clarification round: `aidlc-docs/inception/requirements/self-pickup-clarification-questions.md`; AWAITING USER ANSWERS.
+- [ ] Self pickup: requirements done 2026-10-31 (`aidlc-docs/inception/requirements/self-pickup-requirements.md`; admin-flow assumption A noted); BUILDING (shared, DB, API, web, app). Not deployed.
+- [x] Self pickup at checkout (2026-10-31): built and verified (web, app, API, admin; migration `20261031120000_order_self_pickup`), summary `aidlc-docs/construction/self-pickup/code/summary.md`. NOT deployed, NO APK built (ask first). Needs: API + web + worker deploy with the migration, new APK; then fill Settings > Store address and Settings > Self pickup.

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { formatPickupSlot, shopAddressLine, type PickupInfo } from '@belzo/shared';
 import { formatInr } from '@/lib/catalogue-api';
 import { isUsableImageUrl, placeholderImage } from '@/lib/category-theme';
 import { breakupView } from '@/lib/price-breakup';
@@ -52,7 +53,7 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 }
 
 export function OrderHeader({ order }: { order: OrderDetail }) {
-  const badge = statusBadge(order.status);
+  const badge = statusBadge(order.status, order.fulfilment);
   const pay = paymentSummary(order);
   return (
     <header className="od-card od-head">
@@ -183,7 +184,7 @@ export function PriceDetails({ order }: { order: OrderDetail }) {
             value = `−${formatInr(-r.amount)}`;
           }
           if (r.key === 'shipping') {
-            label = 'Delivery';
+            label = order.fulfilment === 'pickup' ? 'Delivery (self pickup)' : 'Delivery';
             if (r.amount === 0) value = 'FREE';
           }
           return (
@@ -219,17 +220,17 @@ export function PriceDetails({ order }: { order: OrderDetail }) {
         ) : pay.isCod ? (
           order.status === 'delivered' || order.status === 'returned' ? (
             <>
-              <span>Cash on Delivery</span>
-              <strong>Paid on delivery</strong>
+              <span>{order.fulfilment === 'pickup' ? 'Pay at shop' : 'Cash on Delivery'}</span>
+              <strong>{order.fulfilment === 'pickup' ? 'Paid at shop' : 'Paid on delivery'}</strong>
             </>
           ) : order.status === 'cancelled' ? (
             <>
-              <span>Cash on Delivery</span>
+              <span>{order.fulfilment === 'pickup' ? 'Pay at shop' : 'Cash on Delivery'}</span>
               <strong>Not charged</strong>
             </>
           ) : (
             <>
-              <span>To pay on delivery</span>
+              <span>{order.fulfilment === 'pickup' ? 'To pay at the shop' : 'To pay on delivery'}</span>
               <strong>{formatInr(view.grandTotal)}</strong>
             </>
           )
@@ -239,6 +240,34 @@ export function PriceDetails({ order }: { order: OrderDetail }) {
             <strong>{pay.statusLabel}</strong>
           </>
         )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Self pickup: where and when to collect the order. The shop address and timings come from the public
+ * pickup information (they are the same ones the checkout showed).
+ */
+export function PickupDetails({ order, info }: { order: OrderDetail; info: PickupInfo | null }) {
+  const slot = formatPickupSlot(order.pickupSlotStart, order.pickupSlotEnd);
+  const addressLine = info ? shopAddressLine(info.shop) : '';
+  return (
+    <section className="od-card" aria-labelledby="od-pickup-title" data-testid="order-pickup">
+      <h2 id="od-pickup-title" className="od-card__title">
+        Self pickup
+      </h2>
+      <div className="od-pickup">
+        <strong>{info?.shop.name ?? 'Our shop'}</strong>
+        {addressLine && <span>{addressLine}</span>}
+        {info?.shop.phone && <span>Phone: {info.shop.phone}</span>}
+        {info?.note && <span className="od-muted">{info.note}</span>}
+        {slot && (
+          <span className="od-pickup__slot" data-testid="order-pickup-slot">
+            Pickup time: {slot}
+          </span>
+        )}
+        {order.status === 'packed' && <span className="od-pickup__slot">Your order is ready. Please collect it from the shop.</span>}
       </div>
     </section>
   );
@@ -270,6 +299,8 @@ export function DeliveryAddress({ address }: { address: OrderAddress | null }) {
 const HTTP_URL = /^https?:\/\//i;
 
 export function TrackingCard({ order }: { order: OrderDetail }) {
+  // Nothing is shipped for a self pickup order: its progress is the status above.
+  if (order.fulfilment === 'pickup') return null;
   const shipments = order.tracking?.shipments ?? [];
   if (shipments.length === 0 && order.status === 'cancelled') return null;
   const terminal = order.status === 'cancelled' || order.status === 'returned';

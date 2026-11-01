@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { adminFetch } from '@/lib/admin-api';
 import { formatInr } from '@/lib/catalogue-api';
-import { pendingAction, WAITING_FOR_PAYMENT_HINT } from '@/lib/admin-order-actions';
+import { formatPickupSlot, orderStatusLabel } from '@belzo/shared';
+import { canCreateShipment, nextStep, pendingAction, WAITING_FOR_PAYMENT_HINT } from '@/lib/admin-order-actions';
 
 interface AdminOrder {
   id: string;
@@ -13,6 +14,10 @@ interface AdminOrder {
   createdAt: string;
   invoiceUrl: string | null;
   payments?: { provider: string; status: string }[];
+  /** 'pickup' = the customer collects it from the shop. */
+  fulfilment?: 'delivery' | 'pickup';
+  pickupSlotStart?: string | null;
+  pickupSlotEnd?: string | null;
 }
 interface Paged {
   items: AdminOrder[];
@@ -20,13 +25,6 @@ interface Paged {
   page: number;
   pageSize: number;
 }
-
-const NEXT_STATUS: Record<string, string> = {
-  confirmed: 'packed',
-  packed: 'shipped',
-  shipped: 'out_for_delivery',
-  out_for_delivery: 'delivered',
-};
 
 const TABS = [
   { key: '', label: 'All' },
@@ -81,10 +79,10 @@ export default function AdminOrdersPage() {
   }, [load]);
 
   async function advance(o: AdminOrder) {
-    const next = NEXT_STATUS[o.status];
-    if (!next) return;
-    await adminFetch(`/admin/orders/${o.id}/status`, { method: 'PATCH', body: { status: next } });
-    setMsg(`Order ${o.id.slice(0, 8)} → ${next.replace(/_/g, ' ')}`);
+    const step = nextStep(o.status, o.fulfilment);
+    if (!step) return;
+    await adminFetch(`/admin/orders/${o.id}/status`, { method: 'PATCH', body: { status: step.next } });
+    setMsg(`Order ${o.id.slice(0, 8)} → ${orderStatusLabel(step.next, o.fulfilment).toLowerCase()}`);
     void load();
   }
 
@@ -176,8 +174,14 @@ export default function AdminOrdersPage() {
                     <Link href={`/admin/orders/${o.id}`} className="aod-link" data-testid={`order-link-${o.id}`}>
                       <strong>#{o.id.slice(0, 8).toUpperCase()}</strong>
                     </Link>
+                    {o.fulfilment === 'pickup' && (
+                      <div data-testid={`pickup-tag-${o.id}`}>
+                        <span className="admin-status admin-status--info">Pickup</span>{' '}
+                        <span className="admin-muted">{formatPickupSlot(o.pickupSlotStart, o.pickupSlotEnd) ?? ''}</span>
+                      </div>
+                    )}
                   </td>
-                  <td><span className={`admin-status ${STATUS_CLASS[o.status] ?? ''}`}>{o.status.replace(/_/g, ' ')}</span></td>
+                  <td><span className={`admin-status ${STATUS_CLASS[o.status] ?? ''}`}>{o.fulfilment === 'pickup' ? orderStatusLabel(o.status, 'pickup').toLowerCase() : o.status.replace(/_/g, ' ')}</span></td>
                   <td>{formatInr(o.grandTotal)}</td>
                   <td>{new Date(o.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                   <td>
@@ -194,12 +198,12 @@ export default function AdminOrdersPage() {
                         Waiting for payment
                       </span>
                     )}
-                    {o.status === 'confirmed' && (
+                    {canCreateShipment(o.status, o.fulfilment) && (
                       <button onClick={() => createShipment(o)} data-testid={`ship-${o.id}`}>Create shipment</button>
                     )}
-                    {NEXT_STATUS[o.status] && (
+                    {nextStep(o.status, o.fulfilment) && (
                       <button onClick={() => advance(o)} data-testid={`advance-${o.id}`}>
-                        → {NEXT_STATUS[o.status].replace(/_/g, ' ')}
+                        {nextStep(o.status, o.fulfilment)!.label}
                       </button>
                     )}
                     {o.invoiceUrl && (

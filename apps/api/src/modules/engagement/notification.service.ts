@@ -9,6 +9,7 @@ type NotificationType =
   | 'order.payment_failed'
   | 'order.shipped'
   | 'order.delivered'
+  | 'order.ready_for_pickup'
   | 'customer.welcome'
   | 'dpdp.export'
   | 'abandoned_cart'
@@ -47,6 +48,11 @@ export class NotificationService {
         return { title: hi ? 'ऑर्डर भेजा गया' : 'Order shipped', body: `Order ${data.orderId} is on its way.` };
       case 'order.delivered':
         return { title: hi ? 'ऑर्डर वितरित' : 'Order delivered', body: `Order ${data.orderId} delivered. Rate your purchase!` };
+      case 'order.ready_for_pickup':
+        return {
+          title: hi ? 'ऑर्डर पिकअप के लिए तैयार' : 'Order ready for pickup',
+          body: hi ? `ऑर्डर ${data.orderId} दुकान से लेने के लिए तैयार है।` : `Order ${data.orderId} is ready. Please collect it from the shop.`,
+        };
       case 'customer.welcome':
         return { title: hi ? 'बेल्ज़ो ईमार्ट में आपका स्वागत है' : 'Welcome to Belzo eMart', body: hi ? 'आपका खाता तैयार है।' : 'Your account is ready.' };
       case 'abandoned_cart':

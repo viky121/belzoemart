@@ -4,6 +4,7 @@ import {
   effectiveOrderLimits,
   orderLimitsMessage,
   paise,
+  type FulfilmentMethod,
   type Money,
   type PaymentMethod,
   type PriceBreakup,
@@ -13,6 +14,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { InventoryService } from '../catalogue/inventory.service';
 import { CartService, type CartRef } from '../cart/cart.service';
 import { CouponService } from './coupon.service';
+import { PickupService } from './pickup.service';
 import { PricingService } from './pricing.service';
 import { SettingsService } from '../admin/settings.service';
 
@@ -46,7 +48,9 @@ export interface CheckoutPreviewResult {
   breakup: PriceBreakup;
   coupon: { code: string; valid: boolean; reason?: string } | null;
   items: { variantId: string; title: string; quantity: number; unitPrice: number; offerName?: string | null }[];
-  /** False when the delivery address PIN is outside the serviceable list. */
+  /** 'pickup' when the customer collects the order from the shop (no delivery charge, no PIN check). */
+  fulfilment: FulfilmentMethod;
+  /** False when the delivery address PIN is outside the serviceable list. Always true for self pickup. */
   serviceable: boolean;
   /** Whether Cash on Delivery is currently offered (admin-configurable). */
   codEnabled: boolean;
@@ -80,6 +84,7 @@ export class CheckoutService {
     private readonly coupons: CouponService,
     private readonly inventory: InventoryService,
     private readonly settings: SettingsService,
+    private readonly pickup: PickupService = new PickupService(settings),
   ) {}
 
   /**
@@ -207,7 +212,10 @@ export class CheckoutService {
     addressId: string,
     couponCode?: string,
     isCod = false,
+    fulfilment: FulfilmentMethod = 'delivery',
   ): Promise<CheckoutPreviewResult> {
+    const isPickup = fulfilment === 'pickup';
+    if (isPickup) await this.pickup.assertEnabled();
     const address = await this.prisma.address.findUnique({ where: { id: addressId } });
     if (!address) throw new NotFoundException('Address not found');
 
@@ -228,18 +236,20 @@ export class CheckoutService {
       buyerState: address.state,
       isCod,
       coupon: spec,
+      pickup: isPickup,
       ...overrides,
     });
     // Display-only: what delivery would have cost without the free_shipping coupon.
     let shippingWaived = 0;
-    if (spec?.kind === 'free_shipping') {
+    if (spec?.kind === 'free_shipping' && !isPickup) {
       const withoutCoupon = this.pricing.compute({ lines, buyerState: address.state, isCod, ...overrides });
       shippingWaived = Math.max(0, withoutCoupon.shipping - breakup.shipping);
     }
     return {
       breakup,
       coupon: couponResult,
-      serviceable: await this.isServiceable(address.pincode),
+      fulfilment,
+      serviceable: isPickup ? true : await this.isServiceable(address.pincode),
       codEnabled,
       shippingWaived,
       items: snapshot.map((s) => ({
@@ -258,7 +268,13 @@ export class CheckoutService {
    */
   async place(
     ref: CartRef,
-    input: { addressId: string; paymentMethod: PaymentMethod; couponCode?: string },
+    input: {
+      addressId: string;
+      paymentMethod: PaymentMethod;
+      couponCode?: string;
+      fulfilment?: FulfilmentMethod;
+      pickupSlotStart?: string;
+    },
     idempotencyKey: string,
   ): Promise<PlaceOrderResult> {
     if (!ref.customerId) throw new BadRequestException('Login required to place an order');
@@ -282,8 +298,13 @@ export class CheckoutService {
       throw new BadRequestException('Invalid address');
     }
 
+    // Self pickup: the customer comes to the shop, so the PIN code is not checked (and only then). The
+    // chosen slot must be one that is on offer right now.
+    const isPickup = input.fulfilment === 'pickup';
+    const slot = isPickup ? await this.pickup.resolveSlot(input.pickupSlotStart) : null;
+
     // Serviceability gate (BR): reject orders for PINs we don't deliver to.
-    if (!(await this.isServiceable(address.pincode))) {
+    if (!isPickup && !(await this.isServiceable(address.pincode))) {
       throw new BadRequestException(
         `Sorry, we don't deliver to PIN ${address.pincode} yet. Please choose a serviceable delivery address.`,
       );
@@ -311,6 +332,7 @@ export class CheckoutService {
       buyerState: address.state,
       isCod,
       coupon: spec,
+      pickup: isPickup,
       ...overrides,
     });
 
@@ -320,6 +342,9 @@ export class CheckoutService {
         data: {
           customerId: ref.customerId!,
           addressId: input.addressId,
+          fulfilment: isPickup ? 'pickup' : 'delivery',
+          pickupSlotStart: slot ? new Date(slot.start) : null,
+          pickupSlotEnd: slot ? new Date(slot.end) : null,
           idempotencyKey,
           couponCode: input.couponCode?.toUpperCase().trim(),
           subtotal: breakup.subtotal,

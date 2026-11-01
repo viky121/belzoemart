@@ -186,6 +186,13 @@ describe('JobService.assign', () => {
     }
   });
 
+  it('refuses a self pickup order: the customer collects it from the shop', async () => {
+    const w = world();
+    (w.t.order.rows[0] as Record<string, unknown>).fulfilment = 'pickup';
+    await expectCode(w.svc.assign('admin-1', 'o1', 'p1'), 'ORDER_NOT_ASSIGNABLE', 409);
+    expect(w.t.deliveryJob.rows).toHaveLength(0);
+    expect(w.order().status).toBe('confirmed');
+  });
   it.each(['pending', 'cancelled', 'delivered', 'returned'])('refuses an order that is %s', async (status) => {
     const w = world({ orderStatus: status });
     await expectCode(w.svc.assign('admin-1', 'o1', 'p1'), 'ORDER_NOT_ASSIGNABLE', 409);

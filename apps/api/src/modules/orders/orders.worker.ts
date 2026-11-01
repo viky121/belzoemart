@@ -45,6 +45,8 @@ export class OrdersWorker implements OnModuleInit, OnModuleDestroy {
         async (job) => {
           if (job.name === 'order.confirmed') {
             const { orderId } = job.data as OrderJob;
+            // A self pickup order is never shipped; the shop packs it by hand ("Ready for pickup").
+            if (await this.fulfilment.isPickupOrder(orderId)) return;
             const { shipmentId } = await this.fulfilment.createShipment(orderId);
             await this.fulfilment.syncTracking(shipmentId);
           }
