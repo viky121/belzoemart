@@ -972,3 +972,11 @@ Customer aaj se agle 2 din me se ek din aur ek slot chunega. Aaj ke liye wahi sl
 **AI Response**: "Version bumped to 0.1.21 (apps/mobile/app.config.ts) and an Android preview build submitted to EAS: build id 908b56ed-52f8-471d-87c8-13e840f6466b. It contains self pickup in the checkout and order screens, the online-payment (UPI) default, and the earlier changes (3 products per row, category blocks). The Expo token was used only for this command and unset afterwards. The download link is sent to the user when the build finishes."
 **Context**: Build approved by the user.
 ---
+
+---
+## APK 0.1.21 finished
+**Timestamp**: 2026-11-01T02:25:00Z
+**User Input**: (none; follow-up of the build request above)
+**AI Response**: "EAS build 908b56ed-52f8-471d-87c8-13e840f6466b finished. APK 0.1.21: https://expo.dev/artifacts/eas/SDMPTLaV7BAx-2fwHAUOlQ6lsBssImDwjptBpDevoXo.apk"
+**Context**: Build result.
+---
