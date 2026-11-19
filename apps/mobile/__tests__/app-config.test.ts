@@ -63,6 +63,7 @@ describe('app.config buildConfig', () => {
     expect(pluginNames(PROD)).toEqual([
       'expo-splash-screen',
       'expo-secure-store',
+      './plugins/with-optional-hardware-features',
       'expo-image-picker',
     ]);
   });

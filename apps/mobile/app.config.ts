@@ -105,6 +105,8 @@ export function buildConfig(env: BuildEnv): ExpoConfig {
         },
       ],
       ['expo-secure-store', { configureAndroidBackup: true }],
+      // Keeps Google Play from hiding the app on phones without these optional features (see the plugin).
+      './plugins/with-optional-hardware-features',
       [
         'expo-image-picker',
         {
