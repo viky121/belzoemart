@@ -1,2 +1,11 @@
 apps/mobile
 **/node_modules
+# Never put secrets or old backups into an image.
+Belzo-migration-backup-*
+**/.env
+**/.env.local
+**/.env.prod
+**/.env.prod.bak*
+**/.env.*.bak*
+**/*.pem
+**/*.tgz

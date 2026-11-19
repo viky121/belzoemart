@@ -24,6 +24,7 @@
       "autoIncrement": true,
       "environment": "production",
       "android": { "buildType": "app-bundle" },
+      "channel": "production",
       "env": { "EAS_PROJECT_ID": "aa2809c0-f44b-4210-9942-a101aedd7d84", "APP_VARIANT": "production", "EXPO_PUBLIC_PHONE_OTP": "on" }
     }
   },

@@ -4,12 +4,18 @@
 #   docker compose --env-file .env.prod -f docker-compose.prod.yml build
 #   docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm api npx prisma migrate deploy
 #   docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 name: belzo
 
 services:
   postgres:
     image: postgres:16.3-alpine
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -25,6 +31,7 @@ services:
   redis:
     image: redis:7.4-alpine
     restart: unless-stopped
+    logging: *default-logging
     volumes:
       - belzo-redis:/data
     healthcheck:
@@ -39,6 +46,7 @@ services:
       dockerfile: apps/api/Dockerfile
     image: belzo-api:latest
     restart: unless-stopped
+    logging: *default-logging
     env_file: [.env.prod]
     depends_on:
       postgres: { condition: service_healthy }
@@ -55,6 +63,7 @@ services:
       dockerfile: apps/api/Dockerfile
     image: belzo-api:latest
     restart: unless-stopped
+    logging: *default-logging
     command: ['node', 'dist/worker.js']
     env_file: [.env.prod]
     depends_on:
@@ -70,6 +79,7 @@ services:
         NEXT_PUBLIC_API_BASE_URL: ${PUBLIC_BASE_URL}
     image: belzo-web:latest
     restart: unless-stopped
+    logging: *default-logging
     # SSR / server components call the API directly over the internal network.
     # Must be a server-only var (NOT NEXT_PUBLIC_*, which Next inlines at build
     # time) so it is honoured at runtime and SSR bypasses the public proxy.
@@ -81,6 +91,7 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - '80:80'
       - '443:443'
