@@ -6,11 +6,15 @@ import {
   sanitizeHomeContent,
   sanitizeHomeLayout,
   sanitizeMobileHome,
+  sanitizeTracking,
+  TRACKING_SETTING_KEY,
   type HomeLayoutItem,
+  type TrackingConfig,
   type HomeSection,
   type MobileHome,
 } from '@belzo/shared';
 import { Public } from '../../common/auth/public.decorator';
+import { appTrackingEnabled, SERVER_TRACKING_KEY, serverTrackingReady } from '../tracking/server-tracking';
 import { SettingsService } from './settings.service';
 
 const THEMES = ['classic', 'emart'];
@@ -36,8 +40,12 @@ export class PublicSettingsController {
     mobileHome: MobileHome;
     /** Saved order of the website home sections (empty = the default order). */
     homeLayout: HomeLayoutItem[];
+    /** Analytics / ad-pixel IDs (Admin → Settings → Tracking). Empty strings = off. */
+    tracking: TrackingConfig;
+    /** True when the mobile app should send its events to POST /tracking/events (an ID and a server-side secret are set). */
+    appTracking: boolean;
   }> {
-    const [theme, emartHome, classicHome, footer, sections, mobileHome, homeLayout] = await Promise.all([
+    const [theme, emartHome, classicHome, footer, sections, mobileHome, homeLayout, tracking, serverTracking] = await Promise.all([
       this.settings.get<string>('theme'),
       this.settings.get<unknown>('home_content'),
       this.settings.get<unknown>('home_content.classic'),
@@ -45,6 +53,8 @@ export class PublicSettingsController {
       this.settings.get<unknown>('home.sections'),
       this.settings.get<unknown>(MOBILE_HOME_KEY),
       this.settings.get<unknown>('home.layout'),
+      this.settings.get<unknown>(TRACKING_SETTING_KEY),
+      this.settings.get<unknown>(SERVER_TRACKING_KEY),
     ]);
     // Per-section sanitize: drop invalid entries, keep valid ones (with zod
     // defaults applied), cap at 24. Return null only when nothing valid remains
@@ -68,6 +78,9 @@ export class PublicSettingsController {
       // Mobile app home config (admin "Mobile" module), sanitized per element.
       mobileHome: sanitizeMobileHome(mobileHome),
       homeLayout: sanitizeHomeLayout(homeLayout),
+      // Only validated IDs are served; the web builds the loader code from them.
+      tracking: sanitizeTracking(tracking),
+      appTracking: appTrackingEnabled(serverTrackingReady(sanitizeTracking(tracking), serverTracking)),
     };
   }
 

@@ -5,6 +5,7 @@ import { placeholderImage } from '@/lib/category-theme';
 import { ProductGallery } from '@/components/product-gallery';
 import { ProductRail } from '@/components/product-rail';
 import { ProductVariants } from './product-variants';
+import { TrackViewItem } from './track-view-item';
 import { ReviewsPanel } from './reviews-panel';
 import { Breadcrumbs, type Crumb } from '@/components/breadcrumbs';
 import { categoryTrailById } from '@/lib/category-trail';
@@ -74,6 +75,9 @@ export default async function ProductPage({ params }: { params: { slug: string }
   return (
     <section style={{ padding: '1.5rem 0' }} data-testid="product-detail">
       <Breadcrumbs items={crumbs} testId="pdp-breadcrumb" />
+      {product.variants[0] && (
+        <TrackViewItem id={product.variants[0].id} name={product.title} price={product.variants[0].sellingPrice} />
+      )}
       <div className="pdp">
         <ProductGallery images={product.images} fallback={fallback} title={product.title} />
 

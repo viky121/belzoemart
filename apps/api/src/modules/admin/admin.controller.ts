@@ -2,6 +2,7 @@ import { Body, Controller, Get, Put, Query, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
+import { sanitizeTracking, TRACKING_SETTING_KEY } from '@belzo/shared';
 import { assertAccessCan } from '../../common/auth/admin-access.service';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { RequirePermission } from '../../common/auth/permissions.decorator';
@@ -98,7 +99,9 @@ export class AdminController {
   @RequirePermission('settings.edit')
   @Put('settings')
   async setSetting(@CurrentUser() user: JwtPrincipal, @Body() dto: SettingDto) {
-    await this.settings.set(user.sub, dto.key, dto.value);
+    // Tracking IDs are stored validated, never as the raw pasted text.
+    const value = dto.key === TRACKING_SETTING_KEY ? sanitizeTracking(dto.value) : dto.value;
+    await this.settings.set(user.sub, dto.key, value);
     return { success: true };
   }
 

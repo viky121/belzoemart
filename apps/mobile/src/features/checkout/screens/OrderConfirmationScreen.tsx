@@ -1,11 +1,12 @@
 import { formatInr, shortOrderId } from '@belzo/shared';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { qk } from '@/api/query-keys';
 import { getPaymentAdapter } from '@/features/payments/registry';
+import { trackPurchase } from '@/features/tracking/track';
 import { syncPayment } from '@/features/payments/razorpay-adapter';
 import type { RootScreenProps } from '@/navigation/types';
 import { useSessionStore } from '@/store/session';
@@ -93,6 +94,11 @@ export function OrderConfirmationScreen({ navigation, route }: RootScreenProps<'
   const order = query.data ?? null;
   const view = query.isError ? 'notfound' : query.isSuccess ? resolveOrderResultView(order, provider) : 'awaiting';
   const updateCount = queryClient.getQueryState(qk.order(orderId))?.dataUpdateCount ?? 0;
+  // Ad trackers: a sale counts once the order is paid, or placed as Cash on Delivery. The server checks the
+  // order is this customer's and counts each order once.
+  useEffect(() => {
+    if (view === 'confirmed' || view === 'cod') trackPurchase(orderId);
+  }, [view, orderId]);
   const stuck = view === 'awaiting' && notice !== 'payment_incomplete' && updateCount >= MAX_POLLS;
   const canPayAgain = view === 'awaiting' && (notice === 'payment_incomplete' || stuck) && provider !== 'cod';
   const copy = stuck

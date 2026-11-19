@@ -1,5 +1,6 @@
 import { apiRequest } from '@/api/client';
 import type { ActiveOfferView, CartView } from '@/api/types';
+import { trackAddToCart } from '@/features/tracking/track';
 
 /** Cart endpoints share "cart identity": Bearer when signed in, else the guest token (design §4). */
 export function fetchCart(): Promise<CartView> {
@@ -12,6 +13,11 @@ export function addToCart(variantId: string, quantity: number): Promise<CartView
     auth: 'optional',
     cart: true,
     body: { variantId, quantity },
+  }).then((view) => {
+    // Tell the ad trackers which line was just added (its name and price come from the cart the server returned).
+    const line = view?.items?.find((l) => l.variantId === variantId);
+    if (line) trackAddToCart([{ id: line.variantId, name: line.title, price: line.unitPrice, quantity }]);
+    return view;
   });
 }
 

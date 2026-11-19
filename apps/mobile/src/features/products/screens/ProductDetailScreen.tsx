@@ -39,6 +39,7 @@ import { Gallery } from '../components/Gallery';
 import { ReviewsList } from '../components/ReviewsList';
 import { SlabTable } from '../components/SlabTable';
 import { VariantPicker } from '../components/VariantPicker';
+import { trackViewItem } from '@/features/tracking/track';
 import { useProduct, useRelated, useReviews } from '../hooks';
 
 /** Card heading with a small brand-coloured bar, matching the Home section headers. */
@@ -80,6 +81,12 @@ export function ProductDetailScreen({ navigation, route }: RootScreenProps<'Prod
   useEffect(() => {
     if (p?.id) pushRecent(p.id);
   }, [p?.id, pushRecent]);
+  // Ad trackers: one product view per product opened (the first variant stands for the product).
+  const firstVariant = p?.variants[0];
+  useEffect(() => {
+    if (p?.id && firstVariant) trackViewItem({ id: firstVariant.id, name: p.title, price: firstVariant.sellingPrice, quantity: 1 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p?.id]);
 
   const backBtn = (
     <Pressable

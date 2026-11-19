@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { loginHref } from '@/lib/auth-redirect';
 import { formatInr } from '@/lib/catalogue-api';
 import { openRazorpayCheckout, verifyBody, type RazorpayClientConfig } from '@/lib/razorpay';
+import { trackPurchase } from '@/lib/tracking';
 
 interface OrderDetail {
   id: string;
@@ -40,10 +41,11 @@ function OrderResultInner() {
     (o: OrderDetail | null): View => {
       if (!o) return 'notfound';
       if (o.status === 'cancelled') return 'failed';
-      if (o.status !== 'pending') return 'confirmed'; // confirmed/packed/shipped…
-      // Still pending: COD is a successful placement; online is awaiting payment.
+      // Cash on Delivery is confirmed the moment it is placed, but nothing has been paid yet: never "Payment successful".
       const pay = o.payments[0];
       if (provider === 'cod' || pay?.provider === 'cod') return 'cod';
+      if (o.status !== 'pending') return 'confirmed'; // paid online: confirmed/packed/shipped…
+      // Still pending online: awaiting payment.
       return 'awaiting';
     },
     [provider],
@@ -101,6 +103,10 @@ function OrderResultInner() {
     return () => clearTimeout(t);
   }, [waiting, polls, fetchOrder, syncPayment]);
 
+  // A sale counts once the order is paid, or placed as Cash on Delivery (sent once per order).
+  useEffect(() => {
+    if (order && (view === 'confirmed' || view === 'cod')) trackPurchase(order.id, order.grandTotal);
+  }, [order, view]);
   const stuck = view === 'awaiting' && !dismissed && polls >= MAX_POLLS;
   const canPayAgain = view === 'awaiting' && (dismissed || stuck);
 

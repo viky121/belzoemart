@@ -31,3 +31,4 @@ export * from './permissions';
 export * from './offers';
 export * from './offers-view';
 export * from './pickup';
+export * from './tracking';

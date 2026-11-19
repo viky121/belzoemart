@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cashLabel, findOfferedSlot, type FulfilmentMethod, type PickupInfo, type PriceBreakup } from '@belzo/shared';
@@ -13,6 +13,7 @@ import { placeholderImage, isUsableImageUrl } from '@/lib/category-theme';
 import { safeUuid } from '@/lib/uuid';
 import { checkPin, pinRefusal, pinVerdict, type PinVerdict } from '@/lib/pin-check';
 import { safeSession } from '@/lib/safe-storage';
+import { trackBeginCheckout } from '@/lib/tracking';
 import { fetchPickupInfo } from '@/lib/pickup-api';
 import { PickupPicker } from '@/components/pickup-picker';
 import { openRazorpayCheckout, verifyBody, type RazorpayClientConfig } from '@/lib/razorpay';
@@ -57,6 +58,8 @@ export default function CheckoutPage() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [addressId, setAddressId] = useState('');
   const [items, setItems] = useState<CartLine[]>([]);
+  // begin_checkout is sent once per visit to this page, when the cart lines first load.
+  const beganCheckout = useRef(false);
   const [coupon, setCoupon] = useState('');
   const [method, setMethod] = useState<'upi' | 'cod'>('upi');
   const [preview, setPreview] = useState<PreviewResult | null>(null);
@@ -145,6 +148,14 @@ export default function CheckoutPage() {
     }
   }, [accessToken, loadAddresses, router]);
 
+  useEffect(() => {
+    if (beganCheckout.current || items.length === 0) return;
+    beganCheckout.current = true;
+    trackBeginCheckout(
+      items.map((i) => ({ id: i.variantId, name: i.title, price: i.unitPrice, quantity: i.quantity })),
+      items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0),
+    );
+  }, [items]);
   const runPreview = useCallback(async () => {
     if (!addressId) return;
     setError(null);

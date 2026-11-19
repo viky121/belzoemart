@@ -28,6 +28,7 @@ import { EngagementModule } from './modules/engagement/engagement.module';
 import { NotificationsIntegrationModule } from './integrations/notifications/notifications-integration.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { MediaModule } from './modules/media/media.module';
+import { TrackingModule } from './modules/tracking/tracking.module';
 
 /**
  * Root application module. Composes the platform-core cross-cutting modules.
@@ -63,6 +64,7 @@ import { MediaModule } from './modules/media/media.module';
     AdminModule,
     MediaModule,
     OffersModule,
+    TrackingModule,
   ],
   // RbacBootstrapService runs in the API only (not the worker): it syncs the permission list and creates the
   // ready-made staff types once.

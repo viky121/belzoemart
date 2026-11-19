@@ -2,7 +2,7 @@ import { breakupView, cashLabel, findOfferedSlot, formatInr, snapshotFromBreakup
 import { usePreventRemove } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useInsets } from '@/lib/use-bottom-inset';
 
@@ -11,6 +11,7 @@ import { qk } from '@/api/query-keys';
 import { useAddresses } from '@/features/addresses/hooks';
 import { useCart } from '@/features/cart/hooks';
 import { getPaymentAdapter } from '@/features/payments/registry';
+import { trackBeginCheckout } from '@/features/tracking/track';
 import type { RootScreenProps } from '@/navigation/types';
 import { useCheckoutDraft } from '@/store/checkout-draft';
 import { useSessionStore } from '@/store/session';
@@ -100,6 +101,14 @@ export function CheckoutScreen({ navigation, route }: RootScreenProps<'Checkout'
     navigation.reset({ index: 1, routes: [{ name: 'Main' }, { name: 'OrderConfirmation', params: nextRoute }] });
   }, [nextRoute, placing, navigation]);
   const activeLines = (cart.data?.items ?? []).filter((l) => !l.savedForLater);
+  // Ad trackers: begin_checkout once per visit, when the cart lines first load.
+  const beganCheckout = useRef(false);
+  useEffect(() => {
+    if (beganCheckout.current || activeLines.length === 0) return;
+    beganCheckout.current = true;
+    trackBeginCheckout(activeLines.map((l) => ({ id: l.variantId, name: l.title, price: l.unitPrice, quantity: l.quantity })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeLines.length]);
 
   function resetToConfirmation(params: ConfirmationParams) {
     setPlacing(false);

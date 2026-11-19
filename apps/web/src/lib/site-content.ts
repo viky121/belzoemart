@@ -5,10 +5,13 @@ import {
   DEFAULT_HOME_CLASSIC,
   DEFAULT_HOME_EMART,
   mergeHome,
+  EMPTY_TRACKING,
   sanitizeMobileHome,
+  sanitizeTracking,
   websiteOfferRows,
   type MobileOfferRow,
   type ThemeName,
+  type TrackingConfig,
 } from '@belzo/shared';
 
 export { DEFAULT_HOME_CLASSIC, DEFAULT_HOME_EMART, mergeHome, type ThemeName };
@@ -55,6 +58,8 @@ export interface SiteContent {
   offerRows: MobileOfferRow[];
   /** Saved home section order, as served (resolved against the content when rendering). */
   homeLayout: unknown;
+  /** Google Analytics / Meta Pixel IDs set in Admin → Settings → Tracking (empty = off). */
+  tracking: TrackingConfig;
 }
 
 interface RawPublicSettings {
@@ -66,6 +71,7 @@ interface RawPublicSettings {
   mobileHome?: unknown;
   /** Saved order of the home sections (Admin → Pages → Home page design). */
   homeLayout?: unknown;
+  tracking?: unknown;
 }
 
 /**
@@ -90,6 +96,7 @@ export async function getSiteContent(): Promise<SiteContent> {
       sections: s.sections ?? null,
       offerRows: websiteOfferRows(sanitizeMobileHome(s.mobileHome).offerRows),
       homeLayout: s.homeLayout ?? null,
+      tracking: sanitizeTracking(s.tracking),
     };
   } catch {
     return {
@@ -99,6 +106,7 @@ export async function getSiteContent(): Promise<SiteContent> {
       sections: null,
       offerRows: [],
       homeLayout: null,
+      tracking: { ...EMPTY_TRACKING },
     };
   }
 }

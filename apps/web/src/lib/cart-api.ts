@@ -2,6 +2,7 @@
 
 import type { CartOffer } from '@belzo/shared';
 import { apiFetch, type ApiRequestOptions } from './api-client';
+import { trackAddToCart } from './tracking';
 import { safeUuid } from './uuid';
 import { safeLocal } from './safe-storage';
 
@@ -112,6 +113,9 @@ export const cartApi = {
     apiFetch<CartView>('/cart/items', cartOptions(accessToken, { method: 'POST', body: { variantId, quantity } })).then(
       (v) => {
         toast('Added to cart', { label: 'View cart', href: '/cart' });
+        // The ad pixels get the line that was just added (its name and unit price come from the cart).
+        const line = v.items.find((l) => l.variantId === variantId);
+        if (line) trackAddToCart([{ id: line.variantId, name: line.title, price: line.unitPrice, quantity }]);
         return emitCart(v);
       },
     ),

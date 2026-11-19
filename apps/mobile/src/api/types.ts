@@ -99,6 +99,8 @@ export interface PublicSettings {
   sections: unknown;
   /** Admin "Mobile" module config. Absent on older API versions; always run it through sanitizeMobileHome. */
   mobileHome?: unknown;
+  /** True when the admin has set up server-side tracking, so the app should send its events (absent on older API versions). */
+  appTracking?: boolean;
 }
 
 export interface OrderListItem {
