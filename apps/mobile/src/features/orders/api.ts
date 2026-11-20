@@ -22,6 +22,8 @@ export interface OrderSummary {
   itemCount: number;
   imageUrl: string | null;
   items: OrderSummaryItem[];
+  /** How the order is paid (no provider ids). Absent on older API versions. */
+  payments?: { provider: string; status: string; method?: string | null; createdAt?: string }[];
 }
 
 export function fetchOrders(): Promise<OrderSummary[]> {

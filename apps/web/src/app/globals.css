@@ -8267,3 +8267,31 @@ a.offer-banner:hover {
     padding: 9px 12px;
   }
 }
+
+/* ===== Payment status on the customer order pages ===== */
+.ord-row__pay {
+  background: var(--fk-blue);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 8px;
+  text-decoration: none;
+}
+.ord-row__pay:hover { filter: brightness(1.07); }
+.od-head__pay { margin: 6px 0 0; font-size: 0.86rem; line-height: 1.45; border-radius: 8px; padding: 8px 12px; }
+.od-head__pay--bad { background: #fef2f2; color: #b91c1c; }
+.od-head__pay--warn { background: #fffbeb; color: #92400e; }
+.od-head__pay--info,
+.od-head__pay--ok,
+.od-head__pay--muted { background: #f1f5f9; color: #475569; }
+.od-head__paynow {
+  align-self: flex-start;
+  margin-top: 8px;
+  background: var(--fk-blue);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.9rem;
+  padding: 9px 20px;
+  border-radius: 9px;
+  text-decoration: none;
+}
+.od-head__paynow:hover { filter: brightness(1.07); }

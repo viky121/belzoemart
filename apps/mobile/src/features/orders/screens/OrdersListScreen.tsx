@@ -1,4 +1,4 @@
-import { formatDate, formatInr, orderStatusLabel, shortOrderId } from '@belzo/shared';
+import { formatDate, formatInr, orderStatusView, paymentStatusView, pickPayment, shortOrderId } from '@belzo/shared';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -92,20 +92,32 @@ export function OrdersListScreen({ navigation }: RootScreenProps<'Orders'>) {
         {visible.map((o) => {
           const thumbs = o.items.slice(0, 3);
           const extra = o.items.length - thumbs.length;
+          const statusText = orderStatusView({ status: o.status, fulfilment: o.fulfilment, payments: o.payments, audience: 'customer' }).label;
+          const pay = paymentStatusView({ orderStatus: o.status, fulfilment: o.fulfilment, payment: pickPayment(o.payments) });
+          const payLine =
+            o.status === 'pending' && pay.key === 'failed'
+              ? 'Payment failed. Tap to pay again.'
+              : o.status === 'pending' && pay.key === 'awaiting'
+                ? 'Waiting for your payment. Tap to pay.'
+                : o.status === 'cancelled' && (pay.key === 'failed' || pay.key === 'not_completed')
+                  ? pay.key === 'failed'
+                    ? 'Cancelled because the payment failed.'
+                    : 'Cancelled because the payment was not completed.'
+                  : null;
           return (
             <Pressable
               key={o.id}
               style={styles.card}
               onPress={() => navigation.navigate('OrderDetail', { id: o.id })}
               accessibilityRole="button"
-              accessibilityLabel={`Order ${shortOrderId(o.id)}, ${orderStatusLabel(o.status, o.fulfilment)}, ${formatInr(o.grandTotal)}`}
+              accessibilityLabel={`Order ${shortOrderId(o.id)}, ${statusText}, ${formatInr(o.grandTotal)}`}
             >
               <View style={styles.topRow}>
                 <View style={styles.idCol}>
                   <Text style={styles.id}>Order #{shortOrderId(o.id)}</Text>
                   <Text style={styles.meta}>{formatDate(o.createdAt)}</Text>
                 </View>
-                <OrderStatusBadge status={o.status} fulfilment={o.fulfilment} />
+                <OrderStatusBadge status={o.status} fulfilment={o.fulfilment} payments={o.payments} />
               </View>
 
               <View style={styles.thumbs}>
@@ -127,6 +139,11 @@ export function OrdersListScreen({ navigation }: RootScreenProps<'Orders'>) {
                 ) : null}
               </View>
 
+              {payLine ? (
+                <Text style={[styles.payLine, pay.tone === 'bad' ? styles.payLineBad : null]} testID={`order-pay-line-${o.id}`}>
+                  {payLine}
+                </Text>
+              ) : null}
               <View style={styles.bottomRow}>
                 <Text style={styles.total}>
                   {o.itemCount} Item{o.itemCount === 1 ? '' : 's'} • {formatInr(o.grandTotal)}
@@ -173,6 +190,8 @@ const styles = StyleSheet.create({
   id: { ...theme.typography.body, color: theme.colors.inkStrong, fontWeight: '800' },
   meta: { ...theme.typography.caption, color: theme.colors.muted },
   thumbs: { flexDirection: 'row', gap: theme.spacing.sm },
+  payLine: { ...theme.typography.caption, color: theme.colors.warnText, fontWeight: '700' },
+  payLineBad: { color: theme.colors.danger },
   thumb: {
     width: 64,
     height: 64,

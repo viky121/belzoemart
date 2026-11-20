@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { formatInr } from '@/lib/catalogue-api';
 import { placeholderImage, isUsableImageUrl } from '@/lib/category-theme';
-import { statusBadge } from '@/lib/order-view';
+import { orderStatusView, paymentStatusView, pickPayment, type PaymentLike } from '@belzo/shared';
 
 interface OrderItem {
   title: string;
@@ -25,6 +25,8 @@ interface OrderSummary {
   itemCount: number;
   imageUrl: string | null;
   items: OrderItem[];
+  /** How the order is paid (no provider ids). Missing on an older API. */
+  payments?: PaymentLike[];
 }
 
 const TABS = [
@@ -45,16 +47,26 @@ function bucket(status: string): 'pending' | 'processing' | 'delivered' | 'cance
 }
 
 /** Badge (same labels/tones as the order-detail page) + a factual one-liner (no invented dates). */
-function statusMeta(status: string, fulfilment?: 'delivery' | 'pickup'): { label: string; cls: string; msg: string } {
-  const { label, tone } = statusBadge(status, fulfilment);
+function statusMeta(o: OrderSummary): { label: string; cls: string; msg: string; canPay: boolean } {
+  const { status, fulfilment } = o;
+  const { label, tone } = orderStatusView({ status, fulfilment, payments: o.payments, audience: 'customer' });
   const cls = `ord-badge--${tone}`;
-  if (status === 'delivered') return { label, cls, msg: fulfilment === 'pickup' ? 'Picked up' : 'Delivered' };
-  if (status === 'cancelled') return { label, cls, msg: 'Order cancelled' };
-  if (status === 'returned') return { label, cls, msg: 'Returned' };
-  if (status === 'pending') return { label, cls, msg: 'Preparing for dispatch' };
-  if (fulfilment === 'pickup' && status === 'packed') return { label, cls, msg: 'Collect it from the shop' };
-  if (status === 'shipped' || status === 'out_for_delivery') return { label, cls, msg: `${label} - on the way` };
-  return { label, cls, msg: 'Being prepared' };
+  const pay = paymentStatusView({ orderStatus: status, fulfilment, payment: pickPayment(o.payments) });
+  const none = { canPay: false };
+  if (status === 'delivered') return { label, cls, msg: fulfilment === 'pickup' ? 'Picked up' : 'Delivered', ...none };
+  if (status === 'cancelled') {
+    const why = pay.key === 'failed' ? 'Cancelled - payment failed' : pay.key === 'not_completed' ? 'Cancelled - payment not completed' : 'Order cancelled';
+    return { label, cls, msg: why, ...none };
+  }
+  if (status === 'returned') return { label, cls, msg: 'Returned', ...none };
+  if (status === 'pending') {
+    if (pay.key === 'failed') return { label, cls, msg: 'Payment failed - pay again to confirm', canPay: true };
+    if (pay.key === 'awaiting') return { label, cls, msg: 'Waiting for your payment', canPay: true };
+    return { label, cls, msg: 'Preparing for dispatch', ...none };
+  }
+  if (fulfilment === 'pickup' && status === 'packed') return { label, cls, msg: 'Collect it from the shop', ...none };
+  if (status === 'shipped' || status === 'out_for_delivery') return { label, cls, msg: `${label} - on the way`, ...none };
+  return { label, cls, msg: 'Being prepared', ...none };
 }
 
 export default function OrdersPage() {
@@ -122,7 +134,7 @@ export default function OrdersPage() {
       ) : (
         <ul className="ord__list">
           {filtered.map((o) => {
-            const meta = statusMeta(o.status, o.fulfilment);
+            const meta = statusMeta(o);
             const real = isUsableImageUrl(o.imageUrl);
             const placed = new Date(o.createdAt).toLocaleString('en-IN', {
               day: 'numeric',
@@ -157,6 +169,15 @@ export default function OrdersPage() {
                 <div className="ord-row__right">
                   <span className={`ord-badge ${meta.cls}`}>{meta.label}</span>
                   <span className="ord-row__eta">{meta.msg}</span>
+                  {meta.canPay && (
+                    <Link
+                      href={`/order-result?orderId=${o.id}&provider=razorpay&dismissed=1`}
+                      className="ord-row__view ord-row__pay"
+                      data-testid={`order-pay-${o.id}`}
+                    >
+                      Pay now
+                    </Link>
+                  )}
                   <Link href={`/orders/${o.id}`} className="ord-row__view">
                     View Details ›
                   </Link>

@@ -16,6 +16,7 @@ import {
 import { formatInr } from './format';
 import type { OrderMoneySnapshot } from './price-breakup';
 import { pickAttr } from './attributes';
+import { isCodPayment, paymentMethodLabel, paymentStatusView, pickPayment, type PaymentLike } from './payment-status';
 
 /**
  * Pure view helpers for the customer order-detail page (GET /orders/:id).
@@ -130,6 +131,29 @@ export function statusBadge(status: string, fulfilment?: FulfilmentMethod | null
   return { label: orderStatusLabel(status, fulfilment), tone };
 }
 
+/**
+ * The status badge for an order, aware of its payment. An online order that is not confirmed yet is waiting for
+ * its payment, so it says "Awaiting payment" or "Payment failed" instead of the generic "Order placed" / "Pending".
+ * `audience` only changes the plain pending wording (customer "Order placed", admin "Pending").
+ */
+export function orderStatusView(order: {
+  status: string;
+  fulfilment?: FulfilmentMethod | null;
+  payments?: readonly PaymentLike[] | null;
+  audience?: 'customer' | 'admin';
+}): { label: string; tone: Tone } {
+  const base = statusBadge(order.status, order.fulfilment);
+  if (order.status === 'pending') {
+    const pay = pickPayment(order.payments);
+    if (pay && !isCodPayment(pay)) {
+      const v = paymentStatusView({ orderStatus: 'pending', fulfilment: order.fulfilment, payment: pay });
+      if (v.key === 'failed' || v.key === 'awaiting') return { label: v.label, tone: v.tone };
+    }
+    if (order.audience === 'admin') return { label: 'Pending', tone: base.tone };
+  }
+  return base;
+}
+
 /** False once the order can no longer change by itself (stop polling). */
 export function isLiveStatus(status: string): boolean {
   return status !== 'delivered' && status !== 'cancelled' && status !== 'returned';
@@ -191,7 +215,10 @@ export function buildStepper(order: OrderDetail): Step[] {
   const steps: Step[] = [];
   const pickup = order.fulfilment === 'pickup';
   const progress: readonly OrderStatus[] = pickup ? PICKUP_PROGRESS_STEPS : ORDER_PROGRESS_STEPS;
-  const label = (st: string) => orderStatusLabel(st, order.fulfilment);
+  // An online order that is not paid yet is not "placed" in the customer's eyes: say what is really happening.
+  const unpaid = order.status === 'pending' ? orderStatusView({ status: 'pending', payments: order.payments }) : null;
+  const unpaidLabel = unpaid && (unpaid.label === 'Awaiting payment' || unpaid.label === 'Payment failed') ? unpaid.label : null;
+  const label = (st: string) => (st === 'pending' && unpaidLabel ? unpaidLabel : orderStatusLabel(st, order.fulfilment));
   if (order.status === 'cancelled') {
     steps.push({ key: 'pending', label: statusLabel('pending'), state: 'done', at: order.createdAt ?? null });
     // No status history: order.updatedAt also moves on unrelated writes (invoice), so no time.
@@ -217,25 +244,11 @@ export function buildStepper(order: OrderDetail): Step[] {
 // Payment + refund
 // ---------------------------------------------------------------------------
 
-const METHOD_LABELS: Record<string, string> = {
-  upi: 'UPI',
-  card: 'Card',
-  netbanking: 'Net banking',
-  wallet: 'Wallet',
-  emi: 'EMI',
-};
-
 const SETTLED = ['captured', 'refunded', 'partially_refunded'];
 
 /** The payment that matters for display: a settled one, else the newest attempt. */
 function primaryPayment(order: OrderDetail): OrderPayment | null {
-  const settled = order.payments.find((p) => SETTLED.includes(p.status));
-  if (settled) return settled;
-  let newest: OrderPayment | null = null;
-  for (const p of order.payments) {
-    if (!newest || Date.parse(p.createdAt) > Date.parse(newest.createdAt)) newest = p;
-  }
-  return newest;
+  return pickPayment(order.payments);
 }
 
 export interface PaymentSummary {
@@ -253,45 +266,11 @@ export function paymentSummary(order: OrderDetail): PaymentSummary {
   if (!p) {
     return { methodLabel: 'Not available', statusLabel: 'Not available', isCod: false, isPrepaid: false, amountPaid: 0 };
   }
-  const isCod = p.provider === 'cod' || p.method === 'cod';
-  const atShop = order.fulfilment === 'pickup';
-  const methodLabel = isCod ? (atShop ? 'Pay at shop on pickup' : 'Cash on Delivery') : (METHOD_LABELS[(p.method ?? '').toLowerCase()] ?? 'Online payment');
-  let label: string;
-  switch (p.status) {
-    case 'captured':
-      label = 'Paid';
-      break;
-    case 'failed':
-      label = 'Payment failed';
-      break;
-    case 'refunded':
-      label = 'Refunded';
-      break;
-    case 'partially_refunded':
-      label = 'Partially refunded';
-      break;
-    case 'pending':
-      if (isCod) {
-        label =
-          order.status === 'delivered' || order.status === 'returned'
-            ? atShop
-              ? 'Paid at shop'
-              : 'Paid on delivery'
-            : order.status === 'cancelled'
-              ? 'Not charged'
-              : atShop
-                ? 'Pay at shop'
-                : 'Pay on delivery';
-      } else {
-        label = 'Awaiting payment';
-      }
-      break;
-    default:
-      label = 'Awaiting payment';
-  }
+  const isCod = isCodPayment(p);
+  const view = paymentStatusView({ orderStatus: order.status, fulfilment: order.fulfilment, payment: p });
   return {
-    methodLabel,
-    statusLabel: label,
+    methodLabel: paymentMethodLabel(p, order.fulfilment),
+    statusLabel: view.label,
     isCod,
     isPrepaid: !isCod && SETTLED.includes(p.status),
     amountPaid: p.status === 'captured' ? p.amount : 0,

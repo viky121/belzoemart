@@ -113,6 +113,8 @@ export interface OrderListItem {
   itemCount: number;
   imageUrl: string | null;
   items: { title: string; quantity: number; imageUrl?: string | null }[];
+  /** How the order is paid (no provider ids). Absent on older API versions. */
+  payments?: { provider: string; status: string; method?: string | null; createdAt?: string }[];
 }
 
 export interface NotificationItem {

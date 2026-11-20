@@ -18,6 +18,7 @@ interface RzpPayment {
   status: string;
   amount: number;
   method?: string;
+  created_at?: number;
 }
 
 /**
@@ -137,7 +138,7 @@ export class RazorpayPaymentProvider implements PaymentProvider {
   private toPayment(p: RzpPayment, fallbackOrderId: string): ProviderPayment {
     const known = ['created', 'authorized', 'captured', 'refunded', 'failed'] as const;
     const status = (known as readonly string[]).includes(p.status) ? (p.status as ProviderPayment['status']) : 'created';
-    return { id: p.id, providerOrderId: p.order_id ?? fallbackOrderId, status, amount: p.amount, method: p.method };
+    return { id: p.id, providerOrderId: p.order_id ?? fallbackOrderId, status, amount: p.amount, method: p.method, createdAt: p.created_at };
   }
 
   private safeEqual(a: string, b: string): boolean {

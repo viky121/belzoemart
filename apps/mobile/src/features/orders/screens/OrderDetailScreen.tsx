@@ -6,7 +6,9 @@ import {
   formatDateTime,
   formatInr,
   formatPickupSlot,
+  paymentStatusView,
   paymentSummary,
+  pickPayment,
   resolutionLabel,
   returnEligibility,
   returnStatusLabel,
@@ -23,7 +25,7 @@ import type { RootScreenProps } from '@/navigation/types';
 import { theme } from '@/theme';
 import { useBrand } from '@/theme/use-brand';
 import { Button, Card, EmptyState, ErrorState, Screen } from '@/ui';
-import { OrderStatusBadge } from '@/ui/OrderStatusBadge';
+import { OrderStatusBadge, TONE_COLORS } from '@/ui/OrderStatusBadge';
 import { OrderStepper } from '@/ui/OrderStepper';
 import { RemoteImage } from '@/ui/RemoteImage';
 import { DetailSkeleton } from '@/ui/Skeleton';
@@ -74,7 +76,9 @@ export function OrderDetailScreen({ navigation, route }: RootScreenProps<'OrderD
   const ret = returnEligibility(order);
   const canCancel = cancelEligibility(order);
   const cancelHint = cancelUnavailableReason(order);
-  const payment = order.payments[0];
+  const payment = pickPayment(order.payments);
+  const payView = paymentStatusView({ orderStatus: order.status, fulfilment: order.fulfilment, payment });
+  const paySummary = paymentSummary(order);
 
   async function openInvoice() {
     setInvoiceBusy(true);
@@ -106,7 +110,7 @@ export function OrderDetailScreen({ navigation, route }: RootScreenProps<'OrderD
               </Pressable>
               <Text style={styles.date}>Placed {formatDateTime(order.createdAt)}</Text>
             </View>
-            <OrderStatusBadge status={order.status} fulfilment={order.fulfilment} />
+            <OrderStatusBadge status={order.status} fulfilment={order.fulfilment} payments={order.payments} />
           </View>
           {order.status === 'cancelled' && order.cancelledReason ? (
             <Text style={styles.cancelReason}>Cancelled: {order.cancelledReason}</Text>
@@ -171,11 +175,24 @@ export function OrderDetailScreen({ navigation, route }: RootScreenProps<'OrderD
 
         {payment ? (
           <Section title="Payment">
-            <Text style={styles.addr}>
-              {isPickup
-                ? `${paymentSummary(order).methodLabel} · ${paymentSummary(order).statusLabel} · ${formatInr(payment.amount)}`
-                : `${(payment.method ?? payment.provider).toUpperCase()} · ${payment.status} · ${formatInr(payment.amount)}`}
-            </Text>
+            <View style={styles.payRow}>
+              <Text style={styles.addr}>{paySummary.methodLabel} · {formatInr(payment.amount)}</Text>
+              <View style={[styles.payBadge, { backgroundColor: TONE_COLORS[payView.tone].bg }]} testID={`payment-status-${payView.key}`}>
+                <Text style={[styles.payBadgeText, { color: TONE_COLORS[payView.tone].fg }]}>{payView.label}</Text>
+              </View>
+            </View>
+            {payView.customerNote && payView.key !== 'cod_due' ? (
+              <Text style={[styles.payNote, payView.tone === 'bad' ? styles.payNoteBad : null]} testID="order-payment-note">
+                {payView.customerNote}
+              </Text>
+            ) : null}
+            {payView.canPay ? (
+              <Button
+                title="Pay now"
+                onPress={() => navigation.navigate('OrderConfirmation', { orderId: order.id, provider: payment.provider, notice: 'payment_incomplete' })}
+                testID="order-pay-now"
+              />
+            ) : null}
           </Section>
         ) : null}
 
@@ -264,6 +281,11 @@ const styles = StyleSheet.create({
   orderId: { ...theme.typography.title, color: theme.colors.inkStrong, fontWeight: '700' },
   date: { ...theme.typography.caption, color: theme.colors.muted },
   cancelReason: { ...theme.typography.body, color: theme.colors.danger, marginTop: theme.spacing.sm },
+  payRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: theme.spacing.md, flexWrap: 'wrap' },
+  payBadge: { alignSelf: 'flex-start', borderRadius: theme.radius.pill, paddingHorizontal: theme.spacing.sm, paddingVertical: theme.spacing.xxs },
+  payBadgeText: { ...theme.typography.caption, fontWeight: '700' },
+  payNote: { ...theme.typography.caption, color: theme.colors.muted, marginTop: theme.spacing.sm },
+  payNoteBad: { color: theme.colors.danger },
   section: { gap: theme.spacing.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
   sectionBar: { width: 4, height: 16, borderRadius: 2 },

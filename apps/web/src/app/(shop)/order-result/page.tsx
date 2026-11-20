@@ -16,7 +16,7 @@ interface OrderDetail {
   payments: { provider: string; status: string }[];
 }
 
-type View = 'loading' | 'confirmed' | 'cod' | 'awaiting' | 'failed' | 'notfound';
+type View = 'loading' | 'confirmed' | 'cod' | 'awaiting' | 'payfailed' | 'failed' | 'notfound';
 
 /** Max polls while waiting for the payment to be confirmed. */
 const MAX_POLLS = 12;
@@ -45,7 +45,8 @@ function OrderResultInner() {
       const pay = o.payments[0];
       if (provider === 'cod' || pay?.provider === 'cod') return 'cod';
       if (o.status !== 'pending') return 'confirmed'; // paid online: confirmed/packed/shipped…
-      // Still pending online: awaiting payment.
+      // Still pending online: the last attempt failed (the customer can pay again), or nothing has come in yet.
+      if (pay?.status === 'failed') return 'payfailed';
       return 'awaiting';
     },
     [provider],
@@ -108,7 +109,7 @@ function OrderResultInner() {
     if (order && (view === 'confirmed' || view === 'cod')) trackPurchase(order.id, order.grandTotal);
   }, [order, view]);
   const stuck = view === 'awaiting' && !dismissed && polls >= MAX_POLLS;
-  const canPayAgain = view === 'awaiting' && (dismissed || stuck);
+  const canPayAgain = view === 'payfailed' || (view === 'awaiting' && (dismissed || stuck));
 
   /** Re-open the gateway checkout for this unpaid order. */
   async function payAgain() {
@@ -202,6 +203,17 @@ function OrderResultInner() {
           </>
         )}
 
+        {view === 'payfailed' && (
+          <>
+            <div className="orr__ic orr__ic--err">✕</div>
+            <h1 className="orr__title" data-testid="payment-failed-title">Payment failed</h1>
+            <p className="orr__sub">
+              Your payment{order ? <> of {formatInr(order.grandTotal)}</> : null} did not go through, so your order is not confirmed yet.
+              Pay again to confirm it. If money was deducted, your bank returns it automatically within a few days. Unpaid orders are
+              cancelled automatically after about 30 minutes.
+            </p>
+          </>
+        )}
         {stuck && (
           <>
             <div className="orr__ic orr__ic--wait">⏳</div>

@@ -5,9 +5,18 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { adminFetch } from '@/lib/admin-api';
 import { formatInr } from '@/lib/catalogue-api';
-import { formatPickupSlot, orderStatusLabel, shopAddressLine, type PickupInfo } from '@belzo/shared';
+import {
+  formatPickupSlot,
+  orderStatusView,
+  paymentMethodLabel,
+  paymentProviderLabel,
+  paymentStatusView,
+  pickPayment,
+  shopAddressLine,
+  type PickupInfo,
+} from '@belzo/shared';
 import { fetchPickupInfo } from '@/lib/pickup-api';
-import { nextStep, pendingAction, pickupHint, WAITING_FOR_PAYMENT_HINT } from '@/lib/admin-order-actions';
+import { nextStep, pendingAction, pickupHint } from '@/lib/admin-order-actions';
 import { isUsableImageUrl, placeholderImage } from '@/lib/category-theme';
 
 interface AdminItem {
@@ -107,14 +116,6 @@ interface AdminOrderDetail {
   tracking: { latestStatus: string; latestLabel: string; shipments: ReconciledShipment[] };
   returns: AdminReturn[];
 }
-
-const STATUS_CLASS: Record<string, string> = {
-  delivered: 'admin-status--ok',
-  cancelled: 'admin-status--bad',
-  returned: 'admin-status--bad',
-  pending: 'admin-status--warn',
-  confirmed: 'admin-status--info',
-};
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';
@@ -216,7 +217,9 @@ export default function AdminOrderDetailPage() {
     );
   }
 
-  const payment = order.payments[0] ?? null;
+  const payment = pickPayment(order.payments);
+  const payView = paymentStatusView({ orderStatus: order.status, fulfilment: order.fulfilment, payment });
+  const statusView = orderStatusView({ status: order.status, fulfilment: order.fulfilment, payments: order.payments, audience: 'admin' });
 
   return (
     <div data-testid="admin-order-detail">
@@ -227,8 +230,8 @@ export default function AdminOrderDetailPage() {
           <h1 style={{ margin: 0 }}>Order #{order.id.slice(0, 8).toUpperCase()}</h1>
           <p className="admin-subtitle" style={{ margin: '4px 0 0' }}>Placed on {fmtDate(order.createdAt)}</p>
         </div>
-        <span className={`admin-status ${STATUS_CLASS[order.status] ?? ''}`}>
-          {isPickup ? orderStatusLabel(order.status, 'pickup').toLowerCase() : order.status.replace(/_/g, ' ')}
+        <span className={`admin-status admin-status--plain admin-status--${statusView.tone}`} data-testid="aod-status">
+          {statusView.label}
         </span>
       </div>
 
@@ -269,8 +272,8 @@ export default function AdminOrderDetailPage() {
       )}
       {pendingAction(order.status, order.payments) === 'waiting_payment' && (
         <section className="admin-card" data-testid="aod-waiting-payment">
-          <strong>Waiting for the customer&apos;s payment.</strong>
-          <p className="admin-subtitle" style={{ margin: '4px 0 0' }}>{WAITING_FOR_PAYMENT_HINT}</p>
+          <strong>{payView.key === 'failed' ? "The customer's payment failed." : "Waiting for the customer's payment."}</strong>
+          <p className={`aod-note${payView.key === 'failed' ? ' aod-note--bad' : ''}`}>{payView.adminNote}</p>
         </section>
       )}
       {order.status === 'cancelled' && order.cancelledReason && (
@@ -392,18 +395,21 @@ export default function AdminOrderDetailPage() {
           <div className="admin-card__head"><h2>Payment</h2></div>
           {payment ? (
             <div className="aod-info">
-              <div className="aod-row"><span>Method</span><strong>{(payment.method ?? payment.provider).toUpperCase()}</strong></div>
               <div className="aod-row"><span>Status</span>
-                <span className={`admin-status ${payment.status === 'captured' ? 'admin-status--ok' : payment.status === 'failed' ? 'admin-status--bad' : 'admin-status--warn'}`}>
-                  {payment.status.replace(/_/g, ' ')}
+                <span className={`admin-status admin-status--plain admin-status--${payView.tone}`} data-testid="aod-payment-status">
+                  {payView.label}
                 </span>
               </div>
+              <div className="aod-row"><span>Method</span><strong>{paymentMethodLabel(payment, order.fulfilment)}</strong></div>
               <div className="aod-row"><span>Amount</span><strong>{formatInr(payment.amount)}</strong></div>
-              <div className="aod-row"><span>Provider</span><strong>{payment.provider}</strong></div>
+              {paymentProviderLabel(payment) && <div className="aod-row"><span>Gateway</span><strong>{paymentProviderLabel(payment)}</strong></div>}
               {payment.providerPaymentId && (
                 <div className="aod-row"><span>Payment ID</span><code className="aod-mono">{payment.providerPaymentId}</code></div>
               )}
-              <div className="aod-row"><span>Paid at</span><strong>{fmtDate(payment.createdAt)}</strong></div>
+              <div className="aod-row"><span>{payView.key === 'paid' ? 'Paid on' : 'Payment started'}</span><strong>{fmtDate(payment.createdAt)}</strong></div>
+              {payView.adminNote && (
+                <p className={`aod-note${payView.key === 'failed' ? ' aod-note--bad' : ''}`} data-testid="aod-payment-note">{payView.adminNote}</p>
+              )}
             </div>
           ) : (
             <div className="admin-empty">No payment recorded.</div>

@@ -224,7 +224,7 @@ export class OrderService {
   async listForCustomer(customerId: string, status?: OrderStatus) {
     const orders = await this.prisma.order.findMany({
       where: { customerId, ...(status ? { status } : {}) },
-      include: { items: true, shipments: true },
+      include: { items: true, shipments: true, payments: true },
       orderBy: { createdAt: 'desc' },
     });
     const meta = await this.productMetaForVariants(
@@ -237,6 +237,8 @@ export class OrderService {
       grandTotal: o.grandTotal,
       createdAt: o.createdAt,
       itemCount: o.items.reduce((s, i) => s + i.quantity, 0),
+      // Only what the list needs to say how the order was (or was not) paid; never provider ids.
+      payments: o.payments.map((p) => ({ provider: p.provider, status: p.status, method: p.method, createdAt: p.createdAt })),
       imageUrl: o.items[0] ? (meta.get(o.items[0].variantId)?.imageUrl ?? null) : null,
       items: o.items.map((i) => ({
         title: i.title,

@@ -4,8 +4,17 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { adminFetch } from '@/lib/admin-api';
 import { formatInr } from '@/lib/catalogue-api';
-import { formatPickupSlot, orderStatusLabel } from '@belzo/shared';
-import { canCreateShipment, nextStep, pendingAction, WAITING_FOR_PAYMENT_HINT } from '@/lib/admin-order-actions';
+import {
+  formatPickupSlot,
+  orderStatusLabel,
+  orderStatusView,
+  paymentMethodLabel,
+  paymentProviderLabel,
+  paymentStatusView,
+  pickPayment,
+  type PaymentLike,
+} from '@belzo/shared';
+import { canCreateShipment, nextStep, pendingAction } from '@/lib/admin-order-actions';
 
 interface AdminOrder {
   id: string;
@@ -13,7 +22,7 @@ interface AdminOrder {
   grandTotal: number;
   createdAt: string;
   invoiceUrl: string | null;
-  payments?: { provider: string; status: string }[];
+  payments?: PaymentLike[];
   /** 'pickup' = the customer collects it from the shop. */
   fulfilment?: 'delivery' | 'pickup';
   pickupSlotStart?: string | null;
@@ -38,13 +47,10 @@ const TABS = [
   { key: 'returned', label: 'Returned' },
 ];
 
-const STATUS_CLASS: Record<string, string> = {
-  delivered: 'admin-status--ok',
-  cancelled: 'admin-status--bad',
-  returned: 'admin-status--bad',
-  pending: 'admin-status--warn',
-  confirmed: 'admin-status--info',
-};
+/** "→ shipped" → "→ Shipped", "Ready for pickup" stays as it is. */
+function sentenceCase(label: string): string {
+  return label.replace(/^(→\s*)?([a-z])/, (_m, arrow: string | undefined, c: string) => `${arrow ?? ''}${c.toUpperCase()}`);
+}
 
 /** A first invoice is only issued for placed (non-pending), non-cancelled orders. */
 function canGenerateInvoice(o: AdminOrder): boolean {
@@ -122,13 +128,15 @@ export default function AdminOrdersPage() {
   }
 
   const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
-
   return (
     <div data-testid="admin-orders">
-      <h1>Orders</h1>
-      <p className="admin-subtitle">Track orders, advance fulfilment status and create shipments.</p>
-      {msg && <p role="status" data-testid="orders-msg">{msg}</p>}
-
+      <div className="aol-head">
+        <div>
+          <h1>Orders</h1>
+          <p className="admin-subtitle">Track orders and payments, move orders forward and create shipments.</p>
+        </div>
+      </div>
+      {msg && <p role="status" className="aol-msg" data-testid="orders-msg">{msg}</p>}
       <div className="admin-tabs" data-testid="orders-tabs">
         {TABS.map((t) => (
           <button
@@ -143,11 +151,9 @@ export default function AdminOrdersPage() {
           </button>
         ))}
       </div>
-
-      <div className="admin-toolbar">
+      <div className="aol-toolbar">
         <input
-          className="pm-search"
-          style={{ maxWidth: 320, margin: 0 }}
+          className="aol-search"
           placeholder="Search by order ID…"
           value={q}
           onChange={(e) => {
@@ -156,81 +162,127 @@ export default function AdminOrdersPage() {
           }}
           data-testid="orders-search"
         />
-        <span className="admin-muted">{data.total} orders</span>
+        <span className="admin-muted">{data.total} {data.total === 1 ? 'order' : 'orders'}</span>
       </div>
-
-      <section className="admin-card">
+      <section className="admin-card aol-card">
         {data.items.length === 0 ? (
           <div className="admin-empty" data-testid="orders-empty">No orders found.</div>
         ) : (
-          <table className="admin-table" data-testid="orders-table">
-            <thead>
-              <tr><th>Order</th><th>Status</th><th>Total</th><th>Placed</th><th>Actions</th></tr>
-            </thead>
-            <tbody>
-              {data.items.map((o) => (
-                <tr key={o.id}>
-                  <td>
-                    <Link href={`/admin/orders/${o.id}`} className="aod-link" data-testid={`order-link-${o.id}`}>
-                      <strong>#{o.id.slice(0, 8).toUpperCase()}</strong>
-                    </Link>
-                    {o.fulfilment === 'pickup' && (
-                      <div data-testid={`pickup-tag-${o.id}`}>
-                        <span className="admin-status admin-status--info">Pickup</span>{' '}
-                        <span className="admin-muted">{formatPickupSlot(o.pickupSlotStart, o.pickupSlotEnd) ?? ''}</span>
-                      </div>
-                    )}
-                  </td>
-                  <td><span className={`admin-status ${STATUS_CLASS[o.status] ?? ''}`}>{o.fulfilment === 'pickup' ? orderStatusLabel(o.status, 'pickup').toLowerCase() : o.status.replace(/_/g, ' ')}</span></td>
-                  <td>{formatInr(o.grandTotal)}</td>
-                  <td>{new Date(o.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-                  <td>
-                    <Link href={`/admin/orders/${o.id}`} className="aod-link" data-testid={`order-view-${o.id}`}>
-                      View
-                    </Link>
-                    {pendingAction(o.status, o.payments ?? []) === 'confirm_cod' && (
-                      <button onClick={() => confirmCod(o)} disabled={busyId === o.id} data-testid={`confirm-${o.id}`}>
-                        {busyId === o.id ? 'Confirming…' : 'Confirm order'}
-                      </button>
-                    )}
-                    {pendingAction(o.status, o.payments ?? []) === 'waiting_payment' && (
-                      <span className="admin-muted" title={WAITING_FOR_PAYMENT_HINT} data-testid={`waiting-${o.id}`}>
-                        Waiting for payment
-                      </span>
-                    )}
-                    {canCreateShipment(o.status, o.fulfilment) && (
-                      <button onClick={() => createShipment(o)} data-testid={`ship-${o.id}`}>Create shipment</button>
-                    )}
-                    {nextStep(o.status, o.fulfilment) && (
-                      <button onClick={() => advance(o)} data-testid={`advance-${o.id}`}>
-                        {nextStep(o.status, o.fulfilment)!.label}
-                      </button>
-                    )}
-                    {o.invoiceUrl && (
-                      <a href={o.invoiceUrl} target="_blank" rel="noreferrer" data-testid={`invoice-${o.id}`}>
-                        Invoice
-                      </a>
-                    )}
-                    {(o.invoiceUrl || canGenerateInvoice(o)) && (
-                      <button
-                        onClick={() => regenerateInvoice(o)}
-                        disabled={busyId === o.id}
-                        data-testid={`regen-invoice-${o.id}`}
-                      >
-                        {busyId === o.id ? 'Updating…' : o.invoiceUrl ? 'Regenerate invoice' : 'Generate invoice'}
-                      </button>
-                    )}
-                    {(o.status === 'delivered' || o.status === 'cancelled') && !o.invoiceUrl && !canGenerateInvoice(o) ? (
-                      <span className="admin-muted">—</span>
-                    ) : null}
-                  </td>
+          <div className="aol-scroll">
+            <table className="admin-table aol-table" data-testid="orders-table">
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>Placed</th>
+                  <th>Payment</th>
+                  <th>Status</th>
+                  <th className="aol-num">Total</th>
+                  <th className="aol-num">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.items.map((o) => {
+                  const pay = pickPayment(o.payments);
+                  const payView = paymentStatusView({ orderStatus: o.status, fulfilment: o.fulfilment, payment: pay });
+                  const statusView = orderStatusView({ status: o.status, fulfilment: o.fulfilment, payments: o.payments, audience: 'admin' });
+                  const provider = paymentProviderLabel(pay);
+                  const placed = new Date(o.createdAt);
+                  const pending = pendingAction(o.status, o.payments ?? []);
+                  const step = nextStep(o.status, o.fulfilment);
+                  return (
+                    <tr key={o.id}>
+                      <td>
+                        <div className="aol-cell">
+                          <Link href={`/admin/orders/${o.id}`} className="aol-id" data-testid={`order-link-${o.id}`}>
+                            #{o.id.slice(0, 8).toUpperCase()}
+                          </Link>
+                          {o.fulfilment === 'pickup' && (
+                            <span className="aol-pickup" data-testid={`pickup-tag-${o.id}`}>
+                              <span className="admin-status admin-status--info">Pickup</span>
+                              <span className="aol-sub">{formatPickupSlot(o.pickupSlotStart, o.pickupSlotEnd) ?? ''}</span>
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="aol-cell">
+                          <span>{placed.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          <span className="aol-sub">{placed.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="aol-cell" data-testid={`payment-${o.id}`} title={payView.adminNote ?? undefined}>
+                          <span className={`admin-status admin-status--plain admin-status--${payView.tone}`}>{payView.label}</span>
+                          <span className="aol-sub">
+                            {paymentMethodLabel(pay, o.fulfilment)}
+                            {provider ? ` · ${provider}` : ''}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`admin-status admin-status--plain admin-status--${statusView.tone}`} data-testid={`status-${o.id}`}>
+                          {statusView.label}
+                        </span>
+                      </td>
+                      <td className="aol-num aol-total">{formatInr(o.grandTotal)}</td>
+                      <td className="aol-num">
+                        <div className="aol-actions">
+                          {(pending === 'confirm_cod' || pending === 'waiting_payment' || canCreateShipment(o.status, o.fulfilment) || step) && (
+                            <div className="aol-actions__row">
+                              {pending === 'confirm_cod' && (
+                                <button className="aol-btn aol-btn--primary" onClick={() => confirmCod(o)} disabled={busyId === o.id} data-testid={`confirm-${o.id}`}>
+                                  {busyId === o.id ? 'Confirming…' : 'Confirm order'}
+                                </button>
+                              )}
+                              {pending === 'waiting_payment' && (
+                                <span className="aol-wait" data-testid={`waiting-${o.id}`}>
+                                  {payView.key === 'failed' ? 'Customer can retry' : 'Waiting for payment'}
+                                </span>
+                              )}
+                              {canCreateShipment(o.status, o.fulfilment) && (
+                                <button className="aol-btn" onClick={() => createShipment(o)} data-testid={`ship-${o.id}`}>
+                                  Create shipment
+                                </button>
+                              )}
+                              {step && (
+                                <button className="aol-btn aol-btn--primary" onClick={() => advance(o)} data-testid={`advance-${o.id}`}>
+                                  {sentenceCase(step.label)}
+                                </button>
+                              )}
+                            </div>
+                          )}
+                          <div className="aol-actions__row">
+                            <Link href={`/admin/orders/${o.id}`} className="aol-btn aol-btn--ghost" data-testid={`order-view-${o.id}`}>
+                              View
+                            </Link>
+                            {o.invoiceUrl && (
+                              <a href={o.invoiceUrl} target="_blank" rel="noreferrer" className="aol-btn aol-btn--ghost" data-testid={`invoice-${o.id}`}>
+                                Invoice
+                              </a>
+                            )}
+                            {(o.invoiceUrl || canGenerateInvoice(o)) && (
+                              <button
+                                className="aol-btn aol-btn--icon"
+                                onClick={() => regenerateInvoice(o)}
+                                disabled={busyId === o.id}
+                                title={o.invoiceUrl ? 'Regenerate invoice with the current store details' : 'Generate invoice'}
+                                aria-label={o.invoiceUrl ? 'Regenerate invoice' : 'Generate invoice'}
+                                data-testid={`regen-invoice-${o.id}`}
+                              >
+                                {busyId === o.id ? '…' : o.invoiceUrl ? '↻' : '＋ Invoice'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
-
       {totalPages > 1 && (
         <div className="admin-pager">
           <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>‹ Prev</button>

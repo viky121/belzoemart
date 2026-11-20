@@ -177,6 +177,7 @@ export class PaymentService {
       await this.reconcile(payment);
     } else if (event.includes('failed')) {
       this.logger.log(`Payment attempt failed for order ${payment.orderId}; order stays open for a retry`);
+      await this.recordFailedAttempt(payment);
     }
 
     await this.markEventProcessed(verification.eventId);
@@ -295,9 +296,51 @@ export class PaymentService {
         if (captured.status === 'captured') paid = { ...authorized, status: 'captured', method: captured.method ?? authorized.method };
       }
     }
-    if (!paid) return 'pending';
+    if (!paid) {
+      await this.noteLatestAttempt(payment, attempts);
+      return 'pending';
+    }
     await this.markCaptured(payment, paid.id, paid.method);
     return 'captured';
+  }
+
+  /**
+   * A webhook said an attempt failed. Ask the gateway which attempt is the latest (the customer may already be
+   * retrying); if the gateway cannot be reached, trust the webhook.
+   */
+  private async recordFailedAttempt(payment: PaymentRef): Promise<void> {
+    try {
+      await this.reconcile(payment);
+    } catch (e) {
+      this.logger.warn(`Could not check the latest attempt for order ${payment.orderId}: ${String(e)}`);
+      await this.markAttemptFailed(payment.id);
+    }
+  }
+
+  /**
+   * Keep the payment's status truthful while the order is still open: "failed" when the customer's LATEST attempt
+   * failed, back to "pending" once they start a new one. The order itself stays pending, so the customer can pay
+   * again; {@link expireAbandoned} cancels it if it is never paid.
+   */
+  private async noteLatestAttempt(payment: PaymentRef, attempts: { status: string; createdAt?: number }[]): Promise<void> {
+    if (attempts.length === 0) return;
+    const latest = attempts.reduce((a, b) => ((b.createdAt ?? 0) >= (a.createdAt ?? 0) ? b : a));
+    if (latest.status === 'failed') {
+      await this.markAttemptFailed(payment.id);
+    } else if (latest.status === 'created') {
+      await this.prisma.payment.updateMany({
+        where: { id: payment.id, status: 'failed', order: { status: 'pending' } },
+        data: { status: 'pending' },
+      });
+    }
+  }
+
+  /** Mark an unpaid attempt as failed (only while the order is open and the payment is not settled). */
+  private async markAttemptFailed(paymentId: string): Promise<void> {
+    await this.prisma.payment.updateMany({
+      where: { id: paymentId, status: { in: ['created', 'pending'] }, order: { status: 'pending' } },
+      data: { status: 'failed' },
+    });
   }
 
   // ───────────────────────── state transitions ─────────────────────────
@@ -424,7 +467,7 @@ export class PaymentService {
     const stale = await this.prisma.payment.findMany({
       where: {
         provider: this.provider.kind === 'razorpay' ? 'razorpay' : 'mock',
-        status: { in: ['created', 'pending'] },
+        status: { in: ['created', 'pending', 'failed'] },
         createdAt: { lt: cutoff },
         order: { status: 'pending' },
       },

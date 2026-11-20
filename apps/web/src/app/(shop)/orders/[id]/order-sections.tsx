@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { formatPickupSlot, shopAddressLine, type PickupInfo } from '@belzo/shared';
+import { formatPickupSlot, orderStatusView, paymentStatusView, pickPayment, shopAddressLine, type PickupInfo } from '@belzo/shared';
 import { formatInr } from '@/lib/catalogue-api';
 import { isUsableImageUrl, placeholderImage } from '@/lib/category-theme';
 import { breakupView } from '@/lib/price-breakup';
@@ -53,8 +53,9 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 }
 
 export function OrderHeader({ order }: { order: OrderDetail }) {
-  const badge = statusBadge(order.status, order.fulfilment);
+  const badge = orderStatusView({ status: order.status, fulfilment: order.fulfilment, payments: order.payments, audience: 'customer' });
   const pay = paymentSummary(order);
+  const payView = paymentStatusView({ orderStatus: order.status, fulfilment: order.fulfilment, payment: pickPayment(order.payments) });
   return (
     <header className="od-card od-head">
       <div className="od-head__main">
@@ -66,6 +67,20 @@ export function OrderHeader({ order }: { order: OrderDetail }) {
         <p className="od-head__meta">
           Payment: <strong>{pay.methodLabel}</strong> · {pay.statusLabel}
         </p>
+        {payView.customerNote && payView.key !== 'cod_due' && (
+          <p className={`od-head__pay od-head__pay--${payView.tone}`} data-testid="order-payment-note">
+            {payView.customerNote}
+          </p>
+        )}
+        {payView.canPay && (
+          <Link
+            href={`/order-result?orderId=${order.id}&provider=razorpay&dismissed=1`}
+            className="od-head__paynow"
+            data-testid="order-pay-now"
+          >
+            Pay now
+          </Link>
+        )}
         {order.status === 'cancelled' && order.cancelledReason && (
           <p className="od-head__reason">Cancellation reason: {order.cancelledReason}</p>
         )}

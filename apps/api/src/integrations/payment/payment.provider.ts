@@ -36,6 +36,8 @@ export interface ProviderPayment {
   status: 'created' | 'authorized' | 'captured' | 'refunded' | 'failed';
   amount: number; // paise
   method?: string;
+  /** When the gateway created this attempt (unix seconds). Lets us tell which attempt is the latest. */
+  createdAt?: number;
 }
 
 export interface PaymentProvider {

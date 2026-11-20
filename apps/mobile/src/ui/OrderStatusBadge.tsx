@@ -1,4 +1,4 @@
-import { statusBadge, type FulfilmentMethod, type Tone } from '@belzo/shared';
+import { orderStatusView, type FulfilmentMethod, type PaymentLike, type Tone } from '@belzo/shared';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { theme } from '@/theme';
@@ -14,9 +14,18 @@ export const TONE_COLORS: Record<Tone, { fg: string; bg: string }> = {
   muted: { fg: theme.colors.muted, bg: theme.colors.surface2 },
 };
 
-export function OrderStatusBadge({ status, fulfilment }: { status: string; fulfilment?: FulfilmentMethod | null }) {
+export function OrderStatusBadge({
+  status,
+  fulfilment,
+  payments,
+}: {
+  status: string;
+  fulfilment?: FulfilmentMethod | null;
+  /** When given, an unpaid online order says "Awaiting payment" / "Payment failed" instead of "Order placed". */
+  payments?: readonly PaymentLike[] | null;
+}) {
   // A self pickup order says "Ready for pickup" / "Picked up".
-  const { label, tone } = statusBadge(status, fulfilment);
+  const { label, tone } = orderStatusView({ status, fulfilment, payments, audience: 'customer' });
   const c = TONE_COLORS[tone];
   return (
     <View

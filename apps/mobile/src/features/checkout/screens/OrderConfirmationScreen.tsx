@@ -59,6 +59,13 @@ function copyFor(view: OrderResultView, notice: string | undefined, order: Confi
         };
       }
       return { icon: 'clock-outline', tone: theme.colors.primaryStrong, title: 'Confirming your payment…', body: "We're checking with the payment gateway. This usually takes a few seconds." };
+    case 'payfailed':
+      return {
+        icon: 'close-circle',
+        tone: theme.colors.danger,
+        title: 'Payment failed',
+        body: `Your payment${order ? ` of ${formatInr(order.grandTotal)}` : ''} did not go through, so your order is not confirmed yet. Pay again to confirm it. If money was deducted, your bank returns it automatically within a few days. Unpaid orders are cancelled automatically after about 30 minutes.`,
+      };
     case 'failed':
       return { icon: 'close-circle', tone: theme.colors.danger, title: 'Payment not completed', body: "This order was cancelled and no money was kept. You can try again from your cart." };
     case 'notfound':
@@ -100,7 +107,7 @@ export function OrderConfirmationScreen({ navigation, route }: RootScreenProps<'
     if (view === 'confirmed' || view === 'cod') trackPurchase(orderId);
   }, [view, orderId]);
   const stuck = view === 'awaiting' && notice !== 'payment_incomplete' && updateCount >= MAX_POLLS;
-  const canPayAgain = view === 'awaiting' && (notice === 'payment_incomplete' || stuck) && provider !== 'cod';
+  const canPayAgain = (view === 'payfailed' || (view === 'awaiting' && (notice === 'payment_incomplete' || stuck))) && provider !== 'cod';
   const copy = stuck
     ? { icon: 'clock-outline' as const, tone: theme.colors.orange, title: 'Payment is still processing', body: 'If money was debited, your order will confirm automatically once the gateway confirms it. You can also try paying again.' }
     : copyFor(view, notice, order);
