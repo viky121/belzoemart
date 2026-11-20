@@ -25,6 +25,8 @@ interface ProdRow {
   minOrderQty?: number | null;
   maxOrderQty?: number | null;
 }
+/** Which products the list shows by stock: every product, only those with stock, or only the ones that ran out. */
+type StockFilter = 'all' | 'in' | 'out';
 interface Brand {
   id: string;
   name: string;
@@ -43,6 +45,7 @@ export default function AdminCataloguePage() {
   const [pricingId, setPricingId] = useState<string | null>(null);
   const [stockFor, setStockFor] = useState<ProdRow | null>(null);
   const [q, setQ] = useState('');
+  const [stockFilter, setStockFilter] = useState<StockFilter>('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
@@ -86,7 +89,9 @@ export default function AdminCataloguePage() {
   const inStock = products.filter((p) => p.stock > 0).length;
   const outOfStock = total - inStock;
   const filtered = products.filter(
-    (p) => !q || p.title.toLowerCase().includes(q.toLowerCase()) || p.slug.toLowerCase().includes(q.toLowerCase()),
+    (p) =>
+      (stockFilter === 'all' || (stockFilter === 'in' ? p.stock > 0 : p.stock <= 0)) &&
+      (!q || p.title.toLowerCase().includes(q.toLowerCase()) || p.slug.toLowerCase().includes(q.toLowerCase())),
   );
 
   function toggleOne(id: string) {
@@ -162,31 +167,57 @@ export default function AdminCataloguePage() {
       ) : (
         <>
           <div className="pm-stats" data-testid="pm-stats">
-            <div className="pm-stat">
-              <span className="pm-stat__label">Total Products</span>
-              <span className="pm-stat__value">{total}</span>
-              <span className="pm-stat__ic pm-stat__ic--a">📦</span>
-            </div>
-            <div className="pm-stat">
-              <span className="pm-stat__label">In Stock</span>
-              <span className="pm-stat__value">{inStock}</span>
-              <span className="pm-stat__ic pm-stat__ic--b">✅</span>
-            </div>
-            <div className="pm-stat">
-              <span className="pm-stat__label">Out of Stock</span>
-              <span className="pm-stat__value">{outOfStock}</span>
-              <span className="pm-stat__ic pm-stat__ic--c">⚠️</span>
+            {(
+              [
+                { key: 'all', label: 'Total Products', value: total, ic: 'a', icon: '📦' },
+                { key: 'in', label: 'In Stock', value: inStock, ic: 'b', icon: '✅' },
+                { key: 'out', label: 'Out of Stock', value: outOfStock, ic: 'c', icon: '⚠' },
+              ] as const
+            ).map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                className={`pm-stat pm-stat--btn${stockFilter === c.key ? ' is-on' : ''}`}
+                onClick={() => setStockFilter(stockFilter === c.key ? 'all' : c.key)}
+                aria-pressed={stockFilter === c.key}
+                title={c.key === 'all' ? 'Show all products' : `Show only ${c.label.toLowerCase()} products`}
+                data-testid={`pm-stat-${c.key}`}
+              >
+                <span className="pm-stat__label">{c.label}</span>
+                <span className="pm-stat__value">{c.value}</span>
+                <span className={`pm-stat__ic pm-stat__ic--${c.ic}`}>{c.icon}</span>
+              </button>
+            ))}
+          </div>
+          <div className="pm-filterbar">
+            <input
+              className="pm-search"
+              placeholder="Search products, SKU…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              data-testid="pm-search"
+            />
+            <div className="pm-filter" role="group" aria-label="Filter by stock" data-testid="pm-stock-filter">
+              {(
+                [
+                  { key: 'all', label: 'All', n: total },
+                  { key: 'in', label: 'In stock', n: inStock },
+                  { key: 'out', label: 'Out of stock', n: outOfStock },
+                ] as const
+              ).map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  className={`pm-filter__btn${stockFilter === f.key ? ' is-on' : ''}${f.key === 'out' ? ' pm-filter__btn--out' : ''}`}
+                  onClick={() => setStockFilter(f.key)}
+                  aria-pressed={stockFilter === f.key}
+                  data-testid={`pm-filter-${f.key}`}
+                >
+                  {f.label} <span>{f.n}</span>
+                </button>
+              ))}
             </div>
           </div>
-
-          <input
-            className="pm-search"
-            placeholder="Search products, SKU…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            data-testid="pm-search"
-          />
-
           {selectedVisible.length > 0 && (
             <BulkActionBar
               count={selectedVisible.length}
@@ -251,8 +282,8 @@ export default function AdminCataloguePage() {
                     <td>{p.variantCount ? formatInr(p.mrp) : '—'}</td>
                     <td>{p.variantCount ? formatInr(p.sellingPrice) : '—'}</td>
                     <td>
-                      <span className={p.stock > 0 ? 'pm-stock' : 'pm-stock pm-stock--out'}>
-                        {p.stock} qty
+                      <span className={p.stock > 0 ? 'pm-stock' : 'pm-stock pm-stock--out'} data-testid={`stock-label-${p.slug}`}>
+                        {p.stock > 0 ? `${p.stock} qty` : 'Out of stock'}
                       </span>
                     </td>
                     <td>
@@ -309,6 +340,11 @@ export default function AdminCataloguePage() {
               ))}
             </tbody>
           </table>
+          {filtered.length === 0 && (
+            <div className="admin-empty" data-testid="pm-empty">
+              {stockFilter === 'out' && !q ? 'No product is out of stock.' : 'No products match this filter.'}
+            </div>
+          )}
         </>
       )}
 

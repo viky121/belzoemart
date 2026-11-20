@@ -2384,3 +2384,38 @@
 .admin-table .aol-btn--icon { padding: 0 9px; font-size: 0.9rem; text-transform: none; }
 .aod-note { font-size: 0.84rem; color: #475569; margin: 8px 0 0; line-height: 1.45; }
 .aod-note--bad { color: #b91c1c; }
+
+/* ===== Products: stock filter ===== */
+button.pm-stat--btn {
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+button.pm-stat--btn:hover { border-color: #2874f0; }
+button.pm-stat--btn.is-on { border-color: #2874f0; box-shadow: 0 0 0 3px rgba(40, 116, 240, 0.15); }
+.pm-filterbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 1rem; }
+.pm-filterbar .pm-search { flex: 1 1 280px; width: auto; margin-bottom: 0; }
+.pm-filter { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.pm-filter__btn {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 9px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.pm-filter__btn span { color: #94a3b8; font-weight: 800; margin-left: 4px; }
+.pm-filter__btn:hover { border-color: #2874f0; color: #2874f0; }
+.pm-filter__btn.is-on { background: #2874f0; border-color: #2874f0; color: #fff; }
+.pm-filter__btn.is-on span { color: #dbeafe; }
+.pm-filter__btn--out.is-on { background: #dc2626; border-color: #dc2626; }
+.pm-filter__btn--out.is-on span { color: #fee2e2; }
+.pm-stock { white-space: nowrap; }
+.pm-stock--out { background: #fee2e2; padding: 2px 8px; border-radius: 999px; font-size: 0.74rem; }
+
+/* ===== Order detail: MRP next to the unit price ===== */
+.aod-off { display: block; font-size: 0.74rem; font-weight: 700; color: #15803d; margin-top: 2px; }
+.aod-mrp { color: #475569; }

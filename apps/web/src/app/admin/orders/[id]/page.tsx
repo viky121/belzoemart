@@ -25,6 +25,8 @@ interface AdminItem {
   title: string;
   sku: string;
   unitPrice: number;
+  /** Printed MRP of one unit when the order was placed (paise). Missing on older orders. */
+  mrp?: number | null;
   quantity: number;
   taxRatePct: number;
   offerId?: string | null;
@@ -332,7 +334,7 @@ export default function AdminOrderDetailPage() {
         <div className="admin-card__head"><h2>Items ({order.items.length})</h2></div>
         <table className="admin-table">
           <thead>
-            <tr><th>Product</th><th>SKU</th><th>Qty</th><th>Unit price</th><th>Line total</th></tr>
+            <tr><th>Product</th><th>SKU</th><th>Qty</th><th>MRP</th><th>Unit price</th><th>Line total</th></tr>
           </thead>
           <tbody>
             {order.items.map((i) => {
@@ -362,7 +364,13 @@ export default function AdminOrderDetailPage() {
                   </td>
                   <td><code className="aod-mono">{i.sku}</code></td>
                   <td>{i.quantity}</td>
-                  <td>{formatInr(i.unitPrice)}</td>
+                  <td className="aod-mrp" data-testid={`item-mrp-${i.id}`}>{i.mrp ? formatInr(i.mrp) : '—'}</td>
+                  <td>
+                    {formatInr(i.unitPrice)}
+                    {i.mrp && i.mrp > i.unitPrice ? (
+                      <span className="aod-off">{Math.round(((i.mrp - i.unitPrice) / i.mrp) * 100)}% off MRP</span>
+                    ) : null}
+                  </td>
                   <td><strong>{formatInr(i.unitPrice * i.quantity)}</strong></td>
                 </tr>
               );
