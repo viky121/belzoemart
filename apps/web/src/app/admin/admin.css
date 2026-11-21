@@ -2419,3 +2419,59 @@ button.pm-stat--btn.is-on { border-color: #2874f0; box-shadow: 0 0 0 3px rgba(40
 /* ===== Order detail: MRP next to the unit price ===== */
 .aod-off { display: block; font-size: 0.74rem; font-weight: 700; color: #15803d; margin-top: 2px; }
 .aod-mrp { color: #475569; }
+
+/* ===== Products: pager + loading states ===== */
+.pm-tablewrap { transition: opacity 0.15s; }
+.pm-tablewrap.is-loading { opacity: 0.55; pointer-events: none; }
+.pm-skel td { padding: 14px; }
+.pm-skel__bar {
+  display: block;
+  height: 38px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e8edf3 37%, #f1f5f9 63%);
+  background-size: 400% 100%;
+  animation: pm-shimmer 1.3s ease infinite;
+}
+@keyframes pm-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+@media (prefers-reduced-motion: reduce) { .pm-skel__bar { animation: none; } }
+.pm-error { border-style: solid; border-color: #fecaca; background: #fef2f2; color: #991b1b; }
+.pm-error p { margin: 0 0 10px; }
+.pm-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 14px 0 4px;
+  font-size: 0.85rem;
+  color: #475569;
+}
+.pm-pager__range { font-weight: 600; }
+.pm-pager__pages { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pm-pager__btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #344054;
+  font-weight: 700;
+  font-size: 0.82rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.pm-pager__btn:disabled { opacity: 0.45; cursor: default; }
+.pm-pager__btn:not(:disabled):hover { border-color: #2874f0; color: #2874f0; }
+.pm-pager__btn.is-on { background: #2874f0; border-color: #2874f0; color: #fff; opacity: 1; }
+.pm-pager__gap { color: #94a3b8; padding: 0 4px; }
+.pm-pager__size { display: inline-flex; align-items: center; gap: 8px; }
+.pm-pager__size select {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: #fff;
+  font-size: 0.85rem;
+}

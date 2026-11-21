@@ -27,6 +27,14 @@ const categoryUpsertSchema = z.object({
   seoDescription: z.string().max(320).optional(),
 });
 class CategoryUpsertDto extends createZodDto(categoryUpsertSchema) {}
+// Query strings arrive as text: coerced to numbers, page size capped so one request can never ask for everything.
+const productListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).max(100_000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+  q: z.string().trim().max(100).optional(),
+  stock: z.enum(['all', 'in', 'out']).default('all'),
+});
+class ProductListQueryDto extends createZodDto(productListQuerySchema) {}
 
 const productDetailFields = {
   shgName: z.string().max(160).optional(),
@@ -253,6 +261,12 @@ export class AdminCatalogueController {
   @Get('products')
   listProducts() {
     return this.products.adminList();
+  }
+  /** One page of the catalogue table, with search, a stock filter and the stock totals for the cards. */
+  @RequirePermission('products.view', 'mobile.edit', 'content.edit')
+  @Get('products/list')
+  listProductsPage(@Query() q: ProductListQueryDto) {
+    return this.products.adminListPage(q);
   }
 
   /** Every draft/published product as Excel sheet rows (the browser builds the .xlsx). */

@@ -1,7 +1,8 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { adminFetch } from '@/lib/admin-api';
+import { Pager } from '../pager';
 import { formatInr } from '@/lib/catalogue-api';
 import { ProductWizard, type CatNode } from './product-wizard';
 import { ProductEditor } from './product-editor';
@@ -31,12 +32,33 @@ interface Brand {
   id: string;
   name: string;
 }
+/** Stock totals of the whole catalogue (for the three cards), whatever the search or filter is. */
+interface CatalogueStats {
+  total: number;
+  inStock: number;
+  outOfStock: number;
+}
+/** One page of the table, as GET /admin/products/list returns it. */
+interface ProductPage {
+  items: ProdRow[];
+  /** Products matching the search / filter (not just this page). */
+  total: number;
+  page: number;
+  pageSize: number;
+  stats: CatalogueStats;
+}
 
 
 
 /** Admin Product & Inventory management: dashboard + wizard + edit/stock. */
 export default function AdminCataloguePage() {
   const [products, setProducts] = useState<ProdRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState<CatalogueStats | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [categories, setCategories] = useState<CatNode[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
@@ -44,23 +66,91 @@ export default function AdminCataloguePage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [pricingId, setPricingId] = useState<string | null>(null);
   const [stockFor, setStockFor] = useState<ProdRow | null>(null);
+  // `q` is what the box shows; `search` follows it after a short pause, so a request is not sent for every key.
   const [q, setQ] = useState('');
+  const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Only the newest request may update the screen (a slow earlier one must not overwrite a newer one).
+  const latest = useRef(0);
 
-  const load = useCallback(async () => {
-    const [p, c, b] = await Promise.all([
-      adminFetch<ProdRow[]>('/admin/products').catch(() => [] as ProdRow[]),
+  /** A different page, search or filter shows different rows: forget what was selected or opened. */
+  const resetView = useCallback(() => {
+    setSelected(new Set());
+    setEditId(null);
+    setPricingId(null);
+  }, []);
+
+  const loadProducts = useCallback(async () => {
+    const id = ++latest.current;
+    setLoading(true);
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), stock: stockFilter });
+    if (search) params.set('q', search);
+    try {
+      const r = await adminFetch<ProductPage>(`/admin/products/list?${params.toString()}`);
+      if (id !== latest.current) return;
+      setProducts(r.items);
+      setTotal(r.total);
+      setStats(r.stats);
+      setLoadError(null);
+      // The server moves to the last page when the asked-for page no longer exists (e.g. its last row was deleted).
+      if (r.page !== page) setPage(r.page);
+    } catch (e) {
+      if (id !== latest.current) return;
+      setLoadError(e instanceof Error && e.message ? e.message : 'Could not load the products.');
+    } finally {
+      if (id === latest.current) setLoading(false);
+    }
+  }, [page, pageSize, search, stockFilter]);
+
+  const loadTaxonomy = useCallback(async () => {
+    const [c, b] = await Promise.all([
       adminFetch<CatNode[]>('/categories').catch(() => [] as CatNode[]),
       adminFetch<Brand[]>('/brands').catch(() => [] as Brand[]),
     ]);
-    setProducts(p);
     setCategories(c);
     setBrands(b);
   }, []);
+
+  /** Reload the table and the category / brand lists (after an edit, a stock change or a bulk action). */
+  const load = useCallback(async () => {
+    await Promise.all([loadProducts(), loadTaxonomy()]);
+  }, [loadProducts, loadTaxonomy]);
+
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadProducts();
+  }, [loadProducts]);
+  useEffect(() => {
+    void loadTaxonomy();
+  }, [loadTaxonomy]);
+
+  const searchRef = useRef('');
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const next = q.trim();
+      if (next === searchRef.current) return;
+      searchRef.current = next;
+      setSearch(next);
+      setPage(1);
+      resetView();
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q, resetView]);
+
+  function changeStock(next: StockFilter) {
+    setStockFilter(next);
+    setPage(1);
+    resetView();
+  }
+  function changePage(next: number) {
+    setPage(next);
+    resetView();
+  }
+  function changePageSize(next: number) {
+    setPageSize(next);
+    setPage(1);
+    resetView();
+  }
 
   async function setStatus(id: string, status: 'published' | 'draft' | 'archived') {
     try {
@@ -85,15 +175,6 @@ export default function AdminCataloguePage() {
     }
   }
 
-  const total = products.length;
-  const inStock = products.filter((p) => p.stock > 0).length;
-  const outOfStock = total - inStock;
-  const filtered = products.filter(
-    (p) =>
-      (stockFilter === 'all' || (stockFilter === 'in' ? p.stock > 0 : p.stock <= 0)) &&
-      (!q || p.title.toLowerCase().includes(q.toLowerCase()) || p.slug.toLowerCase().includes(q.toLowerCase())),
-  );
-
   function toggleOne(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -104,20 +185,20 @@ export default function AdminCataloguePage() {
   }
   function toggleAll() {
     setSelected((prev) => {
-      const allShown = filtered.length > 0 && filtered.every((p) => prev.has(p.id));
+      const allShown = products.length > 0 && products.every((p) => prev.has(p.id));
       if (allShown) {
         const next = new Set(prev);
-        filtered.forEach((p) => next.delete(p.id));
+        products.forEach((p) => next.delete(p.id));
         return next;
       }
       const next = new Set(prev);
-      filtered.forEach((p) => next.add(p.id));
+      products.forEach((p) => next.add(p.id));
       return next;
     });
   }
-  // Only count/act on selections that are still visible under the current search.
-  const selectedVisible = filtered.filter((p) => selected.has(p.id)).map((p) => p.id);
-  const allFilteredSelected = filtered.length > 0 && selectedVisible.length === filtered.length;
+  // A selection only ever covers the rows of the page on screen (it is cleared when the page, search or filter changes).
+  const selectedVisible = products.filter((p) => selected.has(p.id)).map((p) => p.id);
+  const allFilteredSelected = products.length > 0 && selectedVisible.length === products.length;
 
   return (
     <div data-testid="admin-catalogue">
@@ -169,22 +250,22 @@ export default function AdminCataloguePage() {
           <div className="pm-stats" data-testid="pm-stats">
             {(
               [
-                { key: 'all', label: 'Total Products', value: total, ic: 'a', icon: '📦' },
-                { key: 'in', label: 'In Stock', value: inStock, ic: 'b', icon: '✅' },
-                { key: 'out', label: 'Out of Stock', value: outOfStock, ic: 'c', icon: '⚠' },
+                { key: 'all', label: 'Total Products', value: stats?.total, ic: 'a', icon: '📦' },
+                { key: 'in', label: 'In Stock', value: stats?.inStock, ic: 'b', icon: '✅' },
+                { key: 'out', label: 'Out of Stock', value: stats?.outOfStock, ic: 'c', icon: '⚠' },
               ] as const
             ).map((c) => (
               <button
                 key={c.key}
                 type="button"
                 className={`pm-stat pm-stat--btn${stockFilter === c.key ? ' is-on' : ''}`}
-                onClick={() => setStockFilter(stockFilter === c.key ? 'all' : c.key)}
+                onClick={() => changeStock(stockFilter === c.key ? 'all' : c.key)}
                 aria-pressed={stockFilter === c.key}
                 title={c.key === 'all' ? 'Show all products' : `Show only ${c.label.toLowerCase()} products`}
                 data-testid={`pm-stat-${c.key}`}
               >
                 <span className="pm-stat__label">{c.label}</span>
-                <span className="pm-stat__value">{c.value}</span>
+                <span className="pm-stat__value">{c.value ?? '—'}</span>
                 <span className={`pm-stat__ic pm-stat__ic--${c.ic}`}>{c.icon}</span>
               </button>
             ))}
@@ -192,7 +273,7 @@ export default function AdminCataloguePage() {
           <div className="pm-filterbar">
             <input
               className="pm-search"
-              placeholder="Search products, SKU…"
+              placeholder="Search by name, SKU or slug…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               data-testid="pm-search"
@@ -200,20 +281,20 @@ export default function AdminCataloguePage() {
             <div className="pm-filter" role="group" aria-label="Filter by stock" data-testid="pm-stock-filter">
               {(
                 [
-                  { key: 'all', label: 'All', n: total },
-                  { key: 'in', label: 'In stock', n: inStock },
-                  { key: 'out', label: 'Out of stock', n: outOfStock },
+                  { key: 'all', label: 'All', n: stats?.total },
+                  { key: 'in', label: 'In stock', n: stats?.inStock },
+                  { key: 'out', label: 'Out of stock', n: stats?.outOfStock },
                 ] as const
               ).map((f) => (
                 <button
                   key={f.key}
                   type="button"
                   className={`pm-filter__btn${stockFilter === f.key ? ' is-on' : ''}${f.key === 'out' ? ' pm-filter__btn--out' : ''}`}
-                  onClick={() => setStockFilter(f.key)}
+                  onClick={() => changeStock(f.key)}
                   aria-pressed={stockFilter === f.key}
                   data-testid={`pm-filter-${f.key}`}
                 >
-                  {f.label} <span>{f.n}</span>
+                  {f.label} <span>{f.n ?? '—'}</span>
                 </button>
               ))}
             </div>
@@ -231,6 +312,15 @@ export default function AdminCataloguePage() {
             />
           )}
 
+          {loadError && (
+            <div className="admin-empty pm-error" role="alert" data-testid="pm-error">
+              <p>Could not load the products: {loadError}</p>
+              <button type="button" className="auth-btn" onClick={() => void loadProducts()} data-testid="pm-retry">
+                Try again
+              </button>
+            </div>
+          )}
+          <div className={`pm-tablewrap${loading && products.length > 0 ? ' is-loading' : ''}`} aria-busy={loading}>
           <table className="admin-table" data-testid="catalogue-products">
             <thead>
               <tr>
@@ -253,7 +343,7 @@ export default function AdminCataloguePage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p) => (
+              {products.map((p) => (
                 <Fragment key={p.id}>
                   <tr className={selected.has(p.id) ? 'pm-row--selected' : undefined}>
                     <td>
@@ -338,12 +428,28 @@ export default function AdminCataloguePage() {
                   )}
                 </Fragment>
               ))}
+              {loading && products.length === 0 && !loadError &&
+                Array.from({ length: 8 }, (_, i) => (
+                  <tr key={`sk-${i}`} className="pm-skel" aria-hidden data-testid="pm-skeleton">
+                    <td colSpan={8}>
+                      <span className="pm-skel__bar" />
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
-          {filtered.length === 0 && (
+          </div>
+          {!loading && !loadError && products.length === 0 && (
             <div className="admin-empty" data-testid="pm-empty">
-              {stockFilter === 'out' && !q ? 'No product is out of stock.' : 'No products match this filter.'}
+              {stockFilter === 'out' && !search
+                ? 'No product is out of stock.'
+                : stats?.total === 0
+                  ? 'No products yet. Add your first product.'
+                  : 'No products match this search or filter.'}
             </div>
+          )}
+          {total > 0 && (
+            <Pager page={page} pageSize={pageSize} total={total} onPage={changePage} onPageSize={changePageSize} busy={loading} />
           )}
         </>
       )}

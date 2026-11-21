@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import {
   DEFAULT_PAGE_SIZE,
   discountPct,
@@ -20,6 +21,20 @@ interface Paginated<T> {
   page: number;
   pageSize: number;
 }
+
+/** What the admin catalogue table needs from each product. */
+const ADMIN_ROW_INCLUDE = {
+  images: { orderBy: { position: 'asc' as const }, take: 1 },
+  variants: { where: { isActive: true } },
+  brand: true,
+} satisfies Prisma.ProductInclude;
+
+type AdminRowSource = Prisma.ProductGetPayload<{ include: typeof ADMIN_ROW_INCLUDE }>;
+
+/** In stock = at least one active variant has stock available. */
+const IN_STOCK: Prisma.ProductWhereInput = {
+  variants: { some: { isActive: true, inventory: { is: { available: { gt: 0 } } } } },
+};
 
 /**
  * Product catalogue (FR-2, FR-3, FR-8). Read models power the storefront
@@ -515,16 +530,59 @@ export class ProductService {
     return { count: images.length };
   }
 
-  /** All products (any status) for the admin catalogue table. */
+  /** All products (any status), as one list. Used by the pickers on other admin pages; the catalogue table pages instead. */
   async adminList() {
     const rows = await this.prisma.product.findMany({
-      include: {
-        images: { orderBy: { position: 'asc' }, take: 1 },
-        variants: { where: { isActive: true } },
-        brand: true,
-      },
+      include: ADMIN_ROW_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
+    return this.toAdminRows(rows);
+  }
+
+  /**
+   * One page of the admin catalogue table (any status), filtered by a search text and/or stock, plus the stock
+   * totals of the WHOLE catalogue for the three cards. A product is "in stock" when any of its active variants has
+   * stock available (stock never goes below zero), otherwise it is out of stock, including a product with no variant.
+   * The page is clamped into range, so a page that vanished (the last row was deleted) returns the new last page.
+   */
+  async adminListPage(query: { page: number; pageSize: number; q?: string; stock: 'all' | 'in' | 'out' }) {
+    const q = query.q?.trim();
+    const filters: Prisma.ProductWhereInput[] = [];
+    if (query.stock === 'in') filters.push(IN_STOCK);
+    if (query.stock === 'out') filters.push({ NOT: IN_STOCK });
+    if (q) {
+      const like = { contains: q, mode: 'insensitive' as const };
+      filters.push({
+        OR: [{ title: like }, { slug: like }, { sku: like }, { variants: { some: { sku: like } } }],
+      });
+    }
+    const where: Prisma.ProductWhereInput = filters.length > 0 ? { AND: filters } : {};
+    const [total, all, inStock] = await Promise.all([
+      this.prisma.product.count({ where }),
+      this.prisma.product.count(),
+      this.prisma.product.count({ where: IN_STOCK }),
+    ]);
+    const pages = Math.max(1, Math.ceil(total / query.pageSize));
+    const page = Math.min(Math.max(1, query.page), pages);
+    const rows = await this.prisma.product.findMany({
+      where,
+      include: ADMIN_ROW_INCLUDE,
+      // `id` breaks ties, so a product never appears on two pages (or none) while the list is paged.
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      skip: (page - 1) * query.pageSize,
+      take: query.pageSize,
+    });
+    return {
+      items: await this.toAdminRows(rows),
+      total,
+      page,
+      pageSize: query.pageSize,
+      stats: { total: all, inStock, outOfStock: all - inStock },
+    };
+  }
+
+  /** Catalogue-table rows (price, stock, default variant) for the given products. */
+  private async toAdminRows(rows: AdminRowSource[]) {
     // Need inventory for the dashboard stock totals.
     const variantIds = rows.flatMap((p) => p.variants.map((v) => v.id));
     const inv = await this.prisma.inventory.findMany({
