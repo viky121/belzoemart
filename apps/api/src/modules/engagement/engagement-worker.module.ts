@@ -3,6 +3,7 @@ import { SmsModule } from '../../integrations/sms/sms.module';
 import { NotificationsIntegrationModule } from '../../integrations/notifications/notifications-integration.module';
 import { NotificationService } from './notification.service';
 import { NotificationWorker } from './notification.worker';
+import { AdminAlertWorker } from './admin-alert.worker';
 
 /**
  * Worker-side engagement module (U6). Registers the NotificationDispatcher that
@@ -10,6 +11,6 @@ import { NotificationWorker } from './notification.worker';
  */
 @Module({
   imports: [SmsModule, NotificationsIntegrationModule],
-  providers: [NotificationService, NotificationWorker],
+  providers: [NotificationService, NotificationWorker, AdminAlertWorker],
 })
 export class EngagementWorkerModule {}

@@ -33,3 +33,4 @@ export * from './offers-view';
 export * from './pickup';
 export * from './tracking';
 export * from './payment-status';
+export * from './admin-alerts';

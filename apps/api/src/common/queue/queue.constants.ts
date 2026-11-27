@@ -9,6 +9,8 @@ export const QUEUES = {
   DPDP: 'dpdp',
   /** In-house delivery (U8): timeouts, OTP clean-up, partner presence, order-cancelled hook. */
   DELIVERY: 'delivery',
+  /** Order alert emails to the shop (new order, payment failed, cancelled). Own queue so an older worker never sees them. */
+  ADMIN_ALERTS: 'admin-alerts',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { QueueService } from '../../common/queue/queue.service';
+import { queueAdminAlert } from '../engagement/admin-alerts';
 import { QUEUES } from '../../common/queue/queue.constants';
 import { InventoryService } from '../catalogue/inventory.service';
 import { CartService } from '../cart/cart.service';
@@ -313,7 +314,7 @@ export class PaymentService {
       await this.reconcile(payment);
     } catch (e) {
       this.logger.warn(`Could not check the latest attempt for order ${payment.orderId}: ${String(e)}`);
-      await this.markAttemptFailed(payment.id);
+      await this.markAttemptFailed(payment);
     }
   }
 
@@ -326,7 +327,7 @@ export class PaymentService {
     if (attempts.length === 0) return;
     const latest = attempts.reduce((a, b) => ((b.createdAt ?? 0) >= (a.createdAt ?? 0) ? b : a));
     if (latest.status === 'failed') {
-      await this.markAttemptFailed(payment.id);
+      await this.markAttemptFailed(payment);
     } else if (latest.status === 'created') {
       await this.prisma.payment.updateMany({
         where: { id: payment.id, status: 'failed', order: { status: 'pending' } },
@@ -336,11 +337,13 @@ export class PaymentService {
   }
 
   /** Mark an unpaid attempt as failed (only while the order is open and the payment is not settled). */
-  private async markAttemptFailed(paymentId: string): Promise<void> {
-    await this.prisma.payment.updateMany({
-      where: { id: paymentId, status: { in: ['created', 'pending'] }, order: { status: 'pending' } },
+  private async markAttemptFailed(payment: PaymentRef): Promise<void> {
+    const moved = await this.prisma.payment.updateMany({
+      where: { id: payment.id, status: { in: ['created', 'pending'] }, order: { status: 'pending' } },
       data: { status: 'failed' },
     });
+    // The shop hears about it once per order (later retries that fail again are not re-sent).
+    if (moved.count > 0) await queueAdminAlert(this.queue, { orderId: payment.orderId, event: 'payment_failed' }, this.logger);
   }
 
   // ───────────────────────── state transitions ─────────────────────────
@@ -418,6 +421,8 @@ export class PaymentService {
     await this.queue.enqueue(QUEUES.SHIPMENTS, 'order.confirmed', { orderId: order.id });
     await this.queue.enqueue(QUEUES.NOTIFICATIONS, 'order.confirmed', { orderId: order.id });
     await this.queue.enqueue(QUEUES.INVOICES, 'order.confirmed', { orderId: order.id });
+    // Tell the shop (email). Best-effort: the order is confirmed whatever happens to the alert.
+    await queueAdminAlert(this.queue, { orderId: order.id, event: 'new_order' }, this.logger);
   }
 
   private async refundLateCapture(payment: PaymentRef, providerPaymentId?: string, method?: string): Promise<void> {
@@ -454,6 +459,7 @@ export class PaymentService {
       await this.inventory.release(item.variantId, item.quantity, order.id);
     }
     await this.queue.enqueue(QUEUES.NOTIFICATIONS, 'order.payment_failed', { orderId });
+    await queueAdminAlert(this.queue, { orderId, event: 'cancelled', by: 'system', reason: 'Payment not completed' }, this.logger);
   }
 
   /**

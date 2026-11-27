@@ -8,6 +8,7 @@ import {
   type OrderStatus,
 } from '@belzo/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { queueAdminAlert } from '../engagement/admin-alerts';
 import { QUEUES } from '../../common/queue/queue.constants';
 import { QueueService } from '../../common/queue/queue.service';
 import { InventoryService } from '../catalogue/inventory.service';
@@ -350,6 +351,7 @@ export class OrderService {
     // Tell the delivery module so a job in a partner's hands is stopped (BR-D58). Best-effort:
     // the cancel has already happened, and partner commands are refused for a cancelled order anyway.
     await this.notifyDeliveryOfCancel(order.id);
+    await queueAdminAlert(this.queue, { orderId, event: 'cancelled', by: actor.customerId ? 'customer' : actor.isAdmin ? 'admin' : 'system', reason });
     return { orderId, status: 'cancelled' as const };
   }
 
@@ -394,6 +396,7 @@ export class OrderService {
     }
     await this.fulfilment.cancelShipmentsForOrder(order.id);
     await this.refundCapturedOnline(order);
+    await queueAdminAlert(this.queue, { orderId, event: 'cancelled', by: 'system', reason });
     return { orderId, changed: true };
   }
 

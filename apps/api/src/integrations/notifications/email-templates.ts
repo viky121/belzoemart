@@ -222,3 +222,122 @@ ${button('View order', orderUrl(input.orderId))}`;
     html: layout('Your tax invoice', body),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Shop (admin) order alerts
+// ---------------------------------------------------------------------------
+
+/** Everything an order alert shows. Amounts are paise; labels are already human ("Cash on Delivery", "Paid"). */
+export interface AdminAlertOrder extends MailOrder {
+  createdAt: Date;
+  fulfilment: 'delivery' | 'pickup';
+  pickupSlot: string | null;
+  customer: { name: string | null; phone: string | null; email: string | null };
+  address: (MailAddress & { phone?: string | null }) | null;
+  paymentMethod: string;
+  paymentStatus: string;
+}
+
+/** Link to the order in the admin panel (empty when PUBLIC_BASE_URL is not configured). */
+export function adminOrderUrl(orderId: string): string {
+  return storeLink(`/admin/orders/${encodeURIComponent(orderId)}`);
+}
+
+function istTime(d: Date): string {
+  return d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function factsTable(rows: [string, string][]): string {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 16px;font-size:14px">${rows
+    .filter(([, v]) => v !== '')
+    .map(
+      ([k, v]) =>
+        `<tr><td style="padding:5px 12px 5px 0;color:#6b7280;white-space:nowrap;vertical-align:top">${esc(k)}</td><td style="padding:5px 0;color:#111827">${v}</td></tr>`,
+    )
+    .join('')}</table>`;
+}
+
+function customerAndDelivery(o: AdminAlertOrder): [string, string][] {
+  const contact = [o.customer.phone, o.customer.email].filter(Boolean).map((v) => esc(v)).join(' · ');
+  const where =
+    o.fulfilment === 'pickup'
+      ? `Self pickup${o.pickupSlot ? ` · ${esc(o.pickupSlot)}` : ''}`
+      : o.address
+        ? [o.address.fullName, o.address.line1, o.address.line2, `${o.address.city}, ${o.address.state} ${o.address.pincode}`]
+            .filter(Boolean)
+            .map((l) => esc(l))
+            .join(', ')
+        : '';
+  return [
+    ['Customer', esc(o.customer.name ?? '')],
+    ['Contact', contact],
+    [o.fulfilment === 'pickup' ? 'Fulfilment' : 'Deliver to', where],
+  ];
+}
+
+const itemCount = (o: AdminAlertOrder) => o.items.reduce((n, i) => n + i.quantity, 0);
+
+/** A new order to prepare (Cash on Delivery / pay at shop placed, or paid online). */
+export function adminNewOrderEmail(o: AdminAlertOrder): RenderedEmail {
+  const ref = orderRef(o.id);
+  const n = itemCount(o);
+  const body = `<p style="margin:0 0 12px">A new order was placed on ${esc(STORE_NAME)}.</p>
+${factsTable([
+  ['Order', `<strong>${esc(ref)}</strong>`],
+  ['Placed', esc(istTime(o.createdAt))],
+  ['Amount', `<strong>${inr(o.grandTotal)}</strong> · ${esc(n)} item${n === 1 ? '' : 's'}`],
+  ['Payment', `${esc(o.paymentMethod)} · ${esc(o.paymentStatus)}`],
+  ...customerAndDelivery(o),
+])}
+${itemsTable(o)}
+${button('Open the order', adminOrderUrl(o.id))}`;
+  return { subject: `New order ${ref} - ${formatMoney(paise(o.grandTotal))} (${o.paymentMethod})`, html: layout(`New order ${ref}`, body) };
+}
+
+/** A customer's online payment did not go through (the order is still open, they can pay again). */
+export function adminPaymentFailedEmail(o: AdminAlertOrder): RenderedEmail {
+  const ref = orderRef(o.id);
+  const body = `<p style="margin:0 0 12px">The customer's online payment for this order did not go through. The order is <strong>not confirmed</strong>: they can still pay again. If it stays unpaid it is cancelled automatically about 30 minutes after it was placed, and the stock goes back.</p>
+${factsTable([
+  ['Order', `<strong>${esc(ref)}</strong>`],
+  ['Placed', esc(istTime(o.createdAt))],
+  ['Amount', `<strong>${inr(o.grandTotal)}</strong>`],
+  ['Payment', `${esc(o.paymentMethod)} · ${esc(o.paymentStatus)}`],
+  ...customerAndDelivery(o),
+])}
+<p style="margin:0 0 4px;color:#374151;font-size:14px">You may want to call the customer if they need help paying. Nothing needs to be packed yet.</p>
+${button('Open the order', adminOrderUrl(o.id))}`;
+  return { subject: `Payment failed: order ${ref} - ${formatMoney(paise(o.grandTotal))}`, html: layout(`Payment failed for ${ref}`, body) };
+}
+
+const CANCELLED_BY: Record<string, string> = { customer: 'the customer', admin: 'staff (admin panel)', system: 'the system' };
+
+/** An order was cancelled (by the customer, by staff, or automatically). */
+export function adminOrderCancelledEmail(
+  o: AdminAlertOrder,
+  info: { by?: string | null; reason?: string | null; refund?: string | null },
+): RenderedEmail {
+  const ref = orderRef(o.id);
+  const by = CANCELLED_BY[info.by ?? ''] ?? '';
+  const body = `<p style="margin:0 0 12px">This order was cancelled${by ? ` by ${esc(by)}` : ''}. Do not pack or send it. Its stock has been put back.</p>
+${factsTable([
+  ['Order', `<strong>${esc(ref)}</strong>`],
+  ['Placed', esc(istTime(o.createdAt))],
+  ['Amount', `<strong>${inr(o.grandTotal)}</strong>`],
+  ['Reason', esc(info.reason ?? '')],
+  ['Payment', `${esc(o.paymentMethod)} · ${esc(o.paymentStatus)}`],
+  ['Refund', esc(info.refund ?? '')],
+  ...customerAndDelivery(o),
+])}
+${itemsTable(o)}
+${button('Open the order', adminOrderUrl(o.id))}`;
+  return { subject: `Order cancelled ${ref} - ${formatMoney(paise(o.grandTotal))}${by ? ` (by ${by})` : ''}`, html: layout(`Order ${ref} was cancelled`, body) };
+}
+
+/** Sent from Admin → Settings to check that alerts reach the inbox. */
+export function adminAlertTestEmail(recipients: string[]): RenderedEmail {
+  const body = `<p style="margin:0 0 12px">This is a test. Order alerts from ${esc(STORE_NAME)} reach this inbox.</p>
+<p style="margin:0;color:#374151;font-size:14px">Alerts are sent to: ${recipients.map((r) => esc(r)).join(', ')}</p>
+${button('Open the admin panel', storeLink('/admin/orders'))}`;
+  return { subject: `Test: order alerts - ${STORE_NAME}`, html: layout('Order alerts are working', body) };
+}

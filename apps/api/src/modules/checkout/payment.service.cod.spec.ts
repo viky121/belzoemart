@@ -55,6 +55,8 @@ describe('PaymentService.confirmCodOrder', () => {
       ['shipments', 'order.confirmed', { orderId: 'o1' }],
       ['notifications', 'order.confirmed', { orderId: 'o1' }],
       ['invoices', 'order.confirmed', { orderId: 'o1' }],
+      // The shop's new-order email.
+      ['admin-alerts', 'order.alert', { orderId: 'o1', event: 'new_order' }],
     ]);
   });
 
@@ -69,7 +71,7 @@ describe('PaymentService.confirmCodOrder', () => {
     expect(await svc.confirmCodOrder('o1')).toBe(true);
     expect(await svc.confirmCodOrder('o1')).toBe(false);
     expect(inventory.confirmSale).toHaveBeenCalledTimes(2);
-    expect(queue.enqueue).toHaveBeenCalledTimes(3);
+    expect(queue.enqueue).toHaveBeenCalledTimes(4); // shipments, notifications, invoices, shop alert: once each
   });
 
   it('leaves an online order alone: it is confirmed by its payment', async () => {

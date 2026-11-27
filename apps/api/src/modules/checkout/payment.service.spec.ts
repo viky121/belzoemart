@@ -245,7 +245,7 @@ describe('PaymentService — cart clear on capture (A4)', () => {
     const res = await svc.handleWebhook(webhook('evt_4', 'payment.captured'), 'sig');
     expect(res).toEqual({ status: 'processed' });
     expect(store.payments[0]!.status).toBe('captured');
-    expect(queue.enqueue).toHaveBeenCalledTimes(3);
+    expect(queue.enqueue).toHaveBeenCalledTimes(4); // shipments, notifications, invoices, shop alert
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('Cart clear failed for order o1'));
   });
 });

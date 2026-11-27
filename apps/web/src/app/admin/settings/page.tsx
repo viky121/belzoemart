@@ -9,6 +9,7 @@ import { SmsGatewayCard } from './sms-gateway-card';
 import { PickupSettingsCard } from './pickup-settings-card';
 import { TrackingSettingsCard } from './tracking-settings-card';
 import { TrackingServerCard } from './tracking-server-card';
+import { OrderAlertsCard } from './order-alerts-card';
 
 type Settings = Record<string, unknown>;
 
@@ -187,6 +188,7 @@ export default function AdminSettingsPage() {
       <PickupSettingsCard settings={settings} onSave={save} />
       <TrackingSettingsCard settings={settings} onSave={save} />
       <TrackingServerCard settings={settings} />
+      <OrderAlertsCard settings={settings} onSave={save} />
       <div className="admin-form">
         <h2>Store settings</h2>
         {EDITABLE.map((f) => {

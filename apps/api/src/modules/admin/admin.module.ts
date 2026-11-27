@@ -9,6 +9,7 @@ import { PublicSettingsController } from './public-settings.controller';
 import { AdminMobileHomeController } from './admin-mobile-home.controller';
 import { HomeDesignController } from './home-design.controller';
 import { HomeDesignService } from './home-design.service';
+import { AdminAlertsController } from './admin-alerts.controller';
 
 /**
  * Admin module (U7): reporting, settings, and audit log. The domain management
@@ -17,7 +18,7 @@ import { HomeDesignService } from './home-design.service';
  * AuditLogService for other modules to record admin actions.
  */
 @Module({
-  controllers: [AdminController, ReportsController, AdminMobileHomeController, HomeDesignController, PublicSettingsController],
+  controllers: [AdminController, ReportsController, AdminMobileHomeController, HomeDesignController, PublicSettingsController, AdminAlertsController],
   providers: [ReportingService, ReportsService, SettingsService, AuditLogService, HomeDesignService],
   exports: [AuditLogService, SettingsService],
 })

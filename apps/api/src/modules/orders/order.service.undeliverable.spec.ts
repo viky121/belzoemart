@@ -126,7 +126,11 @@ describe('OrderService.cancel tells the delivery module (BR-D58)', () => {
   it('queues order.cancelled on the delivery queue', async () => {
     const { svc, enqueued } = build(cancellable());
     await svc.cancel('o1', { isAdmin: true }, 'stock problem');
-    expect(enqueued).toEqual([{ queue: QUEUES.DELIVERY, name: 'order.cancelled', data: { orderId: 'o1' } }]);
+    expect(enqueued).toEqual([
+      { queue: QUEUES.DELIVERY, name: 'order.cancelled', data: { orderId: 'o1' } },
+      // The shop's cancellation email.
+      { queue: QUEUES.ADMIN_ALERTS, name: 'order.alert', data: { orderId: 'o1', event: 'cancelled', by: 'admin', reason: 'stock problem' } },
+    ]);
   });
 
   it('still cancels when the queue is down', async () => {
