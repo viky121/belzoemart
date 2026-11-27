@@ -30,36 +30,31 @@ export class ReportingService {
     OrderStatus.delivered,
   ];
 
-  /** Dashboard KPIs (BR-1). */
+  /**
+   * Dashboard KPIs (BR-1), all-time: revenue and orders count every order that was paid or is being fulfilled
+   * (not pending, cancelled or returned), and customers are everyone who has registered. The sales chart below the
+   * cards is the place for "last 7 / 30 days".
+   */
   async dashboard() {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const [todayOrders, pendingOrders, newCustomers, lowStock, revenueAgg] = await Promise.all([
-      this.prisma.order.findMany({
-        where: { createdAt: { gte: startOfDay }, status: { in: this.revenueStatuses } },
-        select: { grandTotal: true },
-      }),
+    const [pendingOrders, totalCustomers, lowStock, revenueAgg] = await Promise.all([
       this.prisma.order.count({ where: { status: 'pending' } }),
-      this.prisma.customer.count({ where: { createdAt: { gte: startOfDay } } }),
+      this.prisma.customer.count(),
       this.prisma.inventory.count({ where: { available: { lte: 5 } } }),
       this.prisma.order.aggregate({
-        where: { createdAt: { gte: startOfDay }, status: { in: this.revenueStatuses } },
+        where: { status: { in: this.revenueStatuses } },
         _sum: { grandTotal: true },
         _count: true,
       }),
     ]);
-
     const revenue = revenueAgg._sum?.grandTotal ?? 0;
     const orders = typeof revenueAgg._count === 'number' ? revenueAgg._count : 0;
     return {
-      todayRevenue: revenue,
-      todayOrders: orders,
+      totalRevenue: revenue,
+      totalOrders: orders,
       aov: averageOrderValue(revenue, orders),
-      newCustomers,
+      totalCustomers,
       pendingOrders,
       lowStockCount: lowStock,
-      _todayOrderCount: todayOrders.length,
     };
   }
 

@@ -8,10 +8,10 @@ import { SalesChart } from './sales-chart';
 import { formatInr } from '@/lib/catalogue-api';
 
 interface Dashboard {
-  todayRevenue: number;
-  todayOrders: number;
+  totalRevenue: number;
+  totalOrders: number;
   aov: number;
-  newCustomers: number;
+  totalCustomers: number;
   pendingOrders: number;
   lowStockCount: number;
 }
@@ -45,16 +45,16 @@ export default function AdminDashboardPage() {
   if (!data) return null;
 
   const kpis = [
-    { label: "Today's Revenue", value: formatInr(data.todayRevenue), icon: '₹', tone: 'a', testid: 'kpi-revenue' },
-    { label: "Today's Orders", value: String(data.todayOrders), icon: '🧾', tone: 'b', testid: 'kpi-orders' },
+    { label: 'Total Revenue', value: formatInr(data.totalRevenue), icon: '₹', tone: 'a', testid: 'kpi-revenue' },
+    { label: 'Total Orders', value: String(data.totalOrders), icon: '🧾', tone: 'b', testid: 'kpi-orders' },
     { label: 'Average Order Value', value: formatInr(data.aov), icon: '📊', tone: 'c', testid: 'kpi-aov' },
-    { label: 'New Customers Today', value: String(data.newCustomers), icon: '👤', tone: 'd', testid: 'kpi-new-customers' },
+    { label: 'Total Customers', value: String(data.totalCustomers), icon: '👤', tone: 'd', testid: 'kpi-customers' },
   ];
 
   return (
     <div data-testid="admin-dashboard">
       <h1>Dashboard</h1>
-      <p className="admin-subtitle">Welcome back — here&apos;s how your store is doing today.</p>
+      <p className="admin-subtitle">Welcome back — here&apos;s how your store is doing overall (all time).</p>
 
       <div className="dash-kpis">
         {kpis.map((k) => (
