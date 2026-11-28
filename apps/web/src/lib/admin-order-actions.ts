@@ -54,3 +54,17 @@ export function pickupHint(status: string, fulfilment?: string | null, atShop = 
   if (status === 'confirmed') return 'Pack the order, then press Ready for pickup. The customer is told.';
   return null;
 }
+
+/** sessionStorage key: the admin Orders list URL (tab, search, page) the admin last looked at. */
+export const ORDERS_LIST_KEY = 'belzo.admin.orders.list';
+
+/** Where "← Orders" on an order page goes: back to the list page the admin came from, if we know it. */
+export function ordersListHref(): string {
+  try {
+    const saved = sessionStorage.getItem(ORDERS_LIST_KEY);
+    if (saved && saved.startsWith('/admin/orders')) return saved;
+  } catch {
+    // storage blocked
+  }
+  return '/admin/orders';
+}

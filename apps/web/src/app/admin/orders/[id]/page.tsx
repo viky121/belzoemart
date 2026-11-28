@@ -16,7 +16,7 @@ import {
   type PickupInfo,
 } from '@belzo/shared';
 import { fetchPickupInfo } from '@/lib/pickup-api';
-import { nextStep, pendingAction, pickupHint } from '@/lib/admin-order-actions';
+import { nextStep, ordersListHref, pendingAction, pickupHint } from '@/lib/admin-order-actions';
 import { isUsableImageUrl, placeholderImage } from '@/lib/category-theme';
 
 interface AdminItem {
@@ -140,6 +140,8 @@ function variantText(attributes: Record<string, string>): string {
 /** Admin order detail (FR-9): customer, address, items, payment, tracking, returns. */
 export default function AdminOrderDetailPage() {
   const params = useParams<{ id: string }>();
+  const [backHref, setBackHref] = useState('/admin/orders');
+  useEffect(() => setBackHref(ordersListHref()), []);
   const id = params?.id;
   const [order, setOrder] = useState<AdminOrderDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -212,7 +214,7 @@ export default function AdminOrderDetailPage() {
   if (loading && !order) {
     return (
       <div data-testid="admin-order-detail">
-        <Link href="/admin/orders" className="aod-back">← Orders</Link>
+        <Link href={backHref} className="aod-back">← Orders</Link>
         <p className="admin-subtitle">Loading order…</p>
       </div>
     );
@@ -221,7 +223,7 @@ export default function AdminOrderDetailPage() {
   if (error || !order) {
     return (
       <div data-testid="admin-order-detail">
-        <Link href="/admin/orders" className="aod-back">← Orders</Link>
+        <Link href={backHref} className="aod-back">← Orders</Link>
         <section className="admin-card">
           <div className="admin-empty">{error ?? 'Order not found.'}</div>
         </section>
@@ -235,7 +237,7 @@ export default function AdminOrderDetailPage() {
 
   return (
     <div data-testid="admin-order-detail">
-      <Link href="/admin/orders" className="aod-back">← Orders</Link>
+      <Link href={backHref} className="aod-back">← Orders</Link>
 
       <div className="admin-card__head">
         <div>

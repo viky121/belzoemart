@@ -14,7 +14,7 @@ import {
   pickPayment,
   type PaymentLike,
 } from '@belzo/shared';
-import { canCreateShipment, nextStep, pendingAction } from '@/lib/admin-order-actions';
+import { canCreateShipment, nextStep, ORDERS_LIST_KEY, pendingAction } from '@/lib/admin-order-actions';
 
 interface AdminOrder {
   id: string;
@@ -70,8 +70,36 @@ export default function AdminOrdersPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [testOnly, setTestOnly] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
+  // The tab, search and page live in the URL, so opening an order and coming back lands on the same page.
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const p = Number(sp.get('page'));
+    if (Number.isInteger(p) && p > 1) setPage(p);
+    const st = sp.get('status');
+    if (st && TABS.some((t) => t.key === st)) setStatus(st);
+    if (sp.get('q')) setQ(sp.get('q') ?? '');
+    if (sp.get('test') === 'only') setTestOnly(true);
+    setReady(true);
+  }, []);
+  useEffect(() => {
+    if (!ready) return;
+    const sp = new URLSearchParams();
+    if (testOnly) sp.set('test', 'only');
+    else if (status) sp.set('status', status);
+    if (q.trim()) sp.set('q', q.trim());
+    if (page > 1) sp.set('page', String(page));
+    const url = `/admin/orders${sp.toString() ? `?${sp.toString()}` : ''}`;
+    window.history.replaceState(window.history.state, '', url);
+    try {
+      sessionStorage.setItem(ORDERS_LIST_KEY, url);
+    } catch {
+      // storage blocked: the back link falls back to the first page
+    }
+  }, [ready, status, q, page, testOnly]);
 
   const load = useCallback(async () => {
+    if (!ready) return;
     const params = new URLSearchParams({ page: String(page) });
     if (status) params.set('status', status);
     if (q.trim()) params.set('q', q.trim());
@@ -84,7 +112,7 @@ export default function AdminOrdersPage() {
         pageSize: 20,
       })),
     );
-  }, [status, q, page, testOnly]);
+  }, [ready, status, q, page, testOnly]);
 
   useEffect(() => {
     void load();
