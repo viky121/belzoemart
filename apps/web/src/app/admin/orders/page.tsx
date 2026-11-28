@@ -28,6 +28,7 @@ interface AdminOrder {
   pickupSlotStart?: string | null;
   pickupSlotEnd?: string | null;
   isTest?: boolean;
+  customer?: { id: string; name: string; phone: string | null } | null;
 }
 interface Paged {
   testCount?: number;
@@ -219,6 +220,7 @@ export default function AdminOrdersPage() {
                     />
                   </th>
                   <th>Order</th>
+                  <th>Customer</th>
                   <th>Placed</th>
                   <th>Payment</th>
                   <th>Status</th>
@@ -258,6 +260,16 @@ export default function AdminOrdersPage() {
                               <span className="aol-sub">{formatPickupSlot(o.pickupSlotStart, o.pickupSlotEnd) ?? ''}</span>
                             </span>
                           )}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="aol-cell" data-testid={`customer-${o.id}`}>
+                          {o.customer ? (
+                            <span className="aol-customer">{o.customer.name || 'Customer'}</span>
+                          ) : (
+                            <span className="admin-muted">—</span>
+                          )}
+                          {o.customer?.phone && <span className="aol-sub">{o.customer.phone}</span>}
                         </div>
                       </td>
                       <td>

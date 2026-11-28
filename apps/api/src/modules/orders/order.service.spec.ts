@@ -285,7 +285,7 @@ describe('OrderService.getForCustomer — detail payload', () => {
         count: async () => 1,
       },
       address: { findUnique: async () => null },
-      customer: { findUnique: async () => null },
+      customer: { findUnique: async () => null, findMany: async () => [] },
       variant: { findMany: async () => [] },
     } as unknown as PrismaService;
     const svc = new OrderService(prisma, {} as InventoryService, {} as PaymentService, {} as CartService, {} as FulfilmentService, noQueue);

@@ -285,7 +285,29 @@ export class OrderService {
       this.prisma.order.count({ where }),
       this.prisma.order.count({ where: { isTest: true } }),
     ]);
-    return { items: rows.map((r) => ({ ...r, items: r.items.map(withoutCost) })), total, page, pageSize, testCount };
+    // Who placed each order: Order has no Prisma relation to Customer, so look them up in one query.
+    const customerIds = [...new Set(rows.map((r) => r.customerId))];
+    const customers = customerIds.length
+      ? await this.prisma.customer.findMany({
+          where: { id: { in: customerIds } },
+          select: { id: true, name: true, phone: true },
+        })
+      : [];
+    const byId = new Map(customers.map((c) => [c.id, c]));
+    return {
+      items: rows.map((r) => {
+        const c = byId.get(r.customerId);
+        return {
+          ...r,
+          items: r.items.map(withoutCost),
+          customer: c ? { id: c.id, name: c.name, phone: c.phone } : null,
+        };
+      }),
+      total,
+      page,
+      pageSize,
+      testCount,
+    };
   }
 
   /**
