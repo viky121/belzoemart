@@ -31,10 +31,9 @@ export class PostgresSearchProvider implements SearchProvider {
       variants: { some: { isActive: true } },
     };
     if (term) {
-      where.OR = [
-        { title: { contains: term, mode: 'insensitive' } },
-        { description: { contains: term, mode: 'insensitive' } },
-      ];
+      // Title only: every word typed must appear in the product title.
+      const words = term.split(/\s+/).filter(Boolean).slice(0, 6);
+      where.AND = words.map((w) => ({ title: { contains: w, mode: 'insensitive' } }));
     }
     if (query.categoryId) where.categoryId = query.categoryId;
     if (query.brandId) where.brandId = query.brandId;
