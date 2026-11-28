@@ -52,10 +52,10 @@ export class AdminCustomerService {
     const ids = rows.map((r) => r.id);
     const [counts, spends] = ids.length
       ? await Promise.all([
-          this.prisma.order.groupBy({ by: ['customerId'], where: { customerId: { in: ids } }, _count: { _all: true } }),
+          this.prisma.order.groupBy({ by: ['customerId'], where: { customerId: { in: ids }, isTest: false }, _count: { _all: true } }),
           this.prisma.order.groupBy({
             by: ['customerId'],
-            where: { customerId: { in: ids }, status: { in: REVENUE_STATUSES } },
+            where: { customerId: { in: ids }, status: { in: REVENUE_STATUSES }, isTest: false },
             _sum: { grandTotal: true },
           }),
         ])

@@ -20,6 +20,8 @@ const cancelSchema = z.object({ reason: z.string().trim().min(1).max(300) });
 class AdminCancelDto extends createZodDto(cancelSchema) {}
 
 const returnUpdateSchema = z.object({ status: z.enum(['approved', 'picked', 'received', 'rejected']) });
+const markTestSchema = z.object({ ids: z.array(z.string().uuid()).min(1).max(200), isTest: z.boolean() });
+class MarkTestDto extends createZodDto(markTestSchema) {}
 class ReturnUpdateDto extends createZodDto(returnUpdateSchema) {}
 
 /**
@@ -47,13 +49,23 @@ export class AdminOrdersController {
     @Query('page') page?: string,
     @Query('q') q?: string,
     @Query('pageSize') pageSize?: string,
+    @Query('test') test?: string,
   ) {
     return this.orders.adminList({
+      test: test === 'only' || test === 'all' ? test : 'hide',
       status: status as never,
       q,
       page: page ? Number(page) : 1,
       pageSize: pageSize ? Number(pageSize) : undefined,
     });
+  }
+
+  /** Flag (or unflag) orders as test orders: kept with their invoices, but left out of reports and the dashboard. */
+  @Post('mark-test')
+  async markTest(@CurrentUser() user: JwtPrincipal, @Body() dto: MarkTestDto) {
+    const res = await this.orders.setTest(dto.ids, dto.isTest);
+    await this.audit.record(user.sub, 'order.mark_test', dto.ids[0], undefined, { ids: dto.ids, isTest: dto.isTest });
+    return res;
   }
 
   @Patch(':id/status')

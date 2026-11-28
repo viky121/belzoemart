@@ -115,8 +115,10 @@ export class OrderService {
         : null;
     const tracking = reconcileTracking({ order, shipments: order.shipments });
     const shipmentStatus = new Map(tracking.shipments.map((s) => [s.id, s.status]));
+    const { isTest: _isTest, ...customerOrder } = order;
+    void _isTest;
     return {
-      ...order,
+      ...customerOrder,
       address,
       items: order.items.map((i) => {
         const m = meta.get(i.variantId);
@@ -252,15 +254,27 @@ export class OrderService {
     }));
   }
 
-  async adminList(query: { status?: OrderStatus; page?: number; pageSize?: number; q?: string }) {
+  /**
+   * Admin order list. Orders marked as test are hidden by default (`test: 'hide'`); `'only'` lists just the test
+   * orders and `'all'` mixes them in. `testCount` is how many test orders exist, whatever the other filters are.
+   */
+  async adminList(query: {
+    status?: OrderStatus;
+    page?: number;
+    pageSize?: number;
+    q?: string;
+    test?: 'hide' | 'only' | 'all';
+  }) {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
     const q = query.q?.trim();
+    const test = query.test ?? 'hide';
     const where = {
       ...(query.status ? { status: query.status } : {}),
       ...(q ? { id: { contains: q, mode: 'insensitive' as const } } : {}),
+      ...(test === 'hide' ? { isTest: false } : test === 'only' ? { isTest: true } : {}),
     };
-    const [rows, total] = await Promise.all([
+    const [rows, total, testCount] = await Promise.all([
       this.prisma.order.findMany({
         where,
         include: { items: true, payments: true },
@@ -269,8 +283,23 @@ export class OrderService {
         take: pageSize,
       }),
       this.prisma.order.count({ where }),
+      this.prisma.order.count({ where: { isTest: true } }),
     ]);
-    return { items: rows.map((r) => ({ ...r, items: r.items.map(withoutCost) })), total, page, pageSize };
+    return { items: rows.map((r) => ({ ...r, items: r.items.map(withoutCost) })), total, page, pageSize, testCount };
+  }
+
+  /**
+   * Mark orders as test (or put them back). The order, its payments and its invoice stay exactly as they are
+   * (the invoice number stays used); the order is only left out of the dashboard, the sales reports and a customer's
+   * order totals. Returns how many orders actually changed.
+   */
+  async setTest(ids: string[], isTest: boolean): Promise<{ changed: number }> {
+    const unique = [...new Set(ids)];
+    const res = await this.prisma.order.updateMany({
+      where: { id: { in: unique }, isTest: !isTest },
+      data: { isTest },
+    });
+    return { changed: res.count };
   }
 
   /** Validated state transition (BR-1). */

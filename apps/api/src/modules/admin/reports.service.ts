@@ -162,10 +162,15 @@ export class ReportsService {
     return { createdAt: { gte: range.start, lte: range.end } };
   }
 
+  /** Orders staff marked as test / dummy are left out of every sales figure. */
+  private realOrders(range: ReportRange) {
+    return { ...this.dateWhere(range), isTest: false };
+  }
+
   /** Sales orders of the period with their lines (GST, discount share and cost worked out). */
   private async loadSales(range: ReportRange): Promise<LoadedSales> {
     const orders = await this.prisma.order.findMany({
-      where: { ...this.dateWhere(range), status: { in: REVENUE_STATUSES } },
+      where: { ...this.realOrders(range), status: { in: REVENUE_STATUSES } },
       select: {
         id: true,
         customerId: true,
@@ -225,7 +230,7 @@ export class ReportsService {
 
     // Units given back through refunded returns, per order item.
     const returned = await this.prisma.returnItem.findMany({
-      where: { returnRequest: { status: 'refunded', order: { ...this.dateWhere(range), status: { in: REVENUE_STATUSES } } } },
+      where: { returnRequest: { status: 'refunded', order: { ...this.realOrders(range), status: { in: REVENUE_STATUSES } } } },
       select: { orderItemId: true, quantity: true },
     });
     const returnedQty = new Map<string, number>();
@@ -263,7 +268,7 @@ export class ReportsService {
     const refunds = lines.reduce((s, l) => s + refundedExTax(l), 0);
 
     const cancelled = await this.prisma.order.aggregate({
-      where: { ...this.dateWhere(range), status: { in: [OrderStatus.cancelled, OrderStatus.returned] } },
+      where: { ...this.realOrders(range), status: { in: [OrderStatus.cancelled, OrderStatus.returned] } },
       _count: true,
       _sum: { grandTotal: true },
     });
@@ -319,7 +324,7 @@ export class ReportsService {
 
   private async ordersReport(range: ReportRange, q: ReportQuery, all: boolean): Promise<ReportResponse> {
     const status = (Object.values(OrderStatus) as string[]).includes(q.status ?? '') ? (q.status as OrderStatus) : undefined;
-    const where = { ...this.dateWhere(range), ...(status ? { status } : {}) };
+    const where = { ...this.realOrders(range), ...(status ? { status } : {}) };
     const page = Math.max(1, Math.trunc(q.page ?? 1));
     const paging: { skip?: number; take: number } = all
       ? { take: MAX_REPORT_ORDERS }
@@ -328,7 +333,7 @@ export class ReportsService {
     const [byStatus, total, found] = await Promise.all([
       this.prisma.order.groupBy({
         by: ['status'],
-        where: this.dateWhere(range),
+        where: this.realOrders(range),
         _count: true,
         _sum: { grandTotal: true },
       }),
@@ -611,7 +616,7 @@ export class ReportsService {
 
   private async payments(range: ReportRange): Promise<ReportResponse> {
     const rows = await this.prisma.payment.findMany({
-      where: this.dateWhere(range),
+      where: { ...this.dateWhere(range), order: { isTest: false } },
       select: { provider: true, method: true, status: true, amount: true },
       take: MAX_REPORT_ORDERS + 1,
     });

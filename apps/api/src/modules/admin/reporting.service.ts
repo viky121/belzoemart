@@ -37,11 +37,11 @@ export class ReportingService {
    */
   async dashboard() {
     const [pendingOrders, totalCustomers, lowStock, revenueAgg] = await Promise.all([
-      this.prisma.order.count({ where: { status: 'pending' } }),
+      this.prisma.order.count({ where: { status: 'pending', isTest: false } }),
       this.prisma.customer.count(),
       this.prisma.inventory.count({ where: { available: { lte: 5 } } }),
       this.prisma.order.aggregate({
-        where: { status: { in: this.revenueStatuses } },
+        where: { status: { in: this.revenueStatuses }, isTest: false },
         _sum: { grandTotal: true },
         _count: true,
       }),
@@ -62,7 +62,7 @@ export class ReportingService {
   async sales(r: DateRange) {
     const orders = await this.prisma.order.groupBy({
       by: ['status'],
-      where: { ...this.range(r) },
+      where: { ...this.range(r), isTest: false },
       _sum: { grandTotal: true },
       _count: true,
     });
@@ -76,7 +76,7 @@ export class ReportingService {
     start.setHours(0, 0, 0, 0);
     start.setDate(start.getDate() - (n - 1));
     const orders = await this.prisma.order.findMany({
-      where: { createdAt: { gte: start }, status: { in: this.revenueStatuses } },
+      where: { createdAt: { gte: start }, status: { in: this.revenueStatuses }, isTest: false },
       select: { grandTotal: true, createdAt: true },
     });
     const buckets = new Map<string, { revenue: number; orders: number }>();
@@ -99,7 +99,7 @@ export class ReportingService {
   /** GST/HSN summary from order-item snapshots (BR-3, NFR-2.1). */
   async gst(r: DateRange) {
     const orders = await this.prisma.order.findMany({
-      where: { ...this.range(r), status: { in: this.revenueStatuses } },
+      where: { ...this.range(r), status: { in: this.revenueStatuses }, isTest: false },
       select: { cgst: true, sgst: true, igst: true, tax: true, items: { select: { taxRatePct: true } } },
     });
     const byRate = new Map<number, { taxableRate: number; tax: number; orders: number }>();
@@ -144,6 +144,7 @@ export class ReportingService {
   /** Payments ledger (admin): recent payments across orders + settlement totals. */
   async payments() {
     const rows = await this.prisma.payment.findMany({
+      where: { order: { isTest: false } },
       orderBy: { createdAt: 'desc' },
       take: 300,
     });
@@ -170,6 +171,7 @@ export class ReportingService {
     const totalCustomers = await this.prisma.customer.count();
     const repeat = await this.prisma.order.groupBy({
       by: ['customerId'],
+      where: { isTest: false },
       _count: true,
       having: { customerId: { _count: { gt: 1 } } },
     });

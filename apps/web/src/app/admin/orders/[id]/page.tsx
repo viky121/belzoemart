@@ -94,6 +94,7 @@ interface AdminReturn {
 }
 interface AdminOrderDetail {
   id: string;
+  isTest?: boolean;
   status: string;
   fulfilment?: 'delivery' | 'pickup';
   pickupSlotStart?: string | null;
@@ -184,6 +185,15 @@ export default function AdminOrderDetailPage() {
       setStepping(false);
     }
   }
+  async function toggleTest() {
+    if (!id || !order) return;
+    try {
+      await adminFetch('/admin/orders/mark-test', { method: 'POST', body: { ids: [id], isTest: !order.isTest } });
+      await load();
+    } catch (e) {
+      setConfirmMsg(`Could not update: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
   /** A pending Cash on Delivery order has nothing to wait for: the admin confirms it by hand. */
   async function confirmCod() {
     if (!id) return;
@@ -232,9 +242,15 @@ export default function AdminOrderDetailPage() {
           <h1 style={{ margin: 0 }}>Order #{order.id.slice(0, 8).toUpperCase()}</h1>
           <p className="admin-subtitle" style={{ margin: '4px 0 0' }}>Placed on {fmtDate(order.createdAt)}</p>
         </div>
-        <span className={`admin-status admin-status--plain admin-status--${statusView.tone}`} data-testid="aod-status">
-          {statusView.label}
-        </span>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {order.isTest && <span className="admin-status admin-status--warn" data-testid="aod-test-badge">Test order</span>}
+          <span className={`admin-status admin-status--plain admin-status--${statusView.tone}`} data-testid="aod-status">
+            {statusView.label}
+          </span>
+          <button className="aol-btn" onClick={toggleTest} data-testid="aod-toggle-test">
+            {order.isTest ? 'Put back as real order' : 'Mark as test order'}
+          </button>
+        </div>
       </div>
 
       {isPickup && (

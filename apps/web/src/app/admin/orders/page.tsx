@@ -27,8 +27,10 @@ interface AdminOrder {
   fulfilment?: 'delivery' | 'pickup';
   pickupSlotStart?: string | null;
   pickupSlotEnd?: string | null;
+  isTest?: boolean;
 }
 interface Paged {
+  testCount?: number;
   items: AdminOrder[];
   total: number;
   page: number;
@@ -65,11 +67,14 @@ export default function AdminOrdersPage() {
   const [page, setPage] = useState(1);
   const [msg, setMsg] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [testOnly, setTestOnly] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     const params = new URLSearchParams({ page: String(page) });
     if (status) params.set('status', status);
     if (q.trim()) params.set('q', q.trim());
+    if (testOnly) params.set('test', 'only');
     setData(
       await adminFetch<Paged>(`/admin/orders?${params.toString()}`).catch(() => ({
         items: [],
@@ -78,12 +83,26 @@ export default function AdminOrdersPage() {
         pageSize: 20,
       })),
     );
-  }, [status, q, page]);
+  }, [status, q, page, testOnly]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  async function markTest(isTest: boolean) {
+    if (selected.length === 0) return;
+    try {
+      const res = await adminFetch<{ changed: number }>('/admin/orders/mark-test', {
+        method: 'POST',
+        body: { ids: selected, isTest },
+      });
+      setMsg(isTest ? `${res.changed} order(s) marked as test and hidden from reports` : `${res.changed} order(s) put back as real orders`);
+      setSelected([]);
+      void load();
+    } catch (e) {
+      setMsg(`Could not update: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
   async function advance(o: AdminOrder) {
     const step = nextStep(o.status, o.fulfilment);
     if (!step) return;
@@ -141,15 +160,29 @@ export default function AdminOrdersPage() {
         {TABS.map((t) => (
           <button
             key={t.key || 'all'}
-            className={`admin-tab${status === t.key ? ' is-on' : ''}`}
+            className={`admin-tab${!testOnly && status === t.key ? ' is-on' : ''}`}
             onClick={() => {
+              setTestOnly(false);
               setStatus(t.key);
               setPage(1);
+              setSelected([]);
             }}
           >
             {t.label}
           </button>
         ))}
+        <button
+          className={`admin-tab${testOnly ? ' is-on' : ''}`}
+          data-testid="orders-tab-test"
+          onClick={() => {
+            setTestOnly(true);
+            setStatus('');
+            setPage(1);
+            setSelected([]);
+          }}
+        >
+          Test orders{data.testCount ? ` (${data.testCount})` : ''}
+        </button>
       </div>
       <div className="aol-toolbar">
         <input
@@ -163,6 +196,11 @@ export default function AdminOrdersPage() {
           data-testid="orders-search"
         />
         <span className="admin-muted">{data.total} {data.total === 1 ? 'order' : 'orders'}</span>
+        {selected.length > 0 && (
+          <button className="aol-btn" onClick={() => markTest(!testOnly)} data-testid="orders-mark-test">
+            {testOnly ? `Put back ${selected.length} as real` : `Mark ${selected.length} as test`}
+          </button>
+        )}
       </div>
       <section className="admin-card aol-card">
         {data.items.length === 0 ? (
@@ -172,6 +210,14 @@ export default function AdminOrdersPage() {
             <table className="admin-table aol-table" data-testid="orders-table">
               <thead>
                 <tr>
+                  <th>
+                    <input
+                      type="checkbox"
+                      aria-label="Select all"
+                      checked={data.items.length > 0 && selected.length === data.items.length}
+                      onChange={(e) => setSelected(e.target.checked ? data.items.map((x) => x.id) : [])}
+                    />
+                  </th>
                   <th>Order</th>
                   <th>Placed</th>
                   <th>Payment</th>
@@ -192,10 +238,20 @@ export default function AdminOrdersPage() {
                   return (
                     <tr key={o.id}>
                       <td>
+                        <input
+                          type="checkbox"
+                          aria-label={`Select order ${o.id.slice(0, 8)}`}
+                          checked={selected.includes(o.id)}
+                          onChange={(e) => setSelected((cur) => (e.target.checked ? [...cur, o.id] : cur.filter((x) => x !== o.id)))}
+                          data-testid={`select-${o.id}`}
+                        />
+                      </td>
+                      <td>
                         <div className="aol-cell">
                           <Link href={`/admin/orders/${o.id}`} className="aol-id" data-testid={`order-link-${o.id}`}>
                             #{o.id.slice(0, 8).toUpperCase()}
                           </Link>
+                          {o.isTest && <span className="admin-status admin-status--warn">Test</span>}
                           {o.fulfilment === 'pickup' && (
                             <span className="aol-pickup" data-testid={`pickup-tag-${o.id}`}>
                               <span className="admin-status admin-status--info">Pickup</span>
